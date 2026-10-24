@@ -1,0 +1,50 @@
+.item-container {
+  background-color: rgb(181, 222, 255);
+  width: 100%;
+  padding: 20px 40px;
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  align-items: center;
+}
+
+.month-container {
+  background-color: rgb(230, 230, 230);
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  color: black;
+  margin-right: 10px;
+  &.active {
+    background-color: rgb(87, 126, 255);
+    color: rgb(230, 233, 255);
+  }
+}
+
+.center-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.circular-icon-button {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 0 !important;
+
+  // 💡 CRITICAL: Force a perfect square aspect ratio
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important; /* Prevents Angular Material from forcing its default minimum width */
+
+  // 💡 CRITICAL: Turns the square into a perfect circle
+  border-radius: 50% !important;
+}
+
+.small-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  font-variation-settings: 'opsz' 16 !important;
+}

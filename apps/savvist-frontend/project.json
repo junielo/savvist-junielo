@@ -1,0 +1,82 @@
+{
+  "name": "savvist-frontend",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "generators": {
+    "@schematics/angular:component": {
+      "style": "scss"
+    }
+  },
+  "sourceRoot": "apps/savvist-frontend/src",
+  "prefix": "app",
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "options": {
+        "browser": "apps/savvist-frontend/src/main.ts",
+        "tsConfig": "apps/savvist-frontend/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/savvist-frontend/public"
+          }
+        ],
+        "styles": ["apps/savvist-frontend/src/styles.scss"],
+        "outputPath": "dist/savvist-frontend"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kB",
+              "maximumError": "1MB"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kB",
+              "maximumError": "8kB"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production",
+      "outputs": ["{options.outputPath}"]
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "configurations": {
+        "production": {
+          "buildTarget": "savvist-frontend:build:production"
+        },
+        "development": {
+          "buildTarget": "savvist-frontend:build:development"
+        }
+      },
+      "defaultConfiguration": "development",
+      "options": {
+        "proxyConfig": "proxy.conf.json"
+      },
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/savvist-frontend/tsconfig.spec.json"
+      }
+    },
+    "lint": {
+      "command": "eslint \"apps/savvist-frontend/**/*.ts\" \"apps/savvist-frontend/**/*.html\""
+    }
+  }
+}
