@@ -1,0 +1,14 @@
+<div class="item-container">
+  <span style="margin-right: auto; font-weight: 500; font-size: 18px;">{{ itemData().name }}</span>
+  <span style="margin-right: 10px; font-size: 16px;">PHP {{ itemData().amount | number:'1.2-2' }}</span>
+  <span style="margin-right: 10px; font-size: 16px;">{{ itemData().dayOfMonth | ordinal}}</span>
+  <div class="month-container center-item" [class.active]="itemData().hasSelMonths">
+    <mat-icon style="font-size: 16px;" class="center-item">calendar_month</mat-icon>
+  </div>
+  <button matMiniFab class="center-item">
+    <mat-icon style="font-size: 18px;" class="center-item">edit</mat-icon>
+  </button>
+  <button matMiniFab class="center-item">
+    <mat-icon style="font-size: 18px; color: rgb(255, 77, 77);" class="center-item">delete</mat-icon>
+  </button>
+</div>

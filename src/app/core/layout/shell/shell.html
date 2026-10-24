@@ -1,0 +1,42 @@
+<mat-drawer-container class="example-container">
+  <mat-drawer mode="side" #drawer opened class="drawer">
+    <div class="drawer-container">
+      <button type="button" matButton (click)="NavSelected(SELECTED_NAV.DASHBOARD)">
+        @if (router.url.includes(SELECTED_NAV.DASHBOARD)) {
+          <mat-icon>navigate_next</mat-icon>
+        }
+        Dashboard
+      </button>
+      <button type="button" matButton (click)="NavSelected(SELECTED_NAV.CHAT)">
+        @if (router.url.includes(SELECTED_NAV.CHAT)) {
+          <mat-icon>navigate_next</mat-icon>
+        }
+        Chat
+      </button>
+      <button type="button" matButton (click)="NavSelected(SELECTED_NAV.EXPENSES)">
+        @if (router.url.includes(SELECTED_NAV.EXPENSES)) {
+          <mat-icon>navigate_next</mat-icon>
+        }
+        Expenses
+      </button>
+      <button type="button" matButton (click)="NavSelected(SELECTED_NAV.WISHLIST)">
+        @if (router.url.includes(SELECTED_NAV.WISHLIST)) {
+          <mat-icon>navigate_next</mat-icon>
+        }
+        Wishlist
+      </button>
+      <button type="button" matButton (click)="NavSelected(SELECTED_NAV.RECORD_LOGS)">
+        @if (router.url.includes(SELECTED_NAV.RECORD_LOGS)) {
+          <mat-icon>navigate_next</mat-icon>
+        }
+        Record Logs
+      </button>
+    </div>
+  </mat-drawer>
+  <mat-drawer-content style="display: flex; flex-direction: column;">
+    <app-top-bar />
+    <div style="height: 100%;">
+      <router-outlet />
+    </div>
+  </mat-drawer-content>
+</mat-drawer-container>

@@ -1,0 +1,10 @@
+@use '@angular/material' as mat;
+
+.elevated-toolbar {
+  // Applies a Material shadow level 4 directly to this selector
+  @include mat.elevation(2); 
+}
+
+.example-spacer {
+  flex: 1 1 auto;
+}

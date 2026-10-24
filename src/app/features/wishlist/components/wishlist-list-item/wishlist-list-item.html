@@ -1,0 +1,21 @@
+<div class="item-container">
+  <app-basic-radial-bar
+    [value]="70"
+    [width]="25"
+    [height]="25"
+    [thickness]="4"
+    trackColor="#e0e0e0"
+    label="Savings progress" />
+  <span style="margin-right: auto; font-weight: 500; font-size: 18px;">{{ itemData().name }}</span>
+  <span style="margin-right: 10px; font-size: 16px;">PHP {{ itemData().amount | number:'1.2-2' }}</span>
+  <app-aria-select [options]="wishlistTypes" [(value)]="itemData().type"/>
+  <button matMiniFab class="center-item">
+    <mat-icon style="font-size: 18px; color: rgb(22, 108, 0);" class="center-item">check</mat-icon>
+  </button>
+  <button matMiniFab class="center-item">
+    <mat-icon style="font-size: 18px;" class="center-item">edit</mat-icon>
+  </button>
+  <button matMiniFab class="center-item">
+    <mat-icon style="font-size: 18px; color: rgb(255, 77, 77);" class="center-item">delete</mat-icon>
+  </button>
+</div>
