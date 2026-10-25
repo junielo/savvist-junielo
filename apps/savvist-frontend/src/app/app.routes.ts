@@ -14,7 +14,8 @@ export const routes: Routes = [
       },
       {
         path: 'chat',
-        loadChildren: () => import('./features/chat/chat.routes').then((m) => m.CHAT_ROUTES),
+        loadChildren: () => 
+          import('./features/chat/chat.routes').then((m) => m.CHAT_ROUTES),
       },
       {
         path: 'expenses',
