@@ -1,20 +1,11 @@
 import { ChangeDetectionStrategy, Component, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
 import { ApexGrid, ColumnConfiguration } from 'apex-grid';
+import { RecordLogListItemModel } from '../../../../../../../libs/models/record-log-list-item-model';
 
 ApexGrid.register(); // registers <apex-grid> once, before first render
 
-type RecordType = 'Expense' | 'Cash' | 'Savings' | 'Credit' | 'Wishlist';
-
-interface RecordLogRow {
-  id: string;
-  name: string;
-  amount: number;
-  recordType: RecordType;
-  date: Date;
-}
-
 // TEMPORARY: replace with the real record log store later.
-const MOCK_LOGS: RecordLogRow[] = [
+const MOCK_LOGS: RecordLogListItemModel[] = [
   { id: '1', name: 'Rent', amount: 8500, recordType: 'Expense', date: new Date('2026-10-01') },
   {
     id: '2',
@@ -97,9 +88,9 @@ const MOCK_LOGS: RecordLogRow[] = [
   templateUrl: './record-logs-page.html',
 })
 export class RecordLogsPage {
-  protected readonly rows = signal<RecordLogRow[]>(MOCK_LOGS);
+  protected readonly rows = signal<RecordLogListItemModel[]>(MOCK_LOGS);
 
-  protected readonly columns: ColumnConfiguration<RecordLogRow>[] = [
+  protected readonly columns: ColumnConfiguration<RecordLogListItemModel>[] = [
     { key: 'name', headerText: 'Name', sort: true, filter: true },
     { key: 'amount', headerText: 'Amount', type: 'number', sort: true },
     { key: 'recordType', headerText: 'Record Type', sort: true, filter: true },

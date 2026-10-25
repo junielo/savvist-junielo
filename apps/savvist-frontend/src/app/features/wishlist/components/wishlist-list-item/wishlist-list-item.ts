@@ -1,11 +1,11 @@
 import { Component, input } from '@angular/core';
-import { WishlistListItemModel } from '../../models/wishlist-list-item';
 import { DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { AriaSelect } from '../../../../shared/layout/aria-select/aria-select';
 import { BasicRadialBar } from '../../../../shared/charts/basic-radial-bar/basic-radial-bar';
-import { WishlistType } from '../../models/wishlist-type';
+import { WishlistType } from '../../../../../../../../libs/models/wishlist-type';
+import { WishlistListItemModel } from '../../../../../../../../libs/models/wishlist-list-item';
 
 @Component({
   imports: [DecimalPipe, MatIconModule, MatButtonModule, AriaSelect, BasicRadialBar],

@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { WishlistListItemModel } from '../models/wishlist-list-item';
-import { WishlistType } from '../models/wishlist-type';
 import { MatDividerModule } from '@angular/material/divider';
 import { WishlistListItem } from '../components/wishlist-list-item/wishlist-list-item';
+import { WishlistListItemModel } from '../../../../../../../libs/models/wishlist-list-item';
+import { WishlistType } from '../../../../../../../libs/models/wishlist-type';
 
 @Component({
   imports: [MatIconModule, MatButtonModule, MatDividerModule, WishlistListItem],
