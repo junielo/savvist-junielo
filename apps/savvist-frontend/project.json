@@ -22,7 +22,9 @@
             "input": "apps/savvist-frontend/public"
           }
         ],
-        "styles": ["apps/savvist-frontend/src/styles.scss"],
+        "styles": [
+          "apps/savvist-frontend/src/styles.scss"
+        ],
         "outputPath": "dist/savvist-frontend"
       },
       "configurations": {
@@ -48,7 +50,9 @@
         }
       },
       "defaultConfiguration": "production",
-      "outputs": ["{options.outputPath}"]
+      "outputs": [
+        "{options.outputPath}"
+      ]
     },
     "serve": {
       "executor": "@angular/build:dev-server",
@@ -62,6 +66,7 @@
       },
       "defaultConfiguration": "development",
       "options": {
+        "port": 4200,
         "proxyConfig": "proxy.conf.json"
       },
       "continuous": true,

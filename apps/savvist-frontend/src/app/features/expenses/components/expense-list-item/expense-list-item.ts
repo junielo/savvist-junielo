@@ -1,9 +1,9 @@
 import { Component, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { ExpenseListItemModel } from '../../../../../../../../libs/models/expense-list-tem';
 import { DecimalPipe } from '@angular/common';
 import { OrdinalPipe } from '../../../../shared/pipes/ordinal-pipe';
+import { ExpenseListItemModel } from '../../models/expense-list-tem'
 
 @Component({
   imports: [MatIconModule, MatButtonModule, DecimalPipe, OrdinalPipe],

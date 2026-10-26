@@ -3,17 +3,21 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { NavigationEnd, Router } from '@angular/router';
+import { DecimalPipe } from '@angular/common';
 import { filter, map } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { UserService } from '../../services/user.service';
 
 @Component({
-  imports: [MatToolbarModule, MatButtonModule, MatIconModule],
+  imports: [MatToolbarModule, MatButtonModule, MatIconModule, DecimalPipe],
   selector: 'app-top-bar',
   styleUrl: './top-bar.scss',
   templateUrl: './top-bar.html',
 })
 export class TopBar {
   private readonly router = inject(Router);
+  private readonly userService = inject(UserService);
+  protected readonly user = this.userService.user;
 
   protected readonly pageTitle = toSignal(
     this.router.events.pipe(

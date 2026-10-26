@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
 import { ApexGrid, ColumnConfiguration } from 'apex-grid';
-import { RecordLogListItemModel } from '../../../../../../../libs/models/record-log-list-item-model';
+import { RecordLogListItemModel } from '../models/record-log-list-item-model';
 
 ApexGrid.register(); // registers <apex-grid> once, before first render
 

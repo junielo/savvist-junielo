@@ -51,7 +51,7 @@ Savvist helps one user answer: *how much money do I have, how much can I spend t
 |---|---|
 | Framework | **NestJS 11** |
 | Language | TypeScript 6 (strict mode) |
-| Database | MongoDB (ODM via Mongoose planned) |
+| Database | **MongoDB** (ODM via **Mongoose**) |
 | Architecture | Modular REST API under `/api` |
 | Testing | Jest |
 
@@ -127,5 +127,5 @@ src/app/
 
 ## 6. Current status
 
-- **Done:** Nx monorepo setup, Angular 22 frontend feature implementation (`dashboard`, `chat`, `expenses`, `wishlist`, `record-logs`, shell layout, shared primitives, Vitest testing setup), and NestJS backend scaffolding (`savvist-backend`).
-- **In progress / Next steps:** Implementing backend REST API endpoints, Mongoose models, database seed scripts, and connecting Angular HTTP services to the NestJS backend.
+- **Done:** Nx monorepo setup, Angular 22 frontend feature implementation (`dashboard`, `chat`, `expenses`, `wishlist`, `record-logs`, shell layout, shared primitives, Vitest testing setup), and complete NestJS backend implementation (`savvist-backend`) including Mongoose schemas/models, REST API controllers, services, transaction management, and comprehensive Jest unit tests.
+- **Next steps:** Production deployment hardening and end-to-end integration testing.

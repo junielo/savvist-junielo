@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { ExpenseListItem } from '../components/expense-list-item/expense-list-item';
-import { ExpenseListItemModel } from '../../../../../../../libs/models/expense-list-tem';
+import { ExpenseListItemModel } from '../models/expense-list-tem'
 
 @Component({
   imports: [MatButtonModule, MatIconModule, MatDividerModule, ExpenseListItem],

@@ -6,7 +6,7 @@ Database design for the Savvist personal finance tracker (NestJS + Mongoose + Mo
 
 **Revision note 2:** the backend stack is NestJS 11 with Mongoose (this document previously said Express). The answers recorded in section 12 are now applied in sections 2, 4, 6, 7, 8 and 10. Questions that are still unanswered are listed under "Still open" at the end of section 12.
 
-**Revision note 3:** `monthlySummaries` is removed. Total Fund, Actual Cash, Health and Growth are now saved once per day in `dailyMetrics` (4.9). Section 7 now holds the expense rule, the meaning of the 15%, 20% and 3x constants, the zero rules, and the payday rule. Base salary changes are logged in `recordLogs` (4.6). The Angular layer, not the API, converts centavos to pesos and `_id` to `id` (section 10).
+**Revision note 3:** `monthlySummaries` is removed. Total Fund, Actual Cash, Health and Growth are now saved once per day in `dailyMetrics` (4.9). Section 7 now holds the expense rule, the meaning of the 15%, 20% and 3x constants, the zero rules, and the payday rule. Base salary changes are logged in `recordLogs` (4.6). The Angular layer maps `_id` to `id` (section 10).
 
 **Revision note 4:** Health and Growth are capped at 100% as well as floored at 0. Changes to expenses, base salary or `isUnemployed` do not recompute `dailyMetrics`, and neither do back-dated balances or deleted day records, so each row is a snapshot as saved. The payday rule, the Growth fallback and the final-values-only clamp are confirmed.
 
@@ -17,7 +17,7 @@ Database design for the Savvist personal finance tracker (NestJS + Mongoose + Mo
 1. **Every document belongs to a user.** The wireframe says "Welcome User A", and the app may grow to several users. Every collection except `users` carries a `userId`, every query filters by it, and every index starts with it. Adding authentication later then needs no schema change. The app is single-user for now (section 12, Q7), so the backend uses one configured user until authentication exists.
 2. **Separate "what exists" from "what happened".** Accounts are slow-changing definitions (saved once). Daily balances are time-series facts (one per account per day). They live in different collections.
 3. **Store only what cannot be derived, with one exception.** Total Fund, Actual Cash, Health and Growth are saved once per day in `dailyMetrics` (4.9). Today's Allowance, current balances and the footer totals are computed from other collections (section 7).
-4. **Money is stored as integer centavos**, never floats. PHP 1,000.50 is stored as `100050`. The API sends and receives centavos. The Angular repository layer converts to and from pesos in one place, so the frontend currency pipe sees pesos.
+4. **Money is stored as direct numbers** (e.g., PHP 1,000.50 is stored as `100050` or `1000.50` directly). The API sends and receives direct numeric values.
 5. **Calendar days are stored as `YYYY-MM-DD` strings** (the user's local day, Asia/Manila). Moments in time are BSON `Date` in UTC. A daily balance belongs to a calendar day, and a UTC midnight timestamp would land on 8:00 AM Manila time and cause off-by-one-day bugs.
 6. **Embed what is always read together and stays small. Reference what grows without bound.** Chat messages and daily balances are therefore their own collections.
 7. **Record logs are append-only and self-contained.** They snapshot the name and amount at the time of the event, so they stay correct if the source is later edited or deleted.
@@ -70,7 +70,7 @@ erDiagram
 | `displayName` | string | yes | Shown in "Welcome User A". 1 to 60 chars. |
 | `email` | string | no | Required once authentication is added. Lowercased, unique. |
 | `passwordHash` | string | no | Future. Never returned by the API. |
-| `baseSalary` | int (centavos) | yes | `>= 0`. Forced to `0` when `isUnemployed` is true. |
+| `baseSalary` | number | yes | `>= 0`. The exact base salary amount. Forced to `0` when `isUnemployed` is true. |
 | `salaryDay1` | int | no | 1 to 31. First salary day of the month (e.g., 15). |
 | `salaryDay2` | int | no | 1 to 31. Second salary day of the month, if applicable (e.g., 30). |
 | `isUnemployed` | bool | yes | Default `false`. Mirrors the "Currently unemployed" checkbox. |
@@ -85,7 +85,7 @@ Example:
 {
   "_id": "665f1c2a9b1e8a0012a1b001",
   "displayName": "User A",
-  "baseSalary": 3000000,
+  "baseSalary": 30000,
   "salaryDay1": 15,
   "salaryDay2": 30,
   "isUnemployed": false,
@@ -145,7 +145,7 @@ One document per account per calendar day. This is what the user fills in every 
 | `userId` | ObjectId | yes | |
 | `accountEntryId` | ObjectId | yes | Reference to `accountEntries._id`. |
 | `day` | string | yes | Calendar day, `YYYY-MM-DD`, in the user's time zone. |
-| `balance` | int (centavos) | yes | `>= 0`. The account balance on that day. |
+| `balance` | number | yes | `>= 0`. The account balance on that day. |
 | `accountName` | string | yes | Snapshot of the account name when recorded. |
 | `accountType` | string enum | yes | Snapshot of the type (`cash`, `credit`, `savings`). |
 | `createdAt`, `updatedAt` | Date | yes | |
@@ -185,7 +185,7 @@ Rules:
 | `_id` | ObjectId | yes | |
 | `userId` | ObjectId | yes | |
 | `name` | string | yes | 1 to 80 chars. |
-| `amount` | int (centavos) | yes | `> 0`. |
+| `amount` | number | yes | `> 0`. |
 | `dayOfMonth` | int | yes | 1 to 31. Shown as "21st". |
 | `months` | array of int | yes | Each value 1 to 12, no duplicates. **Empty array = every month.** Non-empty = only those months. |
 | `createdAt`, `updatedAt` | Date | yes | |
@@ -209,7 +209,7 @@ Rules:
 | `_id` | ObjectId | yes | |
 | `userId` | ObjectId | yes | |
 | `name` | string | yes | 1 to 80 chars. |
-| `amount` | int (centavos) | yes | `> 0`. |
+| `amount` | number | yes | `> 0`. |
 | `priority` | string enum | yes | `asap`, `priority`, `important`, `normal`, `peripheral` (listed in sort order, highest first). Default `normal`. |
 | `status` | string enum | yes | `pending` or `purchased`. Default `pending`. |
 | `purchasedAt` | Date | no | Set when status becomes `purchased`. Cleared on undo. |
@@ -244,13 +244,13 @@ Append-only. The Record Logs page shows Name, Amount, Record Type and Date.
 | `_id` | ObjectId | yes | |
 | `userId` | ObjectId | yes | |
 | `name` | string | yes | Snapshot of the source name, or a description such as "Base salary updated". |
-| `amount` | int (centavos) | yes | Snapshot of the amount (balance, expense or price) for this event. |
+| `amount` | number | yes | Snapshot of the amount (balance, expense or price) for this event. |
 | `recordType` | string enum | yes | `expense`, `cash`, `savings`, `credit`, `wishlist`. |
 | `action` | string enum | yes | `created`, `updated`, `deleted`, `purchased`, `adjusted`. |
 | `date` | Date | yes | When the event happened. Defaults to now. |
 | `sourceCollection` | string | no | `accountEntries`, `entryRecords`, `expenses`, `wishlistItems`, `users`. |
 | `sourceId` | ObjectId | no | Soft reference to the source document. |
-| `previousAmount` | int (centavos) | no | For overwrites (`action = updated`): the balance that was replaced. Lets the log show "replaced X with Y". |
+| `previousAmount` | number | no | For overwrites (`action = updated`): the balance that was replaced. Lets the log show "replaced X with Y". |
 | `effectiveDay` | string | no | For daily balances: the calendar day (`YYYY-MM-DD`) the balance belongs to. Differs from `date` when a past day was back-dated. |
 | `createdAt` | Date | yes | No `updatedAt`, because logs never change. |
 
@@ -316,8 +316,8 @@ Stores the computed Total Fund, Actual Cash, Health and Growth for each day the 
 | `_id` | ObjectId | yes | |
 | `userId` | ObjectId | yes | |
 | `day` | string | yes | Calendar day, `YYYY-MM-DD`, in the user's time zone. |
-| `totalFund` | int (centavos) | yes | `>= 0`. Total Fund (F) for that day. |
-| `actualCash` | int (centavos) | yes | `>= 0`. Actual Cash (A) for that day. |
+| `totalFund` | number | yes | `>= 0`. Total Fund (F) for that day. |
+| `actualCash` | number | yes | `>= 0`. Actual Cash (A) for that day. |
 | `health` | number | yes | `0` to `1`. A ratio, so `0.25` means 25%. Capped at 100%. |
 | `growth` | number | yes | `0` to `1`. A ratio, so `0.10` means 10%. Capped at 100%. |
 | `createdAt`, `updatedAt` | Date | yes | |
@@ -410,7 +410,7 @@ Most values are derived when read. The exceptions are Total Fund, Actual Cash, H
 Terms used in the formulas (section 12, Q1, plus the answers recorded in revision notes 3 and 4). In these formulas, "today" means the day being computed.
 
 - `cash`, `savings`, `credit`: the sum of the latest balances, as of that day, of the non-archived accounts of that type. An account not entered that day uses its most recent earlier balance. A credit balance is the amount owed.
-- `expenses` (E): the monthly-equivalent total of all expenses. If an expense has no months selected (`months` is empty) or all 12 months selected, it counts as its `amount` only, with no multiplication or division. Otherwise it counts `amount * m / 12`, where `m` is the number of selected months (`months.length`). Example: a 2-month expense counts 2/12 of its amount. Round once to the nearest centavo after summing. This is not the Expenses page footer, which sums only the expenses that fall in the selected month.
+- `expenses` (E): the monthly-equivalent total of all expenses. If an expense has no months selected (`months` is empty) or all 12 months selected, it counts as its `amount` only, with no multiplication or division. Otherwise it counts `amount * m / 12`, where `m` is the number of selected months (`months.length`). Example: a 2-month expense counts 2/12 of its amount. Round to two decimal places after summing. This is not the Expenses page footer, which sums only the expenses that fall in the selected month.
 - `B`: `users.baseSalary`. `N = B - B * 0.15` (net income). The 0.15 is the combined deductions: income tax, SSS, PhilHealth and Pag-IBIG.
 - `Y = (N / 2) * 0.2`: the amount to set aside each cutoff. The 0.2 is the share of net income the user should save each month.
 - The `3` in the Health formula is the savings target: 3 times the base salary kept in the user's accounts.
@@ -482,7 +482,7 @@ All routes are under `/api` (matching the dev proxy) and scoped to the authentic
 
 Mapping rules (done in the Angular repository layer, per T19):
 - The API returns `_id` (string) and ISO date strings. The repository layer maps `_id` to `id`.
-- The API sends and receives integer centavos. The repository layer converts to and from pesos, in one place.
+- The API sends and receives direct numeric values.
 - `day` stays a `YYYY-MM-DD` string end to end. The frontend must not convert it through a `Date` object, to avoid time zone shifts.
 - Enum strings match the frontend's union types exactly.
 
