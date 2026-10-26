@@ -1,0 +1,39 @@
+:host {
+  display: block;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px 8px;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.dialog-content {
+  min-height: 80px;
+  padding: 16px 24px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px 20px;
+  margin: 0;
+}
+
+.rounded-button {
+  border-radius: 9999px !important;
+  --mat-button-corner-radius: 9999px;
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  min-width: 88px;
+}
+

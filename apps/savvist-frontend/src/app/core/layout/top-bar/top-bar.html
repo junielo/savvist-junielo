@@ -4,5 +4,5 @@
   @if (user(); as u) {
     <button matButton>PHP <span>{{ u.baseSalary | number: '1.2-2' }}</span></button>
   }
-  <button matButton>+ Add Amounts</button>
+  <button matButton (click)="openAddEntryDialog()">+ Add Amounts</button>
 </mat-toolbar>
