@@ -64,6 +64,8 @@ erDiagram
 | `email` | string | no | Required once authentication is added. Lowercased, unique. |
 | `passwordHash` | string | no | Future. Never returned by the API. |
 | `baseSalary` | int (centavos) | yes | `>= 0`. Forced to `0` when `isUnemployed` is true. |
+| `salaryDay1` | int | no | 1 to 31. First salary day of the month (e.g., 15). |
+| `salaryDay2` | int | no | 1 to 31. Second salary day of the month, if applicable (e.g., 30). |
 | `isUnemployed` | bool | yes | Default `false`. Mirrors the "Currently unemployed" checkbox. |
 | `currency` | string | yes | Default `"PHP"`. |
 | `locale` | string | yes | Default `"en-PH"`. |
@@ -77,6 +79,8 @@ Example:
   "_id": "665f1c2a9b1e8a0012a1b001",
   "displayName": "User A",
   "baseSalary": 3000000,
+  "salaryDay1": 15,
+  "salaryDay2": 30,
   "isUnemployed": false,
   "currency": "PHP",
   "locale": "en-PH",
@@ -437,11 +441,30 @@ Seed the development database so the frontend and backend show the same data:
 
 **Resolved:** balances can be entered for past days, with a warning that the new balance replaces the old one (enforced by the server). Future days cannot be entered. A credit account's balance is the amount owed.
 
-1. Final formulas for Total Fund (currently: cash and savings minus credit owed), Actual Cash, Today's Allowance, Health and Growth.
-2. Should the account type be locked once balances exist? (Recommended: yes.)
-3. Does base salary generate monthly income automatically, or is it only a figure for calculations? If it does, income needs its own events and logs.
-4. Does the line chart show total fund per day, expenses per month, or something else (decides `monthlySummaries`)?
-5. Is a separate `salary` record type needed in `recordLogs`?
-6. Priority sort order for the wishlist.
-7. Single user for now, or multiple users with authentication from the start?
-8. Should chat messages persist an AI context or system prompt, and does the assistant get read access to the user's financial data?
+1. Final formulas for Total Fund, Actual Cash, Today's Allowance, Health, and Growth:
+
+   Let A = (All Cash Amount) - (All Credit Amount) - (All Expenses) = Actual Cash
+   Let F = (All Cash Amount) + (All Savings Amount) - (All Credit Amount) - (All Expenses) = Total Funds
+   Let B = Base Income
+   Let N = B - B * 0.15 = Net Income
+
+   Today's Allowance:
+   Let Y = (N / 2) * 0.2 = The money needs to set aside per cutoff
+   Allowance = (min(N / 2, A) - Y) / daysUntilNextPayday
+
+   Health:
+   Let E = Total Expenses
+   Let C = Total Credit
+   Let R = N - (E + C) = Remaining Income
+   Health = ((F / (B * 3)) + (R / N)) / 2
+
+   Growth:
+   prevTtlFund = Get the total fund for the first day of the month of the past 90 days. Example let's say today is Oct. 26, so the date 90 days before the current date is July 28 but we will get the total fund of the first day of July.
+   Growth = (currTtlFund - prevTtlFund) / prevTtlFund
+2. Should the account type be locked once balances exist? **Yes.**
+3. Does base salary generate monthly income automatically, or is it only a figure for calculations? **Base salary is not recorded repeatedly; there should only be one record per user.**
+4. Does the line chart show total fund per day, expenses per month, or something else? **It shows daily total funds for 30 days.**
+5. Is a separate `salary` record type needed in `recordLogs`? **No.**
+6. Priority sort order for the wishlist. **Yes (ASAP, Priority, Important, Normal, Peripheral).**
+7. Single user for now, or multiple users with authentication from the start? **Single user for now.**
+8. Should chat messages persist an AI context or system prompt, and does the assistant get read access to the user's financial data? **AI chat should have a LangGraph memory checkpointer. It should have read and write access to financial data, but for write operations, it must ask permission first from the user.**

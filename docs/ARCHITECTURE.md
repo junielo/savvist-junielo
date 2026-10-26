@@ -106,7 +106,31 @@ apps/savvist-frontend/src/app/
 
 ---
 
-## 4. Reactivity & State Management (Frontend)
+## 4. Backend Project Structure (`apps/savvist-backend`)
+
+The backend source code is located under `apps/savvist-backend/src/`. Below is the detailed directory and file breakdown with their respective descriptions:
+
+```
+apps/savvist-backend/src/
+├── main.ts                  # NestJS application bootstrap, global prefix ('api'), and NX ready-signal integration
+├── assets/                  # Static assets storage directory
+└── app/                     # Root application module and core REST domain modules
+    ├── app.controller.spec.ts # Unit tests for the root controller
+    ├── app.controller.ts    # Root application controller handling base health / API root endpoint
+    ├── app.module.ts        # Root NestJS module (`AppModule`) importing domain features and providers
+    ├── app.service.spec.ts  # Unit tests for the root service
+    ├── app.service.ts       # Root application service implementing core root business logic
+```
+
+### NestJS Backend Architectural Standards
+1. **Module-Based Encapsulation:** Each domain feature is organized into dedicated NestJS modules containing controllers, services, and Mongoose schema models.
+2. **Controller Layer:** Handles HTTP request routing, DTO validation using NestJS validation pipes, and response serialization.
+3. **Service Layer:** Encapsulates business logic, database queries (MongoDB/Mongoose), and domain calculations (e.g., computed totals, allowance, fund tracking).
+4. **Data Models / Schemas:** Mongoose schemas defining collection documents corresponding to the database architecture (`users`, `accountEntries`, `entryRecords`, `expenses`, `wishlistItems`, `recordLogs`, `conversations`, `messages`).
+
+---
+
+## 5. Reactivity & State Management (Frontend)
 
 Savvist leverages Angular 22's modern reactive primitives for state management and UI synchronization:
 
@@ -119,7 +143,7 @@ Savvist leverages Angular 22's modern reactive primitives for state management a
 
 ---
 
-## 5. Routing & Navigation
+## 6. Routing & Navigation
 
 Routing is configured in `app.routes.ts` using lazy loading and component input binding:
 
@@ -134,7 +158,7 @@ Routing is configured in `app.routes.ts` using lazy loading and component input 
 
 ---
 
-## 6. Forms & Validation
+## 7. Forms & Validation
 
 Form handling utilizes **Signal Forms** (`@angular/forms/signals`):
 - Declarative `form()` schemas with built-in and custom validators.
@@ -143,7 +167,7 @@ Form handling utilizes **Signal Forms** (`@angular/forms/signals`):
 
 ---
 
-## 7. Data Layer & Backend Integration
+## 8. Data Layer & Backend Integration
 
 - **Repository Pattern:** Data operations are defined via abstract classes in `core/data/` acting as dependency injection tokens.
 - **NestJS REST API Backend:** Backed by NestJS (`savvist-backend`), providing modular controllers and services for users, accounts, entry records, expenses, wishlist items, record logs, and chat conversations.
@@ -151,7 +175,7 @@ Form handling utilizes **Signal Forms** (`@angular/forms/signals`):
 
 ---
 
-## 8. Testing & Quality Assurance
+## 9. Testing & Quality Assurance
 
 - **Frontend Testing:** **Vitest** configured via Angular CLI test builder, running component tests in zoneless mode with Material component harnesses.
 - **Backend Testing:** **Jest** configured for NestJS unit and e2e testing.
