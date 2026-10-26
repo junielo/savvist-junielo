@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
@@ -11,9 +12,18 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DailyMetricsModule } from './modules/daily-metrics/daily-metrics.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { DatabaseModule } from './database/database.module';
+import configuration from './config/configuration';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+      validate: validateEnv,
+      cache: true,
+    }),
+    DatabaseModule,
     UsersModule,
     AccountEntriesModule,
     EntryRecordsModule,
@@ -23,9 +33,8 @@ import { DatabaseModule } from './database/database.module';
     DashboardModule,
     DailyMetricsModule,
     ChatModule,
-    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

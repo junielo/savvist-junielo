@@ -115,12 +115,77 @@ apps/savvist-backend/src/
 ├── main.ts                  # NestJS application bootstrap, global prefix ('api'), and NX ready-signal integration
 ├── assets/                  # Static assets storage directory
 └── app/                     # Root application module and core REST domain modules
-    ├── app.controller.spec.ts # Unit tests for the root controller
     ├── app.controller.ts    # Root application controller handling base health / API root endpoint
     ├── app.module.ts        # Root NestJS module (`AppModule`) importing domain features and providers
-    ├── app.service.spec.ts  # Unit tests for the root service
     ├── app.service.ts       # Root application service implementing core root business logic
-    └── ...                  # Feature domain modules (users, account-entries, entry-records, expenses, wishlist, record-logs, dashboard, chat)
+    ├── common/              # Common decorators, guards, filters, and interceptors
+    │   ├── current-user/    # Current user decorator and authentication guard
+    │   │   ├── current-user.decorator.ts # Custom decorator to extract authenticated user
+    │   │   └── current-user.guard.ts     # Guard validating user context
+    │   └── filters/         # HTTP exception and error filters
+    │       └── http-exception.filter.ts  # Global HTTP exception normalization filter
+    ├── database/            # Database configuration and transaction management services
+    │   ├── database.module.ts # Mongoose database configuration and connection module
+    │   └── transaction.service.ts # Transaction management service for database multi-document sessions
+    └── modules/             # Domain feature modules
+        ├── account-entries/ # Account entries management
+        │   ├── account-entries.controller.ts # REST controller for account entries
+        │   ├── account-entries.module.ts     # NestJS module for account entries
+        │   ├── account-entries.service.ts    # Business logic service for account entries
+        │   ├── dto/         # Data transfer objects for account entries
+        │   │   ├── create-account-entry.dto.ts
+        │   │   └── update-account-entry.dto.ts
+        │   └── entities/    # Mongoose schema entities
+        │       └── account-entry.entity.ts
+        ├── chat/            # AI assistant chat interface backend module
+        │   ├── chat.module.ts # NestJS module for chat feature
+        │   ├── agent/       # AI agent integration and processing service
+        │   │   └── agent.service.ts
+        │   ├── conversations/ # Conversation management
+        │   │   ├── conversations.controller.ts
+        │   │   ├── conversations.module.ts
+        │   │   └── conversations.service.ts
+        │   └── messages/    # Chat message handling
+        │       ├── messages.controller.ts
+        │       ├── messages.module.ts
+        │       └── messages.service.ts
+        ├── daily-metrics/   # Daily financial metrics calculations and tracking
+        │   ├── daily-metrics.module.ts
+        │   └── daily-metrics.service.ts
+        ├── dashboard/       # Dashboard metrics and summary aggregation
+        │   ├── dashboard.controller.ts
+        │   ├── dashboard.module.ts
+        │   └── dashboard.service.ts
+        ├── entry-records/   # Entry records management (audit logs/financial records)
+        │   ├── entry-records.controller.ts
+        │   ├── entry-records.module.ts
+        │   └── entry-records.service.ts
+        ├── expenses/        # Recurring and monthly expense tracking
+        │   ├── expenses.controller.ts
+        │   ├── expenses.module.ts
+        │   └── expenses.service.ts
+        │   ├── dto/         # Data transfer objects for expenses
+        │   │   ├── create-expense.dto.ts
+        │   │   └── update-expense.dto.ts
+        │   └── entities/    # Mongoose schema entities for expenses
+        │       └── expense.entity.ts
+        ├── record-logs/     # Financial event and action record logging
+        │   ├── record-logs.controller.ts
+        │   ├── record-logs.module.ts
+        │   └── record-logs.service.ts
+        ├── users/           # User profile and management module
+        │   ├── users.controller.ts
+        │   ├── users.module.ts
+        │   └── users.service.ts
+        └── wishlist/        # Priority-ranked wishlist purchases
+            ├── wishlist.controller.ts
+            ├── wishlist.module.ts
+            ├── wishlist.service.ts
+            ├── dto/         # Data transfer objects for wishlist items
+            │   ├── create-wishlist.dto.ts
+            │   └── update-wishlist.dto.ts
+            └── entities/    # Mongoose schema entities for wishlist items
+                └── wishlist.entity.ts
 ```
 
 ### NestJS Backend Architectural Standards

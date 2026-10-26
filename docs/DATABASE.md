@@ -470,7 +470,7 @@ All routes are under `/api` (matching the dev proxy) and scoped to the authentic
 
 | Resource | Endpoints |
 |---|---|
-| Profile | `GET /api/me`, `PATCH /api/me` (salary, unemployed flag) |
+| Profile | `GET /api/user`, `user` (salary, unemployed flag) |
 | Account entries | `GET/POST /api/account-entries`, `PATCH/DELETE /api/account-entries/:id` |
 | Entry records | `GET /api/entry-records?day=YYYY-MM-DD` (accounts with that day's balance, or last known), `PUT /api/entry-records/:day` (bulk upsert from the dialog, any past day or today), `GET /api/entry-records?from=&to=` (range for charts). If the body would replace existing balances and does not include `confirmReplace: true`, the server responds **409 Conflict** with the list of affected accounts (existing balance and proposed balance) and writes nothing. The client shows the warning, then resends with `confirmReplace: true`. |
 | Expenses | `GET/POST /api/expenses`, `PATCH/DELETE /api/expenses/:id`, `GET /api/expenses/total?month=` |
