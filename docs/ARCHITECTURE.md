@@ -120,13 +120,14 @@ apps/savvist-backend/src/
     ├── app.module.ts        # Root NestJS module (`AppModule`) importing domain features and providers
     ├── app.service.spec.ts  # Unit tests for the root service
     ├── app.service.ts       # Root application service implementing core root business logic
+    └── ...                  # Feature domain modules (users, account-entries, entry-records, expenses, wishlist, record-logs, dashboard, chat)
 ```
 
 ### NestJS Backend Architectural Standards
 1. **Module-Based Encapsulation:** Each domain feature is organized into dedicated NestJS modules containing controllers, services, and Mongoose schema models.
 2. **Controller Layer:** Handles HTTP request routing, DTO validation using NestJS validation pipes, and response serialization.
 3. **Service Layer:** Encapsulates business logic, database queries (MongoDB/Mongoose), and domain calculations (e.g., computed totals, allowance, fund tracking).
-4. **Data Models / Schemas:** Mongoose schemas defining collection documents corresponding to the database architecture (`users`, `accountEntries`, `entryRecords`, `expenses`, `wishlistItems`, `recordLogs`, `conversations`, `messages`).
+4. **Data Models / Schemas:** Mongoose schemas defining collection documents corresponding to the database architecture (`users`, `accountEntries`, `entryRecords`, `expenses`, `wishlistItems`, `recordLogs`, `dailyMetrics`, `conversations`, `messages`).
 
 ---
 
@@ -170,7 +171,7 @@ Form handling utilizes **Signal Forms** (`@angular/forms/signals`):
 ## 8. Data Layer & Backend Integration
 
 - **Repository Pattern:** Data operations are defined via abstract classes in `core/data/` acting as dependency injection tokens.
-- **NestJS REST API Backend:** Backed by NestJS (`savvist-backend`), providing modular controllers and services for users, accounts, entry records, expenses, wishlist items, record logs, and chat conversations.
+- **NestJS REST API Backend:** Backed by NestJS (`savvist-backend`), providing modular controllers and services for users, account entries, entry records, expenses, wishlist items, record logs, the dashboard, and chat conversations.
 - **HTTP Client:** Configured with the fetch backend and functional interceptors for base URL injection, error normalization, and read retries. During development, API requests under `/api` are proxied via `proxy.conf.json` to the NestJS backend.
 
 ---
