@@ -148,6 +148,7 @@ One document per account per calendar day. This is what the user fills in every 
 | `balance` | number | yes | `>= 0`. The account balance on that day. |
 | `accountName` | string | yes | Snapshot of the account name when recorded. |
 | `accountType` | string enum | yes | Snapshot of the type (`cash`, `credit`, `savings`). |
+| `recordedDate` | date | yes | Recorded date entry |
 | `createdAt`, `updatedAt` | Date | yes | |
 
 Example:

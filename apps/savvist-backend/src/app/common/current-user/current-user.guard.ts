@@ -1,9 +1,19 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { CanActivate, ExecutionContext, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { UsersService } from '../../modules/users/users.service';
 
 @Injectable()
 export class CurrentUserGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
+  constructor(@Optional() private readonly usersService?: UsersService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    if (!request.user && this.usersService) {
+      const user = await this.usersService.findCurrent();
+      if (!user) {
+        throw new NotFoundException('Current user not found');
+      }
+      request.user = user;
+    }
     return true;
   }
 }

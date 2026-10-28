@@ -1,1 +1,1 @@
-export class AccountEntry {}
+export * from '../schemas/account-entry.schema';

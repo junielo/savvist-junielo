@@ -4,6 +4,8 @@
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
     "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "types": ["jest", "node"]
   },
   "include": [
