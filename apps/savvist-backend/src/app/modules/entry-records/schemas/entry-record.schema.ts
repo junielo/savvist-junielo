@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
-import { AccountType } from '../../account-entries/schemas/account-entry.schema';
+import { AccountType } from '../../../../../../../libs/models/account-type';
 
 export type EntryRecordDocument = HydratedDocument<EntryRecord>;
 

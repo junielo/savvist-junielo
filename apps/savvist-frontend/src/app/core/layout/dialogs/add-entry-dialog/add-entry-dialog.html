@@ -1,0 +1,38 @@
+<div class="dialog-header">
+  <h2 mat-dialog-title class="dialog-title">{{ isEdit ? 'Edit Entry' : 'Add Entry' }}</h2>
+  <button
+    type="button"
+    matIconButton
+    (click)="close()"
+    aria-label="Close dialog"
+  >
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="dialog-content">
+  <div class="dialog-form">
+    @if (errorMessage()) {
+      <div class="error-message" role="alert">{{ errorMessage() }}</div>
+    }
+    <mat-form-field class="example-form-field">
+      <mat-label>Entry name</mat-label>
+      <input matInput type="text" [(ngModel)]="value">
+      @if (value()) {
+        <button matSuffix matIconButton aria-label="Clear" (click)="value.set('')">
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+    </mat-form-field>
+
+    <div class="field-container">
+      <span class="field-label">Entry Type</span>
+      <app-aria-select [options]="entryTypes" [(value)]="entryType" />
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button type="button" matButton class="rounded-button" (click)="close()">Cancel</button>
+  <button type="button" matButton="filled" class="rounded-button" [disabled]="isSaving() || !value().trim()" (click)="save()">Save</button>
+</mat-dialog-actions>

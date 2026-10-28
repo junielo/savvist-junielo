@@ -11,10 +11,56 @@
 </div>
 
 <mat-dialog-content class="dialog-content">
-  <!-- Content is empty for now -->
+  <form [formGroup]="entryForm" class="dialog-form">
+    <mat-form-field class="example-form-field centered-field">
+      <mat-label>Entry date</mat-label>
+      <input matInput [matDatepicker]="picker" formControlName="date" />
+      <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+
+    @for (entry of entries(); track entry.id) {
+      <div class="entry-row">
+        <mat-form-field class="example-form-field">
+          <mat-label>{{ entry.type | titlecase }} · {{ entry.name }}</mat-label>
+          <input matInput type="number" [(ngModel)]="balances[entry.id]" [ngModelOptions]="{standalone: true}" />
+        </mat-form-field>
+        <button
+          type="button"
+          matIconButton
+          (click)="editEntry(entry)"
+          aria-label="Edit entry"
+          class="action-button"
+        >
+          <mat-icon style="font-size: 18px;">edit</mat-icon>
+        </button>
+        <button
+          type="button"
+          matIconButton
+          (click)="deleteEntry(entry.id)"
+          aria-label="Delete entry"
+          class="action-button"
+        >
+          <mat-icon style="font-size: 18px; color: rgb(255, 77, 77);">delete</mat-icon>
+        </button>
+      </div>
+    }
+
+  </form>
+  <div class="create-new-entry-container">
+    <a
+      role="button"
+      tabindex="0"
+      (click)="openNewEntryDialog()"
+      (keydown.enter)="openNewEntryDialog()"
+      class="create-new-entry-link"
+    >
+      Create New Entry
+    </a>
+  </div>
 </mat-dialog-content>
 
-<mat-dialog-actions align="end" class="dialog-actions">
-  <button type="button" matButton class="rounded-button">Cancel</button>
-  <button type="button" matButton="filled" class="rounded-button">Save</button>
+<mat-dialog-actions class="dialog-actions">
+  <button type="button" matButton="filled" class="rounded-button" (click)="close()">Cancel</button>
+  <button type="button" matButton="filled" class="rounded-button" (click)="close()">Save</button>
 </mat-dialog-actions>

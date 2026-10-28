@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { AccountType } from '../schemas/account-entry.schema';
+import { AccountType } from '../../../../../../../libs/models/account-type';
 
 export class CreateAccountEntryDto {
   @IsString()

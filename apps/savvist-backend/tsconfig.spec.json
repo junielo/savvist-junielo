@@ -6,7 +6,10 @@
     "moduleResolution": "bundler",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "paths": {
+      "libs/*": ["../../libs/*"]
+    }
   },
   "include": [
     "jest.config.ts",

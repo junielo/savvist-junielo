@@ -10,10 +10,11 @@ import {
 import { Combobox, ComboboxPopup, ComboboxWidget } from '@angular/aria/combobox';
 import { Listbox, Option } from '@angular/aria/listbox';
 import { OverlayModule } from '@angular/cdk/overlay';
+import { TitleCasePipe } from '@angular/common';
 import { SelectOption, SelectOptionInput } from '../../models/aria-select-option';
 
 @Component({
-  imports: [Combobox, ComboboxPopup, ComboboxWidget, Listbox, Option, OverlayModule],
+  imports: [Combobox, ComboboxPopup, ComboboxWidget, Listbox, Option, OverlayModule, TitleCasePipe],
   selector: 'app-aria-select',
   styleUrl: './aria-select.scss',
   templateUrl: './aria-select.html',
