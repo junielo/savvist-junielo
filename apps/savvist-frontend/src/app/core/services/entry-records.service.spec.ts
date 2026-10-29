@@ -98,6 +98,39 @@ describe('EntryRecordsService', () => {
     expect(record.id).toBe('1');
   });
 
+  it('should upsert amount', async () => {
+    const promise = service.upsertAmount({
+      accountEntryId: 'acc1',
+      day: '2026-10-28',
+      balance: 2000,
+    });
+
+    const req = httpMock.expectOne('/api/entry-records/upsert');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      accountEntryId: 'acc1',
+      day: '2026-10-28',
+      balance: 2000,
+    });
+
+    req.flush({
+      _id: '1',
+      userId: 'user1',
+      accountEntryId: 'acc1',
+      day: '2026-10-28',
+      balance: 2000,
+      accountName: 'BDO',
+      accountType: 'cash',
+      recordedDate: '2026-10-28T00:00:00.000Z',
+      createdAt: '2026-10-28',
+      updatedAt: '2026-10-28',
+    });
+
+    const record = await promise;
+    expect(record.balance).toBe(2000);
+    expect(record.id).toBe('1');
+  });
+
   it('should delete balance by id', async () => {
     const promise = service.deleteBalanceById('1');
 

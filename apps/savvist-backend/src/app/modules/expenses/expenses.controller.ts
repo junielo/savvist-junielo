@@ -1,34 +1,76 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ExpensesService } from './expenses.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { Types } from 'mongoose';
+import { CurrentUser } from '../../common/current-user/current-user.decorator';
+import { CurrentUserGuard } from '../../common/current-user/current-user.guard';
+import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
+import { UserDocument } from '../users/schemas/user.schema';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { ExpensesService } from './expenses.service';
 
+@UseGuards(CurrentUserGuard)
 @Controller('expenses')
 export class ExpensesController {
-  constructor(private readonly expensesService: ExpensesService) {}
+  constructor(
+    @Inject(ExpensesService)
+    private readonly expensesService: ExpensesService,
+  ) {}
 
   @Post()
-  create(@Body() createExpenseDto: CreateExpenseDto) {
-    return this.expensesService.create(createExpenseDto);
+  create(
+    @CurrentUser() user: UserDocument,
+    @Body() createExpenseDto: CreateExpenseDto,
+  ) {
+    return this.expensesService.create(user._id, createExpenseDto);
   }
 
   @Get()
-  findAll() {
-    return this.expensesService.findAll();
+  findAll(@CurrentUser() user: UserDocument) {
+    return this.expensesService.findAll(user._id);
+  }
+
+  @Get('total')
+  getTotal(
+    @CurrentUser() user: UserDocument,
+    @Query('month') month?: string,
+  ) {
+    const monthNum = month ? parseInt(month, 10) : undefined;
+    return this.expensesService.getTotal(user._id, monthNum);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.expensesService.findOne(+id);
+  findOne(
+    @CurrentUser() user: UserDocument,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+  ) {
+    return this.expensesService.findOne(user._id, id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateExpenseDto: UpdateExpenseDto) {
-    return this.expensesService.update(+id, updateExpenseDto);
+  update(
+    @CurrentUser() user: UserDocument,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Body() updateExpenseDto: UpdateExpenseDto,
+  ) {
+    return this.expensesService.update(user._id, id, updateExpenseDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.expensesService.remove(+id);
+  remove(
+    @CurrentUser() user: UserDocument,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+  ) {
+    return this.expensesService.remove(user._id, id);
   }
 }

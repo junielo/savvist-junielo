@@ -28,11 +28,11 @@ export class EntryRecordsController {
   ) {}
 
   @Get()
-  findByUserAndDate(
+  findByDate(
     @CurrentUser() user: UserDocument,
     @Query() query: FindEntryRecordsDto,
   ) {
-    return this.entryRecordsService.findByUserAndDate(user._id, query);
+    return this.entryRecordsService.findByDate(user._id, query);
   }
 
   @Post()
@@ -41,6 +41,14 @@ export class EntryRecordsController {
     @Body() updateBalanceDto: UpdateBalanceDto,
   ) {
     return this.entryRecordsService.updateBalance(user._id, updateBalanceDto);
+  }
+
+  @Post('upsert')
+  upsertAmount(
+    @CurrentUser() user: UserDocument,
+    @Body() updateBalanceDto: UpdateBalanceDto,
+  ) {
+    return this.entryRecordsService.upsertAmount(user._id, updateBalanceDto);
   }
 
   @Delete(':id')

@@ -23,7 +23,13 @@
       <div class="entry-row">
         <mat-form-field class="example-form-field">
           <mat-label>{{ entry.type | titlecase }} · {{ entry.name }}</mat-label>
-          <input matInput type="number" [(ngModel)]="balances[entry.id]" [ngModelOptions]="{standalone: true}" />
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="balances[entry.id]"
+            (ngModelChange)="onBalanceInput(entry.id, $event)"
+            [ngModelOptions]="{standalone: true}"
+          />
         </mat-form-field>
         <button
           type="button"

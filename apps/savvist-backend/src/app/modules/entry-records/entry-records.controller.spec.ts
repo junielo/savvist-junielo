@@ -15,8 +15,9 @@ describe('EntryRecordsController', () => {
 
   beforeEach(async () => {
     const mockService = {
-      findByUserAndDate: jest.fn(),
+      findByDate: jest.fn(),
       updateBalance: jest.fn(),
+      upsertAmount: jest.fn(),
       deleteBalanceById: jest.fn(),
       deleteBalance: jest.fn(),
     };
@@ -42,13 +43,13 @@ describe('EntryRecordsController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should delegate findByUserAndDate to service with userId and query', async () => {
+  it('should delegate findByDate to service with userId and query', async () => {
     const query = { date: '2026-10-23' };
     const expected = [{ _id: recordId, day: '2026-10-23', balance: 500 }];
-    jest.spyOn(service, 'findByUserAndDate').mockResolvedValue(expected as any);
+    jest.spyOn(service, 'findByDate').mockResolvedValue(expected as any);
 
-    const result = await controller.findByUserAndDate(mockUser, query);
-    expect(service.findByUserAndDate).toHaveBeenCalledWith(userId, query);
+    const result = await controller.findByDate(mockUser, query);
+    expect(service.findByDate).toHaveBeenCalledWith(userId, query);
     expect(result).toBe(expected);
   });
 
@@ -63,6 +64,20 @@ describe('EntryRecordsController', () => {
 
     const result = await controller.updateBalance(mockUser, dto);
     expect(service.updateBalance).toHaveBeenCalledWith(userId, dto);
+    expect(result).toBe(expected);
+  });
+
+  it('should delegate upsertAmount to service with userId and dto', async () => {
+    const dto = {
+      accountEntryId: '665f1c2a9b1e8a0012a1c001',
+      day: '2026-10-23',
+      balance: 1500,
+    };
+    const expected = { _id: recordId, ...dto, userId };
+    jest.spyOn(service, 'upsertAmount').mockResolvedValue(expected as any);
+
+    const result = await controller.upsertAmount(mockUser, dto);
+    expect(service.upsertAmount).toHaveBeenCalledWith(userId, dto);
     expect(result).toBe(expected);
   });
 

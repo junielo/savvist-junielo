@@ -1,1 +1,1 @@
-export class Expense {}
+export * from '../schemas/expense.schema';

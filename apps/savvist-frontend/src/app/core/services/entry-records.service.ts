@@ -53,6 +53,13 @@ export class EntryRecordsService {
     return toEntryRecord(raw);
   }
 
+  async upsertAmount(dto: UpdateBalanceDto): Promise<EntryRecordModel> {
+    const raw = await firstValueFrom(
+      this.http.post<EntryRecordDto>('/api/entry-records/upsert', dto),
+    );
+    return toEntryRecord(raw);
+  }
+
   async deleteBalanceById(id: string): Promise<{ deleted: boolean; id: string }> {
     const raw = await firstValueFrom(
       this.http.delete<{ deleted: boolean; _id: string }>(`/api/entry-records/${id}`),

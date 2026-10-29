@@ -4,12 +4,14 @@ import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CreateEntryDialog } from './create-entry-dialog';
 import { AccountEntriesService } from '../../../services/account-entries.service';
+import { EntryRecordsService } from '../../../services/entry-records.service';
 
 describe('CreateEntryDialog', () => {
   let component: CreateEntryDialog;
   let fixture: ComponentFixture<CreateEntryDialog>;
   let mockDialogRef: { close: ReturnType<typeof vi.fn> };
   let mockAccountEntriesService: { entries: ReturnType<typeof signal> };
+  let mockEntryRecordsService: { upsertAmount: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     mockDialogRef = {
@@ -35,12 +37,16 @@ describe('CreateEntryDialog', () => {
         },
       ]),
     };
+    mockEntryRecordsService = {
+      upsertAmount: vi.fn().mockResolvedValue({}),
+    };
 
     await TestBed.configureTestingModule({
       imports: [CreateEntryDialog],
       providers: [
         { provide: MatDialogRef, useValue: mockDialogRef },
         { provide: AccountEntriesService, useValue: mockAccountEntriesService },
+        { provide: EntryRecordsService, useValue: mockEntryRecordsService },
       ],
     }).compileComponents();
 
@@ -64,5 +70,21 @@ describe('CreateEntryDialog', () => {
     const closeBtn = fixture.nativeElement.querySelector('button[matIconButton], button[aria-label="Close dialog"]');
     closeBtn?.click();
     expect(closeSpy).toHaveBeenCalled();
+  });
+
+  it('should call upsertAmount with debounced delay of 0.5s when user types', async () => {
+    vi.useFakeTimers();
+    component['onBalanceInput']('1', 2500);
+    expect(mockEntryRecordsService.upsertAmount).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+    expect(mockEntryRecordsService.upsertAmount).toHaveBeenCalledTimes(1);
+    expect(mockEntryRecordsService.upsertAmount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountEntryId: '1',
+        balance: 2500,
+      }),
+    );
+    vi.useRealTimers();
   });
 });

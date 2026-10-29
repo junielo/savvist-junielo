@@ -1,9 +1,11 @@
 <div
   ngCombobox
   #combobox="ngCombobox"
-  [(expanded)]="popupExpanded"
+  [expanded]="disabled() ? false : popupExpanded()"
+  (expandedChange)="!disabled() && popupExpanded.set($event)"
   [preserveContent]="true"
   class="select"
+  [aria-disabled]="disabled()"
 >
   <span class="combobox-label">
     @if (displayIcon()) {

@@ -29,6 +29,9 @@ export class AriaSelect {
   /** Selected value. Supports two-way binding: `[(value)]="x"`. */
   readonly value = model<string>('');
 
+  /** Whether the select is disabled. */
+  readonly disabled = input(false);
+
   readonly listbox = viewChild(Listbox);
   readonly popupExpanded = signal(false);
 
@@ -52,6 +55,7 @@ export class AriaSelect {
   }
 
   onValueChange(values: string[]) {
+    if (this.disabled()) return;
     this.value.set(values[0] ?? '');
   }
 

@@ -27,7 +27,7 @@
 
     <div class="field-container">
       <span class="field-label">Entry Type</span>
-      <app-aria-select [options]="entryTypes" [(value)]="entryType" />
+      <app-aria-select [options]="entryTypes" [(value)]="entryType" [disabled]="isEdit" />
     </div>
   </div>
 </mat-dialog-content>

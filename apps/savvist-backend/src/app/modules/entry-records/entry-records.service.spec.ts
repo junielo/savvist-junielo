@@ -48,15 +48,15 @@ describe('EntryRecordsService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('findByUserAndDate', () => {
-    it('should filter by day when date is provided', async () => {
+  describe('findByDate', () => {
+    it('should filter by day when date is provided in query', async () => {
       const mockQuery = {
         sort: jest.fn().mockReturnThis(),
         lean: jest.fn().mockResolvedValue([{ _id: recordId, day: '2026-10-23', balance: 1500 }]),
       };
       mockEntryRecordModel.find.mockReturnValue(mockQuery);
 
-      const result = await service.findByUserAndDate(userId, { date: '2026-10-23' });
+      const result = await service.findByDate(userId, { date: '2026-10-23' });
 
       expect(mockEntryRecordModel.find).toHaveBeenCalledWith({
         userId,
@@ -65,14 +65,29 @@ describe('EntryRecordsService', () => {
       expect(result).toHaveLength(1);
     });
 
-    it('should filter by day when day is provided', async () => {
+    it('should filter by day when day is provided in query', async () => {
       const mockQuery = {
         sort: jest.fn().mockReturnThis(),
         lean: jest.fn().mockResolvedValue([{ _id: recordId, day: '2026-10-23', balance: 1500 }]),
       };
       mockEntryRecordModel.find.mockReturnValue(mockQuery);
 
-      await service.findByUserAndDate(userId, { day: '2026-10-23' });
+      await service.findByDate(userId, { day: '2026-10-23' });
+
+      expect(mockEntryRecordModel.find).toHaveBeenCalledWith({
+        userId,
+        day: '2026-10-23',
+      });
+    });
+
+    it('should filter by day when date string is provided directly', async () => {
+      const mockQuery = {
+        sort: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([{ _id: recordId, day: '2026-10-23', balance: 1500 }]),
+      };
+      mockEntryRecordModel.find.mockReturnValue(mockQuery);
+
+      await service.findByDate(userId, '2026-10-23');
 
       expect(mockEntryRecordModel.find).toHaveBeenCalledWith({
         userId,
@@ -87,7 +102,7 @@ describe('EntryRecordsService', () => {
       };
       mockEntryRecordModel.find.mockReturnValue(mockQuery);
 
-      await service.findByUserAndDate(userId);
+      await service.findByDate(userId);
 
       expect(mockEntryRecordModel.find).toHaveBeenCalledWith({ userId });
     });
@@ -192,6 +207,42 @@ describe('EntryRecordsService', () => {
           balance: 100,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('upsertAmount', () => {
+    it('should successfully upsert amount by delegating to updateBalance', async () => {
+      mockAccountEntryModel.findOne.mockResolvedValue({
+        _id: accountEntryId,
+        userId,
+        name: 'BDO Debit',
+        type: AccountType.CASH,
+        archivedAt: null,
+      });
+
+      const updatedRecord = {
+        _id: recordId,
+        userId,
+        accountEntryId,
+        day: '2026-10-20',
+        balance: 3500,
+        accountName: 'BDO Debit',
+        accountType: AccountType.CASH,
+      };
+
+      const mockQuery = {
+        lean: jest.fn().mockResolvedValue(updatedRecord),
+      };
+      mockEntryRecordModel.findOneAndUpdate.mockReturnValue(mockQuery);
+
+      const result = await service.upsertAmount(userId, {
+        accountEntryId: accountEntryId.toString(),
+        day: '2026-10-20',
+        balance: 3500,
+      });
+
+      expect(result.balance).toBe(3500);
+      expect(mockEntryRecordModel.findOneAndUpdate).toHaveBeenCalled();
     });
   });
 

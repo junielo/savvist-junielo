@@ -33,11 +33,15 @@ export class EntryRecordsService {
     private readonly accountEntryModel: Model<AccountEntryDocument>,
   ) {}
 
-  async findByUserAndDate(
+  async findByDate(
     userId: Types.ObjectId,
-    query?: FindEntryRecordsDto,
+    dateOrQuery?: string | FindEntryRecordsDto,
   ): Promise<EntryRecord[]> {
-    const targetDay = query?.date || query?.day || query?.recordedDate;
+    const targetDay =
+      typeof dateOrQuery === 'string'
+        ? dateOrQuery
+        : dateOrQuery?.date || dateOrQuery?.day || dateOrQuery?.recordedDate;
+
     const filter: Record<string, unknown> = { userId };
     if (targetDay) {
       filter['day'] = targetDay;
@@ -107,6 +111,13 @@ export class EntryRecordsService {
       `Updated balance for account "${account.name}" on ${day}: ${dto.balance} (user: ${userId})`,
     );
     return updated as EntryRecord;
+  }
+
+  async upsertAmount(
+    userId: Types.ObjectId,
+    dto: UpdateBalanceDto,
+  ): Promise<EntryRecord> {
+    return this.updateBalance(userId, dto);
   }
 
   async deleteBalanceById(

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AddEntryDialog } from './add-entry-dialog';
@@ -79,5 +79,27 @@ describe('AddEntryDialog', () => {
       duration: 5000,
     });
     expect(mockDialogRef.close).not.toHaveBeenCalled();
+  });
+
+  it('should set isEdit to true when data is provided', async () => {
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [AddEntryDialog],
+      providers: [
+        { provide: MatDialogRef, useValue: mockDialogRef },
+        { provide: AccountEntriesService, useValue: mockAccountEntriesService },
+        { provide: MatSnackBar, useValue: mockSnackBar },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: { id: '1', userId: 'u1', name: 'BDO', type: 'cash', createdAt: '2026-10-28', updatedAt: '2026-10-28' },
+        },
+      ],
+    }).compileComponents();
+
+    const editFixture = TestBed.createComponent(AddEntryDialog);
+    const editComponent = editFixture.componentInstance;
+    editFixture.detectChanges();
+
+    expect(editComponent['isEdit']).toBe(true);
   });
 });
