@@ -7,15 +7,25 @@
       </button>
     </header>
     <section>
-      @for (item of temp_items; track item.id) {
-        <app-expense-list-item [itemData]="item" />
+      @if (isLoading()) {
+        <div class="loading-state">Loading expenses...</div>
+      } @else {
+        @for (item of expenses(); track item.id) {
+          <app-expense-list-item
+            [itemData]="toListItemModel(item)"
+            (edit)="openExpenseDialog(item)"
+            (delete)="deleteExpense(item.id)"
+          />
+        } @empty {
+          <div class="empty-state">No expenses found.</div>
+        }
       }
     </section>
     <footer>
       <mat-divider class="custom-thick-divider" />
       <div class="footer-detail">
         <span>Total Expense/Month</span>
-        <span>PHP 10,000.00</span>
+        <span>PHP {{ totalExpense() | number: '1.2-2' }}</span>
       </div>
     </footer>
   </div>

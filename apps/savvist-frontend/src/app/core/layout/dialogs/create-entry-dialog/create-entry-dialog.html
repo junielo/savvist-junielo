@@ -26,7 +26,8 @@
           <input
             matInput
             type="number"
-            [(ngModel)]="balances[entry.id]"
+            [readonly]="isLoadingRecords()"
+            [ngModel]="balances()[entry.id] ?? null"
             (ngModelChange)="onBalanceInput(entry.id, $event)"
             [ngModelOptions]="{standalone: true}"
           />

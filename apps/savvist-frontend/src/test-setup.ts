@@ -1,9 +1,18 @@
 class ResizeObserverMock {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  constructor(callback: ResizeObserverCallback) {
+    void callback;
+  }
+  observe(): void {
+    // Intentionally empty mock implementation
+  }
+  unobserve(): void {
+    // Intentionally empty mock implementation
+  }
+  disconnect(): void {
+    // Intentionally empty mock implementation
+  }
 }
-globalThis.ResizeObserver = ResizeObserverMock as any;
+(globalThis as unknown as { ResizeObserver: typeof ResizeObserverMock }).ResizeObserver = ResizeObserverMock;
 if (typeof window !== 'undefined') {
-  (window as any).ResizeObserver = ResizeObserverMock;
+  (window as unknown as { ResizeObserver: typeof ResizeObserverMock }).ResizeObserver = ResizeObserverMock;
 }

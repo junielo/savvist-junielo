@@ -1,5 +1,5 @@
 <div class="dialog-header">
-  <h2 mat-dialog-title class="dialog-title">Add Expense</h2>
+  <h2 mat-dialog-title class="dialog-title">{{ isEdit ? 'Update Expense' : 'Add Expense' }}</h2>
   <button
     type="button"
     matIconButton
@@ -11,6 +11,11 @@
 </div>
 
 <mat-dialog-content class="dialog-content">
+  @if (errorMessage()) {
+    <div class="error-message" style="color: red; margin-bottom: 12px; font-size: 14px;">
+      {{ errorMessage() }}
+    </div>
+  }
   <form [formGroup]="expenseForm" class="expense-form">
     <!-- Expense Name field (full width) -->
     <mat-form-field appearance="fill" class="full-width-field">
@@ -49,5 +54,5 @@
 
 <mat-dialog-actions align="end" class="dialog-actions">
   <button type="button" matButton class="rounded-button" (click)="close()">Cancel</button>
-  <button type="button" matButton="filled" class="rounded-button" (click)="close()">Save</button>
+  <button type="button" matButton="filled" class="rounded-button" [disabled]="isSaving()" (click)="save()">{{ isSaving() ? 'Saving...' : 'Save' }}</button>
 </mat-dialog-actions>

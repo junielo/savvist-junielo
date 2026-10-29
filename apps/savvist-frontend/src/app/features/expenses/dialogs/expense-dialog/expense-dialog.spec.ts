@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ExpenseDialog } from './expense-dialog';
+import { ExpenseService } from '../../services/expense.service';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { vi } from 'vitest';
 
 describe('ExpenseDialog', () => {
@@ -15,6 +18,10 @@ describe('ExpenseDialog', () => {
       imports: [ExpenseDialog],
       providers: [
         { provide: MatDialogRef, useValue: mockDialogRef },
+        { provide: MAT_DIALOG_DATA, useValue: null },
+        ExpenseService,
+        provideHttpClient(),
+        provideHttpClientTesting(),
       ],
     }).compileComponents();
 

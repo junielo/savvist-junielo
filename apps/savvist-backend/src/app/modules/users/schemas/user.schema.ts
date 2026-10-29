@@ -21,13 +21,13 @@ export class User {
   })
   baseSalary!: number;
 
-  @Prop({ min: 1, max: 31 })
+  @Prop({ min: 1, max: 31, default: 15 })
   salaryDay1?: number;
 
-  @Prop({ min: 1, max: 31 })
+  @Prop({ min: 1, max: 31, default: 28 })
   salaryDay2?: number;
 
-  @Prop({ required: true, default: false })
+  @Prop({ required: true, default: true })
   isUnemployed!: boolean;
 
   @Prop({ required: true, default: 'PHP' })

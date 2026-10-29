@@ -7,10 +7,10 @@
   <div class="month-container center-item" [class.active]="itemData().hasSelMonths">
     <mat-icon style="font-size: 16px" class="center-item">calendar_month</mat-icon>
   </div>
-  <button matMiniFab class="center-item">
+  <button matMiniFab class="center-item" (click)="onEdit()" aria-label="Edit expense">
     <mat-icon style="font-size: 18px" class="center-item">edit</mat-icon>
   </button>
-  <button matMiniFab class="center-item">
+  <button matMiniFab class="center-item" (click)="onDelete()" aria-label="Delete expense">
     <mat-icon style="font-size: 18px; color: rgb(255, 77, 77)" class="center-item">delete</mat-icon>
   </button>
 </div>

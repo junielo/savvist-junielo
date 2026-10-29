@@ -1,0 +1,53 @@
+<div class="dialog-header">
+  <h2 mat-dialog-title class="dialog-title">User Profile</h2>
+  <button
+    type="button"
+    matIconButton
+    (click)="close()"
+    aria-label="Close dialog"
+  >
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="dialog-content">
+  @if (errorMessage()) {
+    <div class="error-message" role="alert" style="color: red; margin-bottom: 12px; font-size: 14px;">{{ errorMessage() }}</div>
+  }
+  <form [formGroup]="profileForm" class="profile-form">
+    <!-- Full Name field -->
+    <mat-form-field appearance="fill" class="full-width-field">
+      <mat-label>Full name</mat-label>
+      <input matInput type="text" formControlName="fullName" placeholder="Enter fullname" />
+    </mat-form-field>
+
+    <!-- Base Salary field -->
+    <mat-form-field appearance="fill" class="full-width-field">
+      <mat-label>Base salary</mat-label>
+      <input matInput type="number" formControlName="baseSalary" placeholder="Base salary..." />
+    </mat-form-field>
+
+    <!-- Payday row (two equal columns, 32px gap) -->
+    <div class="payday-row">
+      <mat-form-field appearance="fill" class="field-col">
+        <mat-label>1st Payday (1-31)</mat-label>
+        <input matInput type="number" min="1" max="31" formControlName="firstPayday" placeholder="15" />
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="field-col">
+        <mat-label>2nd Payday (1-31)</mat-label>
+        <input matInput type="number" min="1" max="31" formControlName="secondPayday" placeholder="30" />
+      </mat-form-field>
+    </div>
+
+    <!-- Currently unemployed checkbox -->
+    <div class="checkbox-row">
+      <mat-checkbox formControlName="currentlyUnemployed">Currently unemployed</mat-checkbox>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button type="button" matButton class="rounded-button" (click)="close()">Cancel</button>
+  <button type="button" matButton="filled" class="rounded-button" [disabled]="isSaving()" (click)="save()">Save</button>
+</mat-dialog-actions>

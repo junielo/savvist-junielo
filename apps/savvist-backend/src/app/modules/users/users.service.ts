@@ -10,14 +10,11 @@ export class UsersService implements OnModuleInit {
 
   constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {}
 
-  // Single-user app for now: create "User A" on first start (DATABASE.md section 11).
+  // Single-user app for now: create "John Doe" on first start (DATABASE.md section 11).
   async onModuleInit() {
     if ((await this.userModel.estimatedDocumentCount()) > 0) return;
     await this.userModel.create({
-      displayName: 'User A',
-      baseSalary: 3000000,
-      salaryDay1: 15,
-      salaryDay2: 30,
+      displayName: 'John Doe',
     });
     this.logger.log('Seeded default user');
   }

@@ -9,6 +9,7 @@ import { filter, map } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { UserService } from '../../services/user.service';
 import { CreateEntryDialog } from '../dialogs/create-entry-dialog/create-entry-dialog';
+import { UserProfileDialog } from '../dialogs/user-profile-dialog/user-profile-dialog';
 
 @Component({
   imports: [
@@ -27,23 +28,43 @@ export class TopBar {
   private readonly userService = inject(UserService);
   private readonly dialog = inject(MatDialog);
   protected readonly user = this.userService.user;
+  protected readonly isLoading = this.userService.isLoading;
+
+  private currentTitle(): string {
+    let route = this.router.routerState.snapshot.root;
+    while (route.firstChild) route = route.firstChild;
+    return route.title ?? '';
+  }
 
   protected readonly pageTitle = toSignal(
     this.router.events.pipe(
       filter((e) => e instanceof NavigationEnd),
-      map(() => {
-        let route = this.router.routerState.snapshot.root;
-        while (route.firstChild) route = route.firstChild;
-        return route.title ?? '';
-      }),
+      map(() => this.currentTitle()),
     ),
-    { initialValue: '' },
+    { initialValue: this.currentTitle() },
   );
 
+  openUserProfileDialog(): void {
+    this.dialog
+      .open(UserProfileDialog, {
+        disableClose: true,
+        width: '500px',
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) this.userService.reload();
+      });
+  }
+
   protected openAddEntryDialog(): void {
-    this.dialog.open(CreateEntryDialog, {
-      disableClose: true,
-      width: '500px',
-    });
+    this.dialog
+      .open(CreateEntryDialog, {
+        disableClose: true,
+        width: '500px',
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) this.userService.reload();
+      });
   }
 }

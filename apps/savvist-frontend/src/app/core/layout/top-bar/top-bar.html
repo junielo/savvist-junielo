@@ -1,8 +1,17 @@
 <mat-toolbar class="elevated-toolbar">
   <span>{{ pageTitle() }}</span>
   <span class="example-spacer"></span>
+  @if (user(); as u1) {
+
+  }
   @if (user(); as u) {
-    <button matButton>PHP <span>{{ u.baseSalary | number: '1.2-2' }}</span></button>
+    @if (u.isUnemployed) {
+      <button (click)="openUserProfileDialog()" matButton> <mat-icon>edit</mat-icon> <span>Update Salary</span></button>
+    } @else {
+      <button (click)="openUserProfileDialog()" matButton>PHP <span>{{ u.baseSalary | number: '1.2-2' }}</span></button>
+    }
+  } @else if (isLoading()) {
+    <button matButton disabled>PHP …</button>
   }
   <button matButton (click)="openAddEntryDialog()">+ Add Amounts</button>
 </mat-toolbar>
