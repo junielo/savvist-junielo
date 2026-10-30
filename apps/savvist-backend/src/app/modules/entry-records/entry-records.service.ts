@@ -7,6 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { AccountEntry, AccountEntryDocument } from '../account-entries/schemas/account-entry.schema';
+import { DailyMetricsService } from '../daily-metrics/daily-metrics.service';
 import { DeleteBalanceDto } from './dto/delete-balance.dto';
 import { FindEntryRecordsDto } from './dto/find-entry-records.dto';
 import { UpdateBalanceDto } from './dto/update-balance.dto';
@@ -31,6 +32,7 @@ export class EntryRecordsService {
     private readonly entryRecordModel: Model<EntryRecordDocument>,
     @InjectModel(AccountEntry.name)
     private readonly accountEntryModel: Model<AccountEntryDocument>,
+    private readonly dailyMetricsService: DailyMetricsService,
   ) {}
 
   async findByDate(
@@ -107,6 +109,9 @@ export class EntryRecordsService {
       )
       .lean();
 
+    // Compute and save daily metrics for this day
+    await this.dailyMetricsService.computeAndSaveForDay(userId, day);
+
     this.logger.log(
       `Updated balance for account "${account.name}" on ${day}: ${dto.balance} (user: ${userId})`,
     );
@@ -131,6 +136,9 @@ export class EntryRecordsService {
     if (!record) {
       throw new NotFoundException(`Entry record with id "${id}" not found`);
     }
+
+    // Compute and save daily metrics for this day
+    await this.dailyMetricsService.computeAndSaveForDay(userId, (record as { day: string }).day);
 
     this.logger.log(`Deleted entry record ${id} for user ${userId}`);
     return { deleted: true, _id: id.toString() };
@@ -158,6 +166,9 @@ export class EntryRecordsService {
     if (!record) {
       throw new NotFoundException('Entry record not found');
     }
+
+    // Compute and save daily metrics for this day
+    await this.dailyMetricsService.computeAndSaveForDay(userId, day);
 
     this.logger.log(
       `Deleted entry record for account ${dto.accountEntryId} on ${day} (user: ${userId})`,

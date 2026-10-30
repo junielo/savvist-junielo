@@ -4,6 +4,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { AccountEntry, AccountType } from '../account-entries/schemas/account-entry.schema';
+import { DailyMetricsService } from '../daily-metrics/daily-metrics.service';
 import { EntryRecordsService } from './entry-records.service';
 import { EntryRecord } from './schemas/entry-record.schema';
 
@@ -11,6 +12,7 @@ describe('EntryRecordsService', () => {
   let service: EntryRecordsService;
   let mockEntryRecordModel: any;
   let mockAccountEntryModel: any;
+  let mockDailyMetricsService: any;
 
   const userId = new Types.ObjectId('665f1c2a9b1e8a0012a1b001');
   const accountEntryId = new Types.ObjectId('665f1c2a9b1e8a0012a1c001');
@@ -27,6 +29,10 @@ describe('EntryRecordsService', () => {
       findOne: jest.fn(),
     };
 
+    mockDailyMetricsService = {
+      computeAndSaveForDay: jest.fn().mockResolvedValue({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EntryRecordsService,
@@ -37,6 +43,10 @@ describe('EntryRecordsService', () => {
         {
           provide: getModelToken(AccountEntry.name),
           useValue: mockAccountEntryModel,
+        },
+        {
+          provide: DailyMetricsService,
+          useValue: mockDailyMetricsService,
         },
       ],
     }).compile();
