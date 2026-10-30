@@ -6,6 +6,11 @@
         Add New Expense
       </button>
     </header>
+    @if (errorMessage()) {
+      <div class="error-message" role="alert" style="color: red; margin-bottom: 12px; font-size: 14px;">
+        {{ errorMessage() }}
+      </div>
+    }
     <section>
       @if (isLoading()) {
         <div class="loading-state">Loading expenses...</div>

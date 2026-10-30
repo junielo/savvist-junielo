@@ -1,1 +1,1 @@
-export class Wishlist {}
+export * from '../schemas/wishlist.schema';

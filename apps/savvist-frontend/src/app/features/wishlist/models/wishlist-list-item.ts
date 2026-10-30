@@ -5,4 +5,7 @@ export interface WishlistListItemModel {
   amount: number;
   type: string;
   isCompleted: boolean;
+  priority?: string;
+  status?: string;
+  purchasedAt?: string | Date | null;
 }

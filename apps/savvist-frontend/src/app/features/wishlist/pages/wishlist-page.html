@@ -1,21 +1,39 @@
 <div class="main-container">
   <div class="center-container">
     <header>
-      <button matButton="elevated">
+      <button matButton="elevated" (click)="openWishlistDialog()">
         <mat-icon>add</mat-icon>
         Add New Wishlist
       </button>
     </header>
+    @if (errorMessage()) {
+      <div class="error-message" role="alert" style="color: red; margin-bottom: 12px; font-size: 14px;">
+        {{ errorMessage() }}
+      </div>
+    }
     <section>
-      @for (item of itemData; track $index) {
-        <app-wishlist-list-item [itemData]="item" />
+      @if (isLoading()) {
+        <div class="loading-state">Loading wishlist...</div>
+      } @else {
+        @for (item of wishlist(); track item.id) {
+          <app-wishlist-list-item
+            [itemData]="item"
+            (edit)="openWishlistDialog(item)"
+            (delete)="deleteWishlist(item.id)"
+            (purchase)="purchase(item.id)"
+            (undoPurchase)="undoPurchase(item.id)"
+            (typeChange)="updateType(item.id, $event)"
+          />
+        } @empty {
+          <div class="empty-state">No wishlist items found.</div>
+        }
       }
     </section>
     <footer>
       <mat-divider class="custom-thick-divider" />
       <div class="footer-detail">
-        <span>Total Expense/Month</span>
-        <span>PHP 10,000.00</span>
+        <span>Total Wishlist Amount</span>
+        <span>PHP {{ totalAmount() | number: '1.2-2' }}</span>
       </div>
     </footer>
   </div>

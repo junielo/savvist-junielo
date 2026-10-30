@@ -1,1 +1,49 @@
-<p>wishlist-dialog works!</p>
+<div class="dialog-header">
+  <h2 mat-dialog-title class="dialog-title">{{ isEdit ? 'Update Wishlist' : 'Add Wishlist' }}</h2>
+  <button
+    type="button"
+    matIconButton
+    (click)="close()"
+    aria-label="Close dialog"
+  >
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="dialog-content">
+  @if (errorMessage()) {
+    <div class="error-message" role="alert" style="color: red; margin-bottom: 12px; font-size: 14px;">
+      {{ errorMessage() }}
+    </div>
+  }
+  <form [formGroup]="wishlistForm" class="expense-form">
+    <!-- Wishlist Name field (full width) -->
+    <mat-form-field appearance="fill" class="full-width-field">
+      <mat-label>Wishlist Name</mat-label>
+      <input matInput type="text" formControlName="name" placeholder="Wishlist Name" />
+    </mat-form-field>
+
+    <!-- Amount and Type row (two equal columns, 32px gap) -->
+    <div class="amount-date-row">
+      <mat-form-field appearance="fill" class="field-col">
+        <mat-label>Item Amount</mat-label>
+        <input matInput type="number" formControlName="amount" placeholder="Item Amount" />
+      </mat-form-field>
+
+      <div class="field-col">
+        <app-aria-select
+          class="date-select"
+          [options]="wishlistType"
+          [placeholder]="'Select Type'"
+          [value]="wishlistForm.controls.type.value"
+          (valueChange)="wishlistForm.controls.type.setValue($event)"
+        />
+      </div>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button type="button" matButton class="rounded-button" (click)="close()">Cancel</button>
+  <button type="button" matButton="filled" class="rounded-button" [disabled]="isSaving()" (click)="save()">{{ isSaving() ? 'Saving...' : 'Save' }}</button>
+</mat-dialog-actions>

@@ -1,0 +1,35 @@
+<div class="dialog-header">
+  <div class="header-title-container">
+    <div class="dialog-icon-wrapper" [class]="iconClass()">
+      <mat-icon>{{ iconName() }}</mat-icon>
+    </div>
+    <h2 mat-dialog-title class="dialog-title">{{ resolvedTitle() }}</h2>
+  </div>
+  <button
+    type="button"
+    matIconButton
+    (click)="onCancel()"
+    aria-label="Close dialog"
+  >
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="dialog-content">
+  <p class="dialog-message">{{ resolvedMessage() }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  @if (isConfirmation()) {
+    <button type="button" matButton class="rounded-button" (click)="onCancel()">
+      {{ data?.cancelText ?? cancelText() }}
+    </button>
+    <button type="button" matButton="filled" class="rounded-button confirm-btn" [class.btn-error]="resolvedType() === 'error'" (click)="onConfirm()">
+      {{ data?.confirmText ?? confirmText() }}
+    </button>
+  } @else {
+    <button type="button" matButton="filled" class="rounded-button" [class.btn-error]="resolvedType() === 'error'" (click)="onConfirm()">
+      OK
+    </button>
+  }
+</mat-dialog-actions>

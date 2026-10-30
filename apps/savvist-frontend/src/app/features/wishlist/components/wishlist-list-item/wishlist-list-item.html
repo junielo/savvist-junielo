@@ -1,24 +1,39 @@
-<div class="item-container">
+<div class="item-container" [class.completed]="itemData().isCompleted">
   <app-basic-radial-bar
-    [value]="70"
+    [value]="itemData().isCompleted ? 100 : 0"
     [width]="25"
     [height]="25"
     [thickness]="4"
     trackColor="#e0e0e0"
-    label="Savings progress"
+    [label]="itemData().name"
   />
-  <span style="margin-right: auto; font-weight: 500; font-size: 18px">{{ itemData().name }}</span>
+  <span
+    style="margin-right: auto; font-weight: 500; font-size: 18px"
+    [style.text-decoration]="itemData().isCompleted ? 'line-through' : 'none'"
+    >{{ itemData().name }}</span
+  >
   <span style="margin-right: 10px; font-size: 16px"
     >PHP {{ itemData().amount | number: '1.2-2' }}</span
   >
-  <app-aria-select [options]="wishlistTypes" [(value)]="itemData().type" />
-  <button matMiniFab class="center-item">
-    <mat-icon style="font-size: 18px; color: rgb(22, 108, 0)" class="center-item">check</mat-icon>
+  <app-aria-select [options]="wishlistTypes" [value]="itemData().type" (valueChange)="onTypeChange($event)" />
+  <button
+    matMiniFab
+    class="center-item"
+    (click)="onTogglePurchase()"
+    [attr.aria-label]="itemData().isCompleted ? 'Undo purchase' : 'Purchase item'"
+  >
+    <mat-icon
+      style="font-size: 18px"
+      [style.color]="itemData().isCompleted ? 'rgb(100, 100, 100)' : 'rgb(22, 108, 0)'"
+      class="center-item"
+    >
+      {{ itemData().isCompleted ? 'undo' : 'check' }}
+    </mat-icon>
   </button>
-  <button matMiniFab class="center-item">
+  <button matMiniFab class="center-item" (click)="onEdit()" aria-label="Edit wishlist item">
     <mat-icon style="font-size: 18px" class="center-item">edit</mat-icon>
   </button>
-  <button matMiniFab class="center-item">
+  <button matMiniFab class="center-item" (click)="onDelete()" aria-label="Delete wishlist item">
     <mat-icon style="font-size: 18px; color: rgb(255, 77, 77)" class="center-item">delete</mat-icon>
   </button>
 </div>
