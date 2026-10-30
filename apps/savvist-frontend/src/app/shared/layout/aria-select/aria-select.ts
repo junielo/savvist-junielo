@@ -32,6 +32,9 @@ export class AriaSelect {
   /** Whether the select is disabled. */
   readonly disabled = input(false);
 
+  /** Optional width for the select component. */
+  readonly width = input<string | number>();
+
   readonly listbox = viewChild(Listbox);
   readonly popupExpanded = signal(false);
 

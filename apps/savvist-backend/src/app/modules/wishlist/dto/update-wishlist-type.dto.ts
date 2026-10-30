@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class UpdateWishlistTypeDto {
   @IsOptional()
@@ -9,8 +9,6 @@ export class UpdateWishlistTypeDto {
   @IsString()
   type?: string;
 
-  @IsNotEmpty()
-  @IsString()
   getPriority(): string {
     return this.priority ?? this.type ?? '';
   }

@@ -1,1 +1,6 @@
+<div class="dashboard-header">
+  @if (user(); as u) {
+    <span class="user-name">{{ u.displayName }}</span>
+  }
+</div>
 <p>dashboard-page works!</p>

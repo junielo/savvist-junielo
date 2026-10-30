@@ -15,7 +15,7 @@
   <span style="margin-right: 10px; font-size: 16px"
     >PHP {{ itemData().amount | number: '1.2-2' }}</span
   >
-  <app-aria-select [options]="wishlistTypes" [value]="itemData().type" (valueChange)="onTypeChange($event)" />
+  <app-aria-select [width]="'200px'" [options]="wishlistTypes" [value]="itemData().type" (valueChange)="onTypeChange($event)" />
   <button
     matMiniFab
     class="center-item"
