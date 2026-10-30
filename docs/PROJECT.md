@@ -89,7 +89,7 @@ Savvist helps one user answer: *how much money do I have, how much can I spend t
 
 ### HTTP and data
 - **`HttpClient`** with the fetch backend and functional interceptors (base URL, auth stub, error normalization, retry for reads).
-- **Repository pattern with abstract classes as DI tokens**: mock implementation now, transitioning to NestJS REST API implementation.
+- **Backend API Integration**: Fully implemented NestJS backend REST endpoints backing all frontend services.
 
 ### Platform and i18n
 - **Locale setup** for the Philippines with PHP as the default currency.
@@ -103,7 +103,7 @@ Savvist helps one user answer: *how much money do I have, how much can I spend t
 savvist-junielo/
 ├── apps/
 │   ├── savvist-frontend/    # Angular 22 standalone SPA
-│   └── savvist-backend/     # NestJS REST API
+│   └── savvist-backend/     # NestJS REST API with Mongoose
 ├── libs/                    # Shared libraries (if any)
 └── docs/                    # Architecture, database, and project documentation
 ```
@@ -111,12 +111,11 @@ savvist-junielo/
 ### Feature-based folder layout (`savvist-frontend/src/app/`)
 ```
 src/app/
-  core/        singletons: layout (shell, sidebar, top-bar), data (repository
-               contracts and mocks), state (profile, record log), errors, config
-  shared/      reusable, domain-free UI: dialog shell, confirm dialog, pill
-               dropdown, month chips, empty/loading/error states, pipes
-  features/    dashboard, chat, expenses, wishlist, record-logs,
-               add-amounts, base-salary
+  core/        singletons: layout (shell, sidebar, top-bar, dialogs), http (error interceptor),
+               models (account-entry, user), services (account-entries, entry-records, user)
+  shared/      reusable, domain-free UI: charts (basic-radial-bar), layout (dialog-shell, shared-dialog, aria-select),
+               models, pipes (ordinal-pipe)
+  features/    chat, dashboard, expenses, wishlist, record-logs
 ```
 
 ### Rules
@@ -127,5 +126,5 @@ src/app/
 
 ## 6. Current status
 
-- **Done:** Nx monorepo setup, Angular 22 frontend feature implementation (`dashboard`, `chat`, `expenses`, `wishlist`, `record-logs`, shell layout, shared primitives, Vitest testing setup), and complete NestJS backend implementation (`savvist-backend`) including Mongoose schemas/models, REST API controllers, services, transaction management, and comprehensive Jest unit tests.
+- **Done:** Nx monorepo setup, Angular 22 frontend feature implementation (`dashboard`, `chat`, `expenses`, `wishlist`, `record-logs`, shell layout, global dialogs, shared primitives, Vitest testing setup), and complete NestJS backend implementation (`savvist-backend`) including Mongoose schemas/models, REST API controllers, services, transaction management, and comprehensive Jest unit tests.
 - **Next steps:** Production deployment hardening and end-to-end integration testing.

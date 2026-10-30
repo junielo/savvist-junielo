@@ -46,14 +46,29 @@ apps/savvist-frontend/src/app/
 ├── app.spec.ts              # Unit tests for the root application component
 ├── app.ts                   # Root application component class
 ├── core/                    # Global singletons and application-wide infrastructure
-│   └── layout/              # Persistent shell layout components
-│       ├── shell/           # Main container layout (sidebar + top-bar + router outlet)
-│       ├── sidebar/         # Responsive navigation sidebar drawer
-│       └── top-bar/         # Header bar with base salary display/edit and global actions
+│   ├── http/                # HTTP error and request interceptors
+│   │   ├── api-error.ts     # Standardized API error interface
+│   │   └── error.interceptor.ts # HTTP error handling interceptor
+│   ├── layout/              # Persistent shell layout components & global dialogs
+│   │   ├── dialogs/         # Core application dialogs
+│   │   │   ├── add-entry-dialog/      # Dialog for adding account balances / entries
+│   │   │   ├── create-entry-dialog/   # Dialog for creating/editing account entries
+│   │   │   └── user-profile-dialog/   # Dialog for managing user salary / profile settings
+│   │   ├── shell/           # Main container layout (sidebar + top-bar + router outlet)
+│   │   ├── sidebar/         # Responsive navigation sidebar drawer
+│   │   └── top-bar/         # Header bar with base salary display/edit and global actions
+│   ├── models/              # Global models and data types
+│   │   ├── account-entry.ts # Account entry definitions
+│   │   ├── entry-types.ts   # Entry type enums and definitions
+│   │   └── user.ts          # User profile model
+│   └── services/            # Global API communication services
+│       ├── account-entries.service.ts # Account entries HTTP service
+│       ├── entry-records.service.ts   # Entry records HTTP service
+│       └── user.service.ts            # User profile HTTP service
 ├── features/                # Vertical feature modules encapsulating domain logic
 │   ├── chat/                # AI assistant chat interface feature
 │   │   ├── chat.routes.ts   # Chat feature routing module
-│   │   └── pages/           # Chat page views
+│   │   └── pages/           # Chat page views (chat-page)
 │   ├── dashboard/           # Financial metrics, gauges, line charts, and overview
 │   │   ├── dashboard.routes.ts# Dashboard feature routing
 │   │   ├── components/      # Dashboard-specific widgets
@@ -61,6 +76,8 @@ apps/savvist-frontend/src/app/
 │   │   │   ├── apex-line-chart/  # ApexCharts trend line chart component
 │   │   │   ├── apex-table-data/  # Financial data table summary widget
 │   │   │   └── card-computed-amount/ # Computed amount stat card component
+│   │   ├── services/        # Dashboard services
+│   │   │   └── cards-TAT.service.ts # Turnaround / metric computation service
 │   │   └── pages/           # Dashboard page views
 │   ├── expenses/            # Recurring and monthly expense management
 │   │   ├── expenses.routes.ts# Expenses feature routing
@@ -69,14 +86,17 @@ apps/savvist-frontend/src/app/
 │   │   ├── dialogs/         # Expense creation/editing dialogs
 │   │   │   └── expense-dialog/
 │   │   ├── models/          # Expense-specific TypeScript models and interfaces
-│   │   │   └── expense-list-tem.ts
+│   │   │   ├── expense-list-tem.ts
+│   │   │   └── expense.model.ts
+│   │   ├── services/        # Expense HTTP service
 │   │   └── pages/           # Expenses page views
 │   ├── record-logs/         # Read-only audit log of financial events
 │   │   ├── record-logs.routes.ts # Record logs feature routing
 │   │   ├── components/      # Record list item widgets
 │   │   │   └── record-list-item/
+│   │   ├── models/          # Record log models
+│   │   │   └── record-log-list-item-model.ts
 │   │   └── pages/           # Record logs page views
-│   │       └── resize-observer-polyfill.ts # ResizeObserver helper for responsive tables
 │   └── wishlist/            # Priority-ranked wishlist purchases
 │       ├── wishlist.routes.ts # Wishlist feature routing
 │       ├── components/      # Wishlist item display widgets
@@ -86,13 +106,15 @@ apps/savvist-frontend/src/app/
 │       ├── models/          # Wishlist data types and interfaces
 │       │   ├── wishlist-list-item.ts
 │       │   └── wishlist-type.ts
+│       ├── services/        # Wishlist HTTP service
 │       └── pages/           # Wishlist page views
 └── shared/                  # Domain-free, reusable UI primitives and utilities
     ├── charts/              # Generic chart wrappers
     │   └── basic-radial-bar/# Radial bar progress chart component
     ├── layout/              # Reusable layout primitives
     │   ├── aria-select/     # Accessible custom select dropdown component
-    │   └── dialog-shell/    # Reusable modal dialog shell wrapper
+    │   ├── dialog-shell/    # Reusable modal dialog shell wrapper
+    │   └── shared-dialog/   # Reusable confirmation, alert, warning, error dialog component
     ├── models/              # Shared types and utility interfaces
     │   └── aria-select-option.ts
     └── pipes/               # Custom formatting pipes
@@ -122,8 +144,13 @@ apps/savvist-backend/src/
     │   ├── current-user/    # Current user decorator and authentication guard
     │   │   ├── current-user.decorator.ts # Custom decorator to extract authenticated user
     │   │   └── current-user.guard.ts     # Guard validating user context
-    │   └── filters/         # HTTP exception and error filters
-    │       └── http-exception.filter.ts  # Global HTTP exception normalization filter
+    │   ├── filters/         # HTTP exception and error filters
+    │   │   └── http-exception.filter.ts  # Global HTTP exception normalization filter
+    │   └── pipes/           # Validation and utility pipes
+    │       └── parse-object-id.pipe.ts   # MongoDB ObjectId validation pipe
+    ├── config/              # Configuration schemas and environment validation
+    │   ├── configuration.ts # Application configuration factory
+    │   └── env.validation.ts# Environment variables validation schema
     ├── database/            # Database configuration and transaction management services
     │   ├── database.module.ts # Mongoose database configuration and connection module
     │   └── transaction.service.ts # Transaction management service for database multi-document sessions
@@ -134,9 +161,12 @@ apps/savvist-backend/src/
         │   ├── account-entries.service.ts    # Business logic service for account entries
         │   ├── dto/         # Data transfer objects for account entries
         │   │   ├── create-account-entry.dto.ts
+        │   │   ├── find-account-entries.dto.ts
         │   │   └── update-account-entry.dto.ts
-        │   └── entities/    # Mongoose schema entities
-        │       └── account-entry.entity.ts
+        │   ├── entities/    # Domain entities
+        │   │   └── account-entry.entity.ts
+        │   └── schemas/     # Mongoose schemas
+        │       └── account-entry.schema.ts
         ├── chat/            # AI assistant chat interface backend module
         │   ├── chat.module.ts # NestJS module for chat feature
         │   ├── agent/       # AI agent integration and processing service
@@ -160,15 +190,24 @@ apps/savvist-backend/src/
         │   ├── entry-records.controller.ts
         │   ├── entry-records.module.ts
         │   └── entry-records.service.ts
+        │   ├── dto/         # Data transfer objects
+        │   │   ├── delete-balance.dto.ts
+        │   │   └── find-entry-records.dto.ts
+        │   ├── entities/    # Domain entities
+        │   │   └── entry-record.entity.ts
+        │   └── schemas/     # Mongoose schemas
+        │       └── entry-record.schema.ts
         ├── expenses/        # Recurring and monthly expense tracking
         │   ├── expenses.controller.ts
         │   ├── expenses.module.ts
-        │   └── expenses.service.ts
+        │   ├── expenses.service.ts
         │   ├── dto/         # Data transfer objects for expenses
         │   │   ├── create-expense.dto.ts
         │   │   └── update-expense.dto.ts
-        │   └── entities/    # Mongoose schema entities for expenses
-        │       └── expense.entity.ts
+        │   ├── entities/    # Mongoose schema entities for expenses
+        │   │   └── expense.entity.ts
+        │   └── schemas/     # Mongoose schemas
+        │       └── expense.schema.ts
         ├── record-logs/     # Financial event and action record logging
         │   ├── record-logs.controller.ts
         │   ├── record-logs.module.ts
@@ -176,16 +215,23 @@ apps/savvist-backend/src/
         ├── users/           # User profile and management module
         │   ├── users.controller.ts
         │   ├── users.module.ts
-        │   └── users.service.ts
+        │   ├── users.service.ts
+        │   ├── dto/         # DTOs
+        │   │   └── update-user.dto.ts
+        │   └── schemas/     # Mongoose schemas
+        │       └── user.schema.ts
         └── wishlist/        # Priority-ranked wishlist purchases
             ├── wishlist.controller.ts
             ├── wishlist.module.ts
             ├── wishlist.service.ts
-            ├── dto/         # Data transfer objects for wishlist items
+            ├── dto/         # Data transfer objects
             │   ├── create-wishlist.dto.ts
-            │   └── update-wishlist.dto.ts
-            └── entities/    # Mongoose schema entities for wishlist items
-                └── wishlist.entity.ts
+            │   ├── update-wishlist.dto.ts
+            │   └── update-wishlist-type.dto.ts
+            ├── entities/    # Domain entities
+            │   └── wishlist.entity.ts
+            └── schemas/     # Mongoose schemas
+                └── wishlist.schema.ts
 ```
 
 ### NestJS Backend Architectural Standards
