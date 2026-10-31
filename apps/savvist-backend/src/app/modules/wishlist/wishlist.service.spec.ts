@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
+import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { TransactionService } from '../../database/transaction.service';
+import { RecordLogsService } from '../record-logs/record-logs.service';
 import { WishlistItem } from './schemas/wishlist.schema';
 import { WishlistService } from './wishlist.service';
 
 describe('WishlistService', () => {
   let service: WishlistService;
   let mockWishlistModel: any;
-  let mockConnection: any;
   let mockTransactionService: any;
+  let mockRecordLogsService: any;
 
   const userId = new Types.ObjectId('665f1c2a9b1e8a0012a1b001');
   const itemId = new Types.ObjectId('665f1c2a9b1e8a0012a1d001');
@@ -24,14 +25,12 @@ describe('WishlistService', () => {
       findOneAndDelete: jest.fn(),
     };
 
-    mockConnection = {
-      collection: jest.fn().mockReturnValue({
-        insertOne: jest.fn().mockResolvedValue({ insertedId: new Types.ObjectId() }),
-      }),
-    };
-
     mockTransactionService = {
       run: jest.fn((work) => work({} as any)),
+    };
+
+    mockRecordLogsService = {
+      create: jest.fn().mockResolvedValue({}),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -42,12 +41,12 @@ describe('WishlistService', () => {
           useValue: mockWishlistModel,
         },
         {
-          provide: getConnectionToken(),
-          useValue: mockConnection,
-        },
-        {
           provide: TransactionService,
           useValue: mockTransactionService,
+        },
+        {
+          provide: RecordLogsService,
+          useValue: mockRecordLogsService,
         },
       ],
     }).compile();
@@ -91,6 +90,117 @@ describe('WishlistService', () => {
       });
 
       await expect(service.findOne(userId, itemId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('purchase', () => {
+    it('should purchase item and write a purchased log', async () => {
+      const mockItem = {
+        _id: itemId,
+        userId,
+        name: 'Keyboard',
+        amount: 5000,
+        status: 'pending',
+        save: jest.fn().mockResolvedValue(true),
+        toObject: function () { return this; },
+      };
+      mockWishlistModel.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(mockItem),
+      });
+
+      const result = await service.purchase(userId, itemId);
+      expect(result.status).toBe('purchased');
+      expect(mockRecordLogsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          recordType: 'wishlist',
+          action: 'purchased',
+          sourceCollection: 'wishlistItems',
+          sourceId: itemId,
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should throw ConflictException if already purchased and write no log', async () => {
+      const mockItem = {
+        _id: itemId,
+        userId,
+        name: 'Keyboard',
+        amount: 5000,
+        status: 'purchased',
+      };
+      mockWishlistModel.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(mockItem),
+      });
+
+      await expect(service.purchase(userId, itemId)).rejects.toThrow(ConflictException);
+      expect(mockRecordLogsService.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if item not found and write no log', async () => {
+      mockWishlistModel.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.purchase(userId, itemId)).rejects.toThrow(NotFoundException);
+      expect(mockRecordLogsService.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('undoPurchase', () => {
+    it('should undo purchase and write an adjusted log', async () => {
+      const mockItem = {
+        _id: itemId,
+        userId,
+        name: 'Keyboard',
+        amount: 5000,
+        status: 'purchased',
+        purchasedAt: new Date(),
+        save: jest.fn().mockResolvedValue(true),
+        toObject: function () { return this; },
+      };
+      mockWishlistModel.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(mockItem),
+      });
+
+      const result = await service.undoPurchase(userId, itemId);
+      expect(result.status).toBe('pending');
+      expect(mockRecordLogsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          recordType: 'wishlist',
+          action: 'adjusted',
+          sourceCollection: 'wishlistItems',
+          sourceId: itemId,
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should throw ConflictException if item is pending and write no log', async () => {
+      const mockItem = {
+        _id: itemId,
+        userId,
+        name: 'Keyboard',
+        amount: 5000,
+        status: 'pending',
+      };
+      mockWishlistModel.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(mockItem),
+      });
+
+      await expect(service.undoPurchase(userId, itemId)).rejects.toThrow(ConflictException);
+      expect(mockRecordLogsService.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if item not found and write no log', async () => {
+      mockWishlistModel.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.undoPurchase(userId, itemId)).rejects.toThrow(NotFoundException);
+      expect(mockRecordLogsService.create).not.toHaveBeenCalled();
     });
   });
 
@@ -143,8 +253,8 @@ describe('WishlistService', () => {
         priority: 'normal',
       };
       mockWishlistModel.findOne
-        .mockResolvedValueOnce(mockDoc) // for finding the item
-        .mockResolvedValueOnce({ _id: new Types.ObjectId(), priority: 'priority' }); // existing priority check
+        .mockResolvedValueOnce(mockDoc)
+        .mockResolvedValueOnce({ _id: new Types.ObjectId(), priority: 'priority' });
 
       await expect(service.updateType(userId, itemId, 'priority')).rejects.toThrow(
         ConflictException,

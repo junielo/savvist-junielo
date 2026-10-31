@@ -5,9 +5,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { TransactionService } from '../../database/transaction.service';
+import { RecordLogsService } from '../record-logs/record-logs.service';
 import { CreateWishlistDto } from './dto/create-wishlist.dto';
 import { UpdateWishlistDto } from './dto/update-wishlist.dto';
 import { WishlistItem, WishlistDocument } from './schemas/wishlist.schema';
@@ -37,9 +38,8 @@ export class WishlistService {
   constructor(
     @InjectModel(WishlistItem.name)
     private readonly wishlistModel: Model<WishlistDocument>,
-    @InjectConnection()
-    private readonly connection: Connection,
     private readonly transactionService: TransactionService,
+    private readonly recordLogsService: RecordLogsService,
   ) {}
 
   async findAll(userId: Types.ObjectId): Promise<WishlistItem[]> {
@@ -198,11 +198,15 @@ export class WishlistService {
         throw new NotFoundException(`Wishlist item with id "${id}" not found`);
       }
 
+      if (item.status === 'purchased') {
+        throw new ConflictException(`Wishlist item with id "${id}" is already purchased`);
+      }
+
       item.status = 'purchased';
       item.purchasedAt = new Date();
       await item.save({ session });
 
-      await this.connection.collection('recordLogs').insertOne(
+      await this.recordLogsService.create(
         {
           userId,
           name: item.name,
@@ -213,7 +217,7 @@ export class WishlistService {
           sourceCollection: 'wishlistItems',
           sourceId: item._id,
         },
-        { session },
+        session,
       );
 
       this.logger.log(`Purchased wishlist item ${id} for user ${userId}`);
@@ -228,22 +232,26 @@ export class WishlistService {
         throw new NotFoundException(`Wishlist item with id "${id}" not found`);
       }
 
+      if (item.status !== 'purchased') {
+        throw new ConflictException(`Wishlist item with id "${id}" is not purchased`);
+      }
+
       item.status = 'pending';
       item.purchasedAt = null;
       await item.save({ session });
 
-      await this.connection.collection('recordLogs').insertOne(
+      await this.recordLogsService.create(
         {
           userId,
           name: item.name,
           amount: item.amount,
           recordType: 'wishlist',
-          action: 'updated',
+          action: 'adjusted',
           date: new Date(),
           sourceCollection: 'wishlistItems',
           sourceId: item._id,
         },
-        { session },
+        session,
       );
 
       this.logger.log(`Undo purchase for wishlist item ${id} for user ${userId}`);

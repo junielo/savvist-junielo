@@ -4,6 +4,7 @@ import { CurrentUserGuard } from '../../common/current-user/current-user.guard';
 import { AccountEntriesModule } from '../account-entries/account-entries.module';
 import { UsersModule } from '../users/users.module';
 import { DailyMetricsModule } from '../daily-metrics/daily-metrics.module';
+import { RecordLogsModule } from '../record-logs/record-logs.module';
 import { EntryRecordsController } from './entry-records.controller';
 import { EntryRecordsService } from './entry-records.service';
 import { EntryRecord, EntryRecordSchema } from './schemas/entry-record.schema';
@@ -16,6 +17,7 @@ import { EntryRecord, EntryRecordSchema } from './schemas/entry-record.schema';
     AccountEntriesModule,
     UsersModule,
     DailyMetricsModule,
+    RecordLogsModule,
   ],
   controllers: [EntryRecordsController],
   providers: [EntryRecordsService, CurrentUserGuard],

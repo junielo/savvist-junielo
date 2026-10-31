@@ -8,6 +8,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { AccountEntry, AccountEntryDocument } from '../account-entries/schemas/account-entry.schema';
 import { DailyMetricsService } from '../daily-metrics/daily-metrics.service';
+import { RecordLogsService } from '../record-logs/record-logs.service';
+import { TransactionService } from '../../database/transaction.service';
 import { DeleteBalanceDto } from './dto/delete-balance.dto';
 import { FindEntryRecordsDto } from './dto/find-entry-records.dto';
 import { UpdateBalanceDto } from './dto/update-balance.dto';
@@ -33,6 +35,8 @@ export class EntryRecordsService {
     @InjectModel(AccountEntry.name)
     private readonly accountEntryModel: Model<AccountEntryDocument>,
     private readonly dailyMetricsService: DailyMetricsService,
+    private readonly transactionService: TransactionService,
+    private readonly recordLogsService: RecordLogsService,
   ) {}
 
   async findByDate(
@@ -84,30 +88,69 @@ export class EntryRecordsService {
 
     const recordedDate = dto.recordedDate ? new Date(dto.recordedDate) : new Date();
 
-    // Upsert entry record: one balance per account per day
-    const updated = await this.entryRecordModel
-      .findOneAndUpdate(
+    const updated = await this.transactionService.run(async (session) => {
+      const existing = await this.entryRecordModel
+        .findOne({
+          userId,
+          accountEntryId: account._id,
+          day,
+        })
+        .session(session)
+        .lean();
+
+      if (existing && existing.balance === dto.balance) {
+        return existing;
+      }
+
+      const action = existing ? 'updated' : 'created';
+      const previousAmount = existing ? existing.balance : undefined;
+
+      // Upsert entry record: one balance per account per day
+      const record = await this.entryRecordModel
+        .findOneAndUpdate(
+          {
+            userId,
+            accountEntryId: account._id,
+            day,
+          },
+          {
+            $set: {
+              balance: dto.balance,
+              accountName: account.name,
+              accountType: account.type,
+              recordedDate,
+            },
+          },
+          {
+            new: true,
+            upsert: true,
+            runValidators: true,
+            setDefaultsOnInsert: true,
+            session,
+          },
+        )
+        .lean();
+
+      const sourceId = (record as { _id: Types.ObjectId })._id;
+
+      await this.recordLogsService.create(
         {
           userId,
-          accountEntryId: new Types.ObjectId(dto.accountEntryId),
-          day,
+          name: account.name,
+          amount: dto.balance,
+          recordType: account.type,
+          action,
+          date: new Date(),
+          sourceCollection: 'entryRecords',
+          sourceId,
+          ...(previousAmount !== undefined && { previousAmount }),
+          effectiveDay: day,
         },
-        {
-          $set: {
-            balance: dto.balance,
-            accountName: account.name,
-            accountType: account.type,
-            recordedDate,
-          },
-        },
-        {
-          new: true,
-          upsert: true,
-          runValidators: true,
-          setDefaultsOnInsert: true,
-        },
-      )
-      .lean();
+        session,
+      );
+
+      return record;
+    });
 
     // Compute and save daily metrics for this day
     await this.dailyMetricsService.computeAndSaveForDay(userId, day);

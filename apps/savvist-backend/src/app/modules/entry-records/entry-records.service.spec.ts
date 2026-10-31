@@ -5,6 +5,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { AccountEntry, AccountType } from '../account-entries/schemas/account-entry.schema';
 import { DailyMetricsService } from '../daily-metrics/daily-metrics.service';
+import { RecordLogsService } from '../record-logs/record-logs.service';
+import { TransactionService } from '../../database/transaction.service';
 import { EntryRecordsService } from './entry-records.service';
 import { EntryRecord } from './schemas/entry-record.schema';
 
@@ -13,6 +15,8 @@ describe('EntryRecordsService', () => {
   let mockEntryRecordModel: any;
   let mockAccountEntryModel: any;
   let mockDailyMetricsService: any;
+  let mockTransactionService: any;
+  let mockRecordLogsService: any;
 
   const userId = new Types.ObjectId('665f1c2a9b1e8a0012a1b001');
   const accountEntryId = new Types.ObjectId('665f1c2a9b1e8a0012a1c001');
@@ -21,6 +25,7 @@ describe('EntryRecordsService', () => {
   beforeEach(async () => {
     mockEntryRecordModel = {
       find: jest.fn(),
+      findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
       findOneAndDelete: jest.fn(),
     };
@@ -31,6 +36,14 @@ describe('EntryRecordsService', () => {
 
     mockDailyMetricsService = {
       computeAndSaveForDay: jest.fn().mockResolvedValue({}),
+    };
+
+    mockTransactionService = {
+      run: jest.fn((work) => work({} as any)),
+    };
+
+    mockRecordLogsService = {
+      create: jest.fn().mockResolvedValue({}),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +60,14 @@ describe('EntryRecordsService', () => {
         {
           provide: DailyMetricsService,
           useValue: mockDailyMetricsService,
+        },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
+        },
+        {
+          provide: RecordLogsService,
+          useValue: mockRecordLogsService,
         },
       ],
     }).compile();
@@ -118,8 +139,8 @@ describe('EntryRecordsService', () => {
     });
   });
 
-  describe('updateBalance', () => {
-    it('should successfully update/upsert balance', async () => {
+  describe('updateBalance (record logging)', () => {
+    beforeEach(() => {
       mockAccountEntryModel.findOne.mockResolvedValue({
         _id: accountEntryId,
         userId,
@@ -127,6 +148,14 @@ describe('EntryRecordsService', () => {
         type: AccountType.CASH,
         archivedAt: null,
       });
+    });
+
+    it('should create a record log with action "created" on first save', async () => {
+      const findOneQuery = {
+        session: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue(null), // no existing record
+      };
+      mockEntryRecordModel.findOne.mockReturnValue(findOneQuery);
 
       const updatedRecord = {
         _id: recordId,
@@ -138,10 +167,10 @@ describe('EntryRecordsService', () => {
         accountType: AccountType.CASH,
       };
 
-      const mockQuery = {
+      const findOneAndUpdateQuery = {
         lean: jest.fn().mockResolvedValue(updatedRecord),
       };
-      mockEntryRecordModel.findOneAndUpdate.mockReturnValue(mockQuery);
+      mockEntryRecordModel.findOneAndUpdate.mockReturnValue(findOneAndUpdateQuery);
 
       const result = await service.updateBalance(userId, {
         accountEntryId: accountEntryId.toString(),
@@ -149,26 +178,82 @@ describe('EntryRecordsService', () => {
         balance: 2000,
       });
 
-      expect(mockAccountEntryModel.findOne).toHaveBeenCalledWith({
-        _id: accountEntryId,
-        userId,
-      });
-      expect(mockEntryRecordModel.findOneAndUpdate).toHaveBeenCalledWith(
-        {
+      expect(mockRecordLogsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
           userId,
-          accountEntryId,
-          day: '2026-10-20',
-        },
-        {
-          $set: {
-            balance: 2000,
-            accountName: 'BDO Debit',
-            accountType: AccountType.CASH,
-            recordedDate: expect.any(Date),
-          },
-        },
-        expect.objectContaining({ upsert: true, new: true }),
+          name: 'BDO Debit',
+          amount: 2000,
+          recordType: AccountType.CASH,
+          action: 'created',
+          sourceCollection: 'entryRecords',
+          sourceId: recordId,
+          effectiveDay: '2026-10-20',
+        }),
+        expect.anything(),
       );
+      expect(result.balance).toBe(2000);
+    });
+
+    it('should create a record log with action "updated" and previousAmount on overwrite', async () => {
+      const findOneQuery = {
+        session: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue({ _id: recordId, balance: 1500 }), // existing record
+      };
+      mockEntryRecordModel.findOne.mockReturnValue(findOneQuery);
+
+      const updatedRecord = {
+        _id: recordId,
+        userId,
+        accountEntryId,
+        day: '2026-10-20',
+        balance: 2000,
+        accountName: 'BDO Debit',
+        accountType: AccountType.CASH,
+      };
+
+      const findOneAndUpdateQuery = {
+        lean: jest.fn().mockResolvedValue(updatedRecord),
+      };
+      mockEntryRecordModel.findOneAndUpdate.mockReturnValue(findOneAndUpdateQuery);
+
+      const result = await service.updateBalance(userId, {
+        accountEntryId: accountEntryId.toString(),
+        day: '2026-10-20',
+        balance: 2000,
+      });
+
+      expect(mockRecordLogsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          name: 'BDO Debit',
+          amount: 2000,
+          recordType: AccountType.CASH,
+          action: 'updated',
+          previousAmount: 1500,
+          sourceCollection: 'entryRecords',
+          sourceId: recordId,
+          effectiveDay: '2026-10-20',
+        }),
+        expect.anything(),
+      );
+      expect(result.balance).toBe(2000);
+    });
+
+    it('should skip write and log when value is unchanged', async () => {
+      const findOneQuery = {
+        session: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue({ _id: recordId, balance: 2000 }), // existing record with same balance
+      };
+      mockEntryRecordModel.findOne.mockReturnValue(findOneQuery);
+
+      const result = await service.updateBalance(userId, {
+        accountEntryId: accountEntryId.toString(),
+        day: '2026-10-20',
+        balance: 2000,
+      });
+
+      expect(mockEntryRecordModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(mockRecordLogsService.create).not.toHaveBeenCalled();
       expect(result.balance).toBe(2000);
     });
 
@@ -229,6 +314,12 @@ describe('EntryRecordsService', () => {
         type: AccountType.CASH,
         archivedAt: null,
       });
+
+      const findOneQuery = {
+        session: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue(null),
+      };
+      mockEntryRecordModel.findOne.mockReturnValue(findOneQuery);
 
       const updatedRecord = {
         _id: recordId,
