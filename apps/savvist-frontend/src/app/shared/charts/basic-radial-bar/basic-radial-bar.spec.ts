@@ -12,7 +12,6 @@ describe('BasicRadialBar', () => {
 
     fixture = TestBed.createComponent(BasicRadialBar);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('value', 50);
     fixture.detectChanges();
   });
 

@@ -20,7 +20,7 @@ import {
 })
 export class BasicRadialBar {
   /** Progress from 0 to 100. Values outside the range are clamped. */
-  readonly value = input.required({ transform: numberAttribute });
+  readonly value = input(0, { transform: numberAttribute });
 
   /** Width in px. */
   readonly width = input(80, { transform: numberAttribute });

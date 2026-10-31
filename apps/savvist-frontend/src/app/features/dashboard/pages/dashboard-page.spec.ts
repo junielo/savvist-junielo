@@ -41,6 +41,14 @@ describe('DashboardPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const userNameEl = compiled.querySelector('.user-name');
     expect(userNameEl).toBeTruthy();
-    expect(userNameEl?.textContent?.trim()).toBe('John Doe');
+    expect(userNameEl?.textContent?.trim()).toContain('John Doe');
+  });
+
+  it('should render three card-computed-amount and two apex-gauge-label components', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+    const cards = compiled.querySelectorAll('app-card-computed-amount');
+    const gauges = compiled.querySelectorAll('app-apex-gauge-label');
+    expect(cards.length).toBe(3);
+    expect(gauges.length).toBe(2);
   });
 });

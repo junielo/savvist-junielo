@@ -49,6 +49,7 @@ export class DailyMetricsService {
           userId,
           accountEntryId: acc._id,
           day: { $lte: day },
+          balance: { $ne: 0 },
         })
         .sort({ day: -1 })
         .lean();

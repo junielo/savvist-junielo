@@ -1,1 +1,19 @@
-<p>card-computed-amount works!</p>
+<div 
+  class="computed-amount-card" 
+  [style.width]="width()" 
+  [style.height]="height()" 
+  [style.background-color]="backgroundColor()"
+  [style.color]="textColor()">
+  <div class="card-content">
+    <div 
+      class="huge-amount" 
+      [style.color]="mainTextColor()">
+      {{ amount() | number:'1.2-2' }}
+    </div>
+    <div 
+      class="sub-text" 
+      [style.color]="subTextColor()">
+      {{ subText() }}
+    </div>
+  </div>
+</div>

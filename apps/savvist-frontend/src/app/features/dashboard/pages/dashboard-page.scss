@@ -1,13 +1,53 @@
 :host {
   display: block;
+  padding: 24px;
+}
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .dashboard-header {
   display: flex;
   justify-content: flex-start;
-  align-items: flex-start;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .user-name {
-  font-weight: 500;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+.gauges-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+.gauge-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }

@@ -1,1 +1,10 @@
-<p>apex-gauge-label works!</p>
+<div id="chart" class="apex-gauge-container">
+  <apx-chart
+    [series]="chartSeries()"
+    [chart]="chartConfig()"
+    [plotOptions]="plotOptions()"
+    [fill]="fillConfig"
+    [stroke]="strokeConfig"
+    [labels]="chartLabels()"
+  ></apx-chart>
+</div>

@@ -1,6 +1,44 @@
-<div class="dashboard-header">
-  @if (user(); as u) {
-    <span class="user-name">{{ u.displayName }}</span>
-  }
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    @if (user(); as u) {
+      <span class="user-name">Welcome back, {{ u.displayName }}</span>
+    }
+  </div>
+
+  <!-- Row 1: Three card-computed-amount in a single row -->
+  <div class="cards-row">
+    <app-card-computed-amount
+      [amount]="45250.75"
+      [subText]="'Total Balance'"
+      [height]="'180px'"
+    />
+    <app-card-computed-amount
+      [amount]="12300.00"
+      [subText]="'Monthly Income'"
+      [height]="'180px'"
+    />
+    <app-card-computed-amount
+      [amount]="5420.50"
+      [subText]="'Total Expenses'"
+      [height]="'180px'"
+    />
+  </div>
+
+  <!-- Row 2: Two apex-gauge-label in the next row -->
+  <div class="gauges-row">
+    <div class="gauge-card">
+      <app-apex-gauge-label
+        [value]="75"
+        [label]="'Budget Usage'"
+        [height]="300"
+      />
+    </div>
+    <div class="gauge-card">
+      <app-apex-gauge-label
+        [value]="62"
+        [label]="'Savings Goal'"
+        [height]="300"
+      />
+    </div>
+  </div>
 </div>
-<p>dashboard-page works!</p>

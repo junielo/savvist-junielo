@@ -101,6 +101,11 @@ describe('DailyMetricsService', () => {
       const result = await service.computeAndSaveForDay(userId, '2026-10-31');
       expect(result).toBeDefined();
       expect(result.totalFund).toBe(13500);
+      expect(mockEntryRecordModel.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          balance: { $ne: 0 },
+        }),
+      );
       expect(mockDailyMetricModel.findOneAndUpdate).toHaveBeenCalled();
     });
   });

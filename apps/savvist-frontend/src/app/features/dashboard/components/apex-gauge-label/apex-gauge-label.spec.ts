@@ -12,10 +12,15 @@ describe('ApexGaugeLabel', () => {
 
     fixture = TestBed.createComponent(ApexGaugeLabel);
     component = fixture.componentInstance;
-    await fixture.whenStable();
+    fixture.detectChanges();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should compute chart series from value input', () => {
+    fixture.componentRef.setInput('value', 75);
+    expect(component['chartSeries']()).toEqual([75]);
   });
 });

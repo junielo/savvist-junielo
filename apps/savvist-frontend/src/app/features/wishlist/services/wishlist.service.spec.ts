@@ -21,6 +21,9 @@ describe('WishlistService', () => {
     service = TestBed.inject(WishlistService);
     httpMock = TestBed.inject(HttpTestingController);
     injector = TestBed.inject(Injector);
+
+    const wishlistReqs = httpMock.match('/api/wishlist');
+    wishlistReqs.forEach((req) => req.flush([]));
   });
 
   afterEach(() => {

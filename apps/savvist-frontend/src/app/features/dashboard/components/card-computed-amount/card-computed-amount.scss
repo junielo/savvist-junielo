@@ -1,0 +1,36 @@
+.computed-amount-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  height: 400px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  box-sizing: border-box;
+
+  .card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .huge-amount {
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: #1a1a1a;
+    letter-spacing: -0.02em;
+  }
+
+  .sub-text {
+    font-size: clamp(0.875rem, 1.5vw, 1.125rem);
+    font-weight: 500;
+    color: #666666;
+    letter-spacing: 0.05em;
+  }
+}
