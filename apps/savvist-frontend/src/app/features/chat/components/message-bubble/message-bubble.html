@@ -1,0 +1,18 @@
+<div
+  class="message-wrapper"
+  [class.user]="message().role === 'user'"
+  [class.assistant]="message().role === 'assistant'"
+>
+  <div class="bubble">
+    <div class="content">{{ message().content }}@if (message().status === 'streaming') {<span class="typing-cursor"></span>}</div>
+    @if (message().status === 'error') {
+      <div class="error-container">
+        <span class="error-text">Failed to generate response.</span>
+        <button mat-button class="retry-btn" (click)="onRetry()">
+          <mat-icon>refresh</mat-icon>
+          Retry
+        </button>
+      </div>
+    }
+  </div>
+</div>

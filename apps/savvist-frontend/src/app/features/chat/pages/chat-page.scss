@@ -1,0 +1,55 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-drawer-container {
+  height: 100%;
+  background: #fdfdfd;
+}
+
+.sessions-drawer {
+  width: 280px;
+  border-right: 1px solid #e0e0e0;
+  background: rgb(243, 246, 255);
+}
+
+.chat-content-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.mobile-top-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+
+  .mobile-session-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #333333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.thread-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.composer-container {
+  flex-shrink: 0;
+  border-top: 1px solid #e0e0e0;
+  background: #ffffff;
+}

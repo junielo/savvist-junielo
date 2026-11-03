@@ -1,0 +1,91 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.message-wrapper {
+  display: flex;
+  width: 100%;
+  margin-bottom: 1rem;
+
+  &.user {
+    justify-content: flex-end;
+
+    .bubble {
+      background-color: var(--mat-sys-surface-container-high, #2b2b2b);
+      color: var(--mat-sys-on-surface, #e0e0e0);
+      border-radius: 20px 20px 4px 20px;
+    }
+  }
+
+  &.assistant {
+    justify-content: flex-start;
+
+    .bubble {
+      background-color: var(--mat-sys-surface-container-high, #2b2b2b);
+      color: var(--mat-sys-on-surface, #e0e0e0);
+      border-radius: 20px 20px 20px 4px;
+    }
+  }
+}
+
+.bubble {
+  max-width: 70%;
+  padding: 1rem 1.5rem;
+  line-height: 1.4;
+  word-break: break-word;
+  box-shadow: var(--mat-sys-level1, 0 1px 3px rgba(0, 0, 0, 0.2));
+}
+
+.content {
+  white-space: pre-wrap;
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: var(--mat-sys-primary, #9ec5ff);
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.error-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--mat-sys-error-container, rgba(255, 0, 0, 0.2));
+}
+
+.error-text {
+  font-size: 0.875rem;
+  color: var(--mat-sys-error, #ffb4ab);
+}
+
+.retry-btn {
+  font-size: 0.8125rem;
+  height: 28px;
+  line-height: 28px;
+  padding: 0 0.75rem;
+  min-width: unset;
+  color: var(--mat-sys-error, #ffb4ab);
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.25rem;
+  }
+
+  &:hover {
+    background-color: var(--mat-sys-error-container, rgba(255, 0, 0, 0.1));
+  }
+}

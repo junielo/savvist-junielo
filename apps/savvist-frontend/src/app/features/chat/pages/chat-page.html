@@ -1,1 +1,47 @@
-<p>chat-page works!</p>
+<mat-drawer-container class="chat-drawer-container">
+  <mat-drawer
+    [mode]="isMobile() ? 'over' : 'side'"
+    [opened]="isMobile() ? mobileDrawerOpen() : true"
+    (openedChange)="mobileDrawerOpen.set($event)"
+    class="sessions-drawer"
+  >
+    <app-sessions-panel
+      [sessions]="sessions()"
+      [activeId]="activeId()"
+      (select)="onSelectSession($event)"
+      (create)="onCreateSession()"
+      (rename)="onRenameSession($event)"
+      (remove)="onRemoveSession($event)"
+    />
+  </mat-drawer>
+
+  <mat-drawer-content class="chat-content-area">
+    @if (isMobile()) {
+      <div class="mobile-top-bar">
+        <button
+          mat-icon-button
+          type="button"
+          (click)="toggleMobileDrawer()"
+          aria-label="Toggle sessions panel"
+        >
+          <mat-icon>menu</mat-icon>
+        </button>
+        <span class="mobile-session-title">{{ activeSessionTitle() || 'Chat' }}</span>
+      </div>
+    }
+
+    <div class="thread-container">
+      <app-message-thread
+        [messages]="activeMessages()"
+        (retry)="onRetryMessage($event)"
+      />
+    </div>
+
+    <div class="composer-container">
+      <app-message-composer
+        [disabled]="isComposerDisabled()"
+        (send)="onSendMessage($event)"
+      />
+    </div>
+  </mat-drawer-content>
+</mat-drawer-container>

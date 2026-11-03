@@ -1,0 +1,13 @@
+<div class="thread-scroll-container" #scrollContainer>
+  <div class="thread-content">
+    @if (messages().length === 0) {
+      <div class="empty-state">
+        <p>Start a conversation with your financial assistant.</p>
+      </div>
+    } @else {
+      @for (m of messages(); track m.id) {
+        <app-message-bubble [message]="m" (retry)="onRetry($event)" />
+      }
+    }
+  </div>
+</div>

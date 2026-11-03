@@ -1,0 +1,84 @@
+<aside class="sessions-panel" aria-label="Chat Sessions">
+  <header class="sessions-header">
+    <h2 class="sessions-title">Sessions</h2>
+    <div class="sessions-actions">
+      <button
+        mat-icon-button
+        type="button"
+        class="action-btn"
+        aria-label="New session"
+        (click)="create.emit()"
+      >
+        <mat-icon class="material-symbols-outlined">add</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        class="action-btn"
+        aria-label="Rename session"
+        [disabled]="!activeId()"
+        (click)="onEditHeaderClick()"
+      >
+        <mat-icon class="material-symbols-outlined">edit</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        class="action-btn"
+        aria-label="Delete session"
+        [disabled]="!activeId()"
+        (click)="onDeleteHeaderClick()"
+      >
+        <mat-icon class="material-symbols-outlined">delete</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <div
+    class="sessions-list"
+    role="listbox"
+    aria-label="Chat sessions list"
+    tabindex="0"
+    (keydown)="onKeydown($event)"
+  >
+    @for (session of sessions(); track session.id) {
+      <div
+        class="session-row"
+        role="option"
+        tabindex="0"
+        [attr.aria-selected]="session.id === activeId()"
+        [class.selected]="session.id === activeId()"
+        (click)="onSelect(session.id)"
+        (keyup.enter)="onSelect(session.id)"
+        (keyup.space)="onSelect(session.id)"
+        (dblclick)="startRename(session.id, session.title, $event)"
+      >
+        <div class="row-indicator">
+          @if (session.id === activeId()) {
+            <mat-icon class="material-symbols-outlined indicator-icon" aria-hidden="true">play_arrow</mat-icon>
+          }
+        </div>
+
+        @if (editingId() === session.id) {
+          <input
+            #renameInput
+            type="text"
+            class="rename-input"
+            [(ngModel)]="editTitle"
+            maxlength="100"
+            (keyup.enter)="saveRename(session.id)"
+            (keyup.escape)="cancelRename()"
+            (blur)="saveRename(session.id)"
+            (click)="$event.stopPropagation()"
+          />
+        } @else {
+          <span class="session-name" [title]="session.title">{{ session.title }}</span>
+        }
+      </div>
+    } @empty {
+      <div class="empty-state">
+        <p>No sessions yet</p>
+      </div>
+    }
+  </div>
+</aside>

@@ -4,7 +4,6 @@ import { WishlistPage } from './wishlist-page';
 import { WishlistService } from '../services/wishlist.service';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
-import { ApiError } from '../../../core/http/api-error';
 import { vi } from 'vitest';
 
 describe('WishlistPage', () => {

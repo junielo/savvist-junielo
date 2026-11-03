@@ -1,0 +1,25 @@
+<div class="composer-container">
+  <div class="composer-pill" [class.disabled]="disabled()">
+    <textarea
+      #textareaEl
+      class="composer-input"
+      [ngModel]="text()"
+      (ngModelChange)="text.set($event)"
+      (keydown)="onKeydown($event)"
+      [placeholder]="disabled() ? 'Assistant is responding...' : 'Message your assistant ...'"
+      [disabled]="disabled()"
+      maxlength="8000"
+      rows="1"
+      aria-label="Message your assistant"
+    ></textarea>
+    <button
+      mat-icon-button
+      class="send-btn"
+      [disabled]="isSendDisabled()"
+      (click)="triggerSend()"
+      aria-label="Send message"
+    >
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</div>
