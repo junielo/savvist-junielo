@@ -29,6 +29,17 @@ export class RecordLogsService {
     return created.save({ session });
   }
 
+  async getAll(userId: Types.ObjectId): Promise<RecordLog[]> {
+    return this.recordLogModel
+      .find({ userId })
+      .sort({ date: -1, createdAt: -1 })
+      .lean();
+  }
+
+  async findAll(userId: Types.ObjectId): Promise<RecordLog[]> {
+    return this.getAll(userId);
+  }
+
   async findOne(
     filter: { userId: Types.ObjectId; sourceCollection: string; name: string },
     session?: ClientSession,

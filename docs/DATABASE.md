@@ -10,6 +10,10 @@ Database design for the Savvist personal finance tracker (NestJS + Mongoose + Mo
 
 **Revision note 4:** Health and Growth are capped at 100% as well as floored at 0. Changes to expenses, base salary or `isUnemployed` do not recompute `dailyMetrics`, and neither do back-dated balances or deleted day records, so each row is a snapshot as saved. The payday rule, the Growth fallback and the final-values-only clamp are confirmed.
 
+**Revision note 5:** the AI chat memory is now defined (4.8, 4.10). The LangGraph MongoDB checkpointer stores agent state in two library-managed collections, `checkpoints` and `checkpoint_writes`. `conversations._id` is the LangGraph `thread_id`, so a conversation is the session. Pending write permissions live in graph state through LangGraph's `interrupt()`, not in `messages.status`. `messages` is the UI copy of the thread. The unused `recordedDate` field is removed from `entryRecords` (4.3). Items marked **[DECIDE]** in 4.8, 4.10 and section 12 are assumptions to confirm.
+
+**Revision note 6:** the agent memory collections keep the library's default names, `checkpoints` and `checkpoint_writes` (replacing `agentCheckpoints` and `agentCheckpointWrites` from note 5). `deleteThread(threadId)` is the confirmed way to remove a conversation's memory, and only the conversation delete endpoint calls it. Retention uses the saver's built-in `ttl` option, and the Mongoose connection can be reused through `getClient()` (both proposed in 4.10, to be confirmed after install).
+
 ---
 
 ## 1. Design principles
@@ -36,6 +40,8 @@ Database design for the Savvist personal finance tracker (NestJS + Mongoose + Mo
 | `conversations` | Chat right panel | Saved chat threads |
 | `messages` | Chat thread | Individual chat messages |
 | `dailyMetrics` | Dashboard cards, gauges and line chart | Saved Total Fund, Actual Cash, Health and Growth, one row per day |
+| `checkpoints` | AI chat (no direct UI) | LangGraph graph state snapshots per conversation. Library-managed (4.10). |
+| `checkpoint_writes` | AI chat (no direct UI) | LangGraph pending writes tied to a checkpoint. Library-managed (4.10). |
 
 ## 3. Relationships
 
@@ -50,13 +56,15 @@ erDiagram
     users ||--o{ dailyMetrics : owns
     accountEntries ||--o{ entryRecords : "has daily balances"
     conversations ||--o{ messages : contains
+    conversations ||--o{ checkpoints : "thread_id (soft ref)"
+    checkpoints ||--o{ checkpoint_writes : "has pending writes"
     entryRecords ||--o{ recordLogs : "logged by (soft ref)"
     expenses ||--o{ recordLogs : "logged by (soft ref)"
     wishlistItems ||--o{ recordLogs : "logged by (soft ref)"
 ```
 
 - Hard references (always valid): everything points to `users._id` through `userId`. `entryRecords` point to `accountEntries._id`. `messages` point to `conversations._id`.
-- Soft references: `recordLogs.sourceId` points to the record that caused the log and may dangle after deletion. That is intended, because the log is a historical snapshot.
+- Soft references: `recordLogs.sourceId` points to the record that caused the log and may dangle after deletion. That is intended, because the log is a historical snapshot. `checkpoints.thread_id` holds the string form of `conversations._id` and is not enforced by the database.
 
 ---
 
@@ -148,7 +156,6 @@ One document per account per calendar day. This is what the user fills in every 
 | `balance` | number | yes | `>= 0`. The account balance on that day. |
 | `accountName` | string | yes | Snapshot of the account name when recorded. |
 | `accountType` | string enum | yes | Snapshot of the type (`cash`, `credit`, `savings`). |
-| `recordedDate` | date | yes | Recorded date entry |
 | `createdAt`, `updatedAt` | Date | yes | |
 
 Example:
@@ -292,6 +299,8 @@ Rules:
 | `lastMessageAt` | Date | yes | Orders the list. Updated on every new message. |
 | `createdAt`, `updatedAt` | Date | yes | |
 
+A conversation is the chat session. Its `_id` (as a string) is the LangGraph `thread_id`, so no separate session collection or field is needed (4.10).
+
 ### 4.8 `messages`
 
 | Field | Type | Required | Notes |
@@ -306,7 +315,11 @@ Rules:
 
 Messages are separate from `conversations` because a thread grows without bound (16 MB document cap), embedding would rewrite a large document on every message, and separate documents allow paging older messages. Deleting a conversation deletes its messages in the same transaction.
 
-Assistant behavior (section 12, Q8): the AI chat uses a **LangGraph memory checkpointer**. The assistant has read and write access to the user's financial data, but must ask the user for permission before any write. These parts are not yet defined **[DECIDE]**: the checkpointer's collections, whether `messages` or the checkpointer is the source of truth for history, and how a pending permission request is stored (`status` currently allows only `complete`, `streaming` and `error`).
+Assistant behavior (section 12, Q8): the AI chat uses a **LangGraph memory checkpointer** (4.10). The assistant has read and write access to the user's financial data, but must ask the user for permission before any write.
+
+- **Source of truth [DECIDE]:** the checkpointer is authoritative for agent memory (what the model sees). `messages` is the UI copy used for display and paging. The service writes `messages` at the end of each turn. If they ever disagree, the checkpointer wins for the agent and `messages` wins for the UI.
+- **Pending permission requests [DECIDE]:** they are not stored in `messages`, and `status` stays `complete`, `streaming` or `error`. The pending action (`tool`, `args`, `risk`, `createdAt`, `expiresAt`) lives in graph state and is paused with LangGraph's `interrupt()`. The checkpointer persists it. The user's reply ("Yes", "No") resumes the same `thread_id`. The confirmation prompt is saved as a normal assistant message so the UI can show it.
+- Writes never run from the classifier result alone. They run only after a confirm turn that passes the graph-state check.
 
 ### 4.9 `dailyMetrics` (saved dashboard values, one row per day)
 
@@ -348,6 +361,28 @@ Rules:
 - **Rows are snapshots.** A row holds the values as computed when that day's balances were saved. It is not recomputed when expenses, the base salary or `isUnemployed` change (the change shows up at the next balance save), when a balance on an earlier day is back-dated, or when a day's `entryRecords` document is deleted. Growth reads earlier rows as they were saved.
 - A formula change affects only rows saved afterwards. If old rows should follow a new formula, keep one `recomputeMetrics(userId, day)` function used by both the save flow and an optional rebuild script.
 
+### 4.10 Agent memory (`checkpoints`, `checkpoint_writes`, library-managed)
+
+Created and written by `MongoDBSaver` from `@langchain/langgraph-checkpoint-mongodb`. Do not write to these collections from application code.
+
+| Collection | Holds |
+|---|---|
+| `checkpoints` | One document per graph state snapshot: `thread_id`, `checkpoint_ns`, `checkpoint_id`, `parent_checkpoint_id`, serialized `checkpoint` and `metadata`. |
+| `checkpoint_writes` | Pending writes tied to a checkpoint, including interrupt payloads. |
+
+These are the library's default collection names and are kept as they are (confirmed). They are the one exception to the camelCase naming rule in principle 8. Call `checkpointer.setup()` once at startup so the library creates its indexes (and the TTL index, see Retention below).
+
+Rules:
+- **Thread mapping:** `thread_id` = `conversations._id` as a string. Resuming an interrupt must use the same `thread_id`.
+- **Graph state (what is persisted per thread):** `messages` (append reducer, so the previous message is available for short replies like "Yes"), `pending_action` or null, `awaiting_clarification` or null, and `lastIntent`. Use plain serializable values only: `YYYY-MM-DD` strings, no `Date` instances or class objects. Store IDs and arguments, not query results, because every step writes a checkpoint.
+- **Guards read state first.** The entry node checks `pending_action` and `awaiting_clarification` before any classifier or Gemini call. An expired `pending_action` counts as null.
+- **Interrupt rules:** keep each `interrupt()` in its own node and one per node. The node re-runs from its start on resume, so classifier calls and writes stay outside it and writes must be idempotent. The 409 `confirmReplace` response becomes a second confirm step with the conflict details stored in `pending_action`.
+- **No `userId`, no `$jsonSchema` validator, no custom indexes.** These documents are exempt from principle 1 and from the section 5 and 6 rules. Ownership is checked through `conversations` (by `userId`) before every graph invocation.
+- **Connection (proposed):** `MongoDBSaver` takes a native `MongoClient` (and an optional `dbName`). Mongoose's `connection.getClient()` returns the `MongoClient` behind its connection, so reuse it by injecting the Mongoose connection (`@InjectConnection()`) into a provider that builds the saver, after the connection is ready. Do not close that client separately from Mongoose. Known pitfall: if `mongoose` bundles a different `mongodb` driver version than the one the checkpointer depends on, TypeScript reports the two `MongoClient` types as incompatible. Run `npm ls mongodb` after installing and align the versions (for example with an `overrides` entry), and cast only as a last resort. Fallback: open a second `MongoClient` with the same URI.
+- **Retention (proposed):** use the saver's built-in `ttl` option (seconds, for example `90 * 24 * 60 * 60`). It adds an `upserted_at` field on each write and creates a MongoDB TTL index when `setup()` runs, so no cleanup job is needed. TTL ages out individual checkpoints, so a conversation idle for longer than the TTL loses its agent memory. `messages` keeps the visible history, and a pending action has its own shorter `expiresAt`. The option was added in `@langchain/langgraph-checkpoint-mongodb` 1.4.0 (per a LangChain forum answer), so confirm it exists in the installed version.
+- **Deleting a thread:** `deleteThread(threadId)` removes all checkpoints and writes for one thread. It is called only from the conversation delete endpoint, because renaming and deleting chats are UI actions (the assistant has no tool for them).
+- **Cross-conversation memory** (saved preferences across chats) is not part of this design. If wanted later, add a small `agentMemories` collection with `userId`, `key`, `value` and `updatedAt`.
+
 ---
 
 ## 5. Indexes
@@ -370,7 +405,7 @@ Rules:
 | `dailyMetrics` | `{ userId: 1, day: 1 }` | **unique** | One row per user per day, upsert target, and the last-30-days read (sort by `day` descending) |
 
 Notes:
-- The first key is always `userId`, so every query is scoped to one user and index-supported.
+- The first key is always `userId`, so every query is scoped to one user and index-supported. The one exception is the agent memory collections (4.10), whose indexes are created by the library.
 - The unique `entryRecords` index also serves "latest record for one account" queries by sorting `day` descending.
 - Use cursor pagination (`date` plus `_id`) on Record Logs and Messages instead of `skip`.
 - Do not add indexes beyond this list ahead of need. Check with `explain()` as data grows.
@@ -401,6 +436,8 @@ Enforce rules in **three layers**:
 | Expense `dayOfMonth` valid for at least one selected month | service layer |
 | `recordLogs` insert-only | no update or delete routes, restricted DB role in production |
 | Ownership: a user only reads or writes their own documents | every query, via a shared scoped helper |
+| Agent memory (`checkpoints`, `checkpoint_writes`) has no `userId`, so ownership is checked through `conversations.userId` before every graph invocation | service layer |
+| The assistant never writes without a confirm turn (pending action in graph state, resumed by `interrupt()`) | service layer (graph guards) |
 
 ## 7. Derived values and saved metrics
 
@@ -451,7 +488,7 @@ MongoDB multi-document transactions require a **replica set**, including in deve
 | Undo a purchase | Revert the item, then insert a compensating log (do not delete the old one) |
 | Update base salary | Update `users`, insert `recordLogs` (`dailyMetrics` is not recomputed) |
 | Create, edit or delete an expense | Write `expenses`, insert `recordLogs` (`dailyMetrics` is not recomputed) |
-| Delete a conversation | Delete the `conversations` document and its `messages` |
+| Delete a conversation | Delete the `conversations` document and its `messages` in one transaction. Then delete the thread's `checkpoints` and `checkpoint_writes` with the checkpointer's `deleteThread(threadId)`. This step may use a different client, so it cannot join the transaction. Make it idempotent and safe to retry. |
 | Delete an account that has no records | Delete `accountEntries` document (a single write, no transaction needed) |
 
 The unique index on `entryRecords` also protects against a double-click or two tabs creating duplicate daily records.
@@ -461,6 +498,7 @@ The unique index on `entryRecords` also protects against a double-click or two t
 - **Accounts (`accountEntries`):** hard delete only if the account has no `entryRecords`. Otherwise set `archivedAt`. Archived accounts disappear from the dialog and from current totals, but their past records still feed history and charts. The delete button in the dialog calls one endpoint, and the server picks delete or archive.
 - **Daily records (`entryRecords`):** editing overwrites. Deleting a single day's record is allowed (the balance then carries forward from the previous day), and it is logged.
 - **Expenses, wishlist items, conversations, messages:** hard delete. History survives in `recordLogs` snapshots.
+- **Agent memory (`checkpoints`, `checkpoint_writes`):** deleted with their conversation, and trimmed by the retention policy in 4.10.
 - **Record logs:** never deleted, except when the whole user account is deleted.
 - **Daily metrics (`dailyMetrics`):** snapshots. A row is replaced only when balances for that same day are saved again, is never edited by the user, and is removed with the user account.
 - **Account deletion (later):** removes all documents with that `userId`.
@@ -479,7 +517,7 @@ All routes are under `/api` (matching the dev proxy) and scoped to the authentic
 | Record logs | `GET /api/record-logs?type=&cursor=&limit=` (read-only) |
 | Dashboard | `GET /api/dashboard/summary` (latest `dailyMetrics` row plus today's allowance), `GET /api/dashboard/trend` (`dailyMetrics` for the last 30 days, with missing days carried forward) |
 | Conversations | `GET/POST /api/conversations`, `PATCH/DELETE /api/conversations/:id` |
-| Messages | `GET /api/conversations/:id/messages?cursor=`, `POST /api/conversations/:id/messages` (streams the assistant reply) |
+| Messages | `GET /api/conversations/:id/messages?cursor=`, `POST /api/conversations/:id/messages` (streams the assistant reply). A reply to a pending confirmation is a normal message on this endpoint. The graph resolves it from its saved state, so no separate approve endpoint is needed. |
 
 Mapping rules (done in the Angular repository layer, per T19):
 - The API returns `_id` (string) and ISO date strings. The repository layer maps `_id` to `id`.
@@ -497,7 +535,7 @@ Seed the development database so the frontend and backend show the same data:
 - 5 wishlist items, one for each priority.
 - Record logs covering each record type.
 - `dailyMetrics` rows for each seeded day, computed with the section 7 formulas.
-- 2 conversations with a few messages each.
+- 2 conversations with a few messages each. Do not seed `checkpoints` or `checkpoint_writes`. They are created by the checkpointer at runtime.
 
 ## 12. Open questions
 
@@ -533,5 +571,12 @@ Seed the development database so the frontend and backend show the same data:
 
 ### Still open
 
+**Proposed in revision note 5, awaiting confirmation**
+1. Thread mapping: `conversations._id` is the LangGraph `thread_id` (4.10).
+2. Source of truth: the checkpointer for agent memory, `messages` as the UI copy (4.8).
+3. Pending permission requests: kept in graph state through `interrupt()`, with no new `messages.status` value (4.8).
+4. Checkpointer connection reuse with Mongoose and the TTL retention setting (4.10). The collection names are settled: the library defaults `checkpoints` and `checkpoint_writes`.
+
 **Deferred**
-1. AI chat: which collections the LangGraph checkpointer uses, whether `messages` or the checkpointer is the source of truth for history, how a pending permission request is stored and approved, and whether the assistant may delete data or change `users.baseSalary`.
+1. Whether the assistant may delete data or change `users.baseSalary`. Implement as a config flag, not hard-coded.
+2. Cross-conversation assistant memory (`agentMemories`), if wanted.

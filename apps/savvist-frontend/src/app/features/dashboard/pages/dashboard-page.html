@@ -5,21 +5,27 @@
     }
   </div>
 
+  @if (summaryError()) {
+    <div class="error-message" role="alert" style="color: red; margin-bottom: 12px; font-size: 14px;">
+      Failed to load dashboard summary.
+    </div>
+  }
+
   <!-- Row 1: Three card-computed-amount in a single row -->
   <div class="cards-row">
     <app-card-computed-amount
-      [amount]="45250.75"
-      [subText]="'Total Balance'"
+      [amount]="summary()?.totalFund ?? 0"
+      [subText]="'Total Fund'"
       [height]="'180px'"
     />
     <app-card-computed-amount
-      [amount]="12300.00"
-      [subText]="'Monthly Income'"
+      [amount]="summary()?.actualCash ?? 0"
+      [subText]="'Actual Cash'"
       [height]="'180px'"
     />
     <app-card-computed-amount
-      [amount]="5420.50"
-      [subText]="'Total Expenses'"
+      [amount]="todaysAllowance()?.allowance ?? 0"
+      [subText]="'Today\'s Allowance'"
       [height]="'180px'"
     />
   </div>
@@ -28,15 +34,15 @@
   <div class="gauges-row">
     <div class="gauge-card">
       <app-apex-gauge-label
-        [value]="75"
-        [label]="'Budget Usage'"
+        [value]="(summary()?.health ?? 0) * 100"
+        [label]="'Financial Health'"
         [height]="300"
       />
     </div>
     <div class="gauge-card">
       <app-apex-gauge-label
-        [value]="62"
-        [label]="'Savings Goal'"
+        [value]="(summary()?.growth ?? 0) * 100"
+        [label]="'Growth Rate'"
         [height]="300"
       />
     </div>

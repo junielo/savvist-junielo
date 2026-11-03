@@ -1,12 +1,24 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DashboardPage } from './dashboard-page';
 import { UserService } from '../../../core/services/user.service';
+import { DashboardService } from '../services/dashboard.service';
 
 describe('DashboardPage', () => {
   let component: DashboardPage;
   let fixture: ComponentFixture<DashboardPage>;
   let mockUserService: { user: ReturnType<typeof vi.fn> };
+  let mockDashboardService: {
+    summary: ReturnType<typeof signal>;
+    todaysAllowance: ReturnType<typeof signal>;
+    isLoadingSummary: ReturnType<typeof signal>;
+    summaryError: ReturnType<typeof signal>;
+    trend: ReturnType<typeof signal>;
+    isLoadingTrend: ReturnType<typeof signal>;
+    trendError: ReturnType<typeof signal>;
+    reload: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     mockUserService = {
@@ -21,10 +33,30 @@ describe('DashboardPage', () => {
       }),
     };
 
+    mockDashboardService = {
+      summary: signal({
+        id: 'metric1',
+        userId: '1',
+        day: '2026-10-31',
+        totalFund: 50000,
+        actualCash: 25000,
+        health: 0.8,
+        growth: 0.15,
+      }),
+      todaysAllowance: signal({ allowance: 1000, day: '2026-10-31' }),
+      isLoadingSummary: signal(false),
+      summaryError: signal(null),
+      trend: signal([]),
+      isLoadingTrend: signal(false),
+      trendError: signal(null),
+      reload: vi.fn(),
+    };
+
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
       providers: [
         { provide: UserService, useValue: mockUserService },
+        { provide: DashboardService, useValue: mockDashboardService },
       ],
     }).compileComponents();
 

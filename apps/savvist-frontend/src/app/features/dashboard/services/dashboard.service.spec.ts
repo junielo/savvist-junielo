@@ -26,6 +26,8 @@ describe('DashboardService', () => {
     summaryReqs.forEach((req) => req.flush(null));
     const trendReqs = httpMock.match('/api/dashboard/trend');
     trendReqs.forEach((req) => req.flush([]));
+    const allowanceReqs = httpMock.match('/api/daily-metrics/allowance');
+    allowanceReqs.forEach((req) => req.flush(null));
   });
 
   afterEach(() => {

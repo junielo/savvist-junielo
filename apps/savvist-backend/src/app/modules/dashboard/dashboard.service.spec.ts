@@ -1,12 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardService } from './dashboard.service';
+import { DailyMetricsService } from '../daily-metrics/daily-metrics.service';
 
 describe('DashboardService', () => {
   let service: DashboardService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [DashboardService],
+      providers: [
+        DashboardService,
+        {
+          provide: DailyMetricsService,
+          useValue: {
+            getLatest: jest.fn(),
+            getTrend: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     service = module.get<DashboardService>(DashboardService);

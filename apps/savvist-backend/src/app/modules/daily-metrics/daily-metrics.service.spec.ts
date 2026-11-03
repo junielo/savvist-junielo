@@ -109,4 +109,21 @@ describe('DailyMetricsService', () => {
       expect(mockDailyMetricModel.findOneAndUpdate).toHaveBeenCalled();
     });
   });
+
+  describe('getTodaysAllowance', () => {
+    it('should compute today allowance correctly', async () => {
+      mockUserModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ baseSalary: 30000, salaryDay1: 15, salaryDay2: 30 }),
+      });
+
+      const mockMetricQuery = {
+        sort: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue({ actualCash: 20000 }),
+      };
+      mockDailyMetricModel.findOne.mockReturnValue(mockMetricQuery);
+
+      const result = await service.getTodaysAllowance(userId, '2026-10-05');
+      expect(result).toEqual({ allowance: 1020, day: '2026-10-05' });
+    });
+  });
 });

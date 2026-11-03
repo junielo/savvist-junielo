@@ -10,6 +10,7 @@ import { calculateActualCash } from './calculations/actual-cash';
 import { calculateTotalFund } from './calculations/total-fund';
 import { calculateHealth } from './calculations/health';
 import { calculateGrowth } from './calculations/growth';
+import { calculateTodaysAllowance } from './calculations/todays-allowance';
 
 @Injectable()
 export class DailyMetricsService {
@@ -36,7 +37,7 @@ export class DailyMetricsService {
     const baseSalary = user?.baseSalary || 0;
 
     const accounts = await this.accountEntryModel
-      .find({ userId, archivedAt: { $exists: false } })
+      .find({ userId, archivedAt: null })
       .lean();
 
     let cashTotal = 0;
@@ -131,5 +132,32 @@ export class DailyMetricsService {
       .findOne({ userId })
       .sort({ day: -1 })
       .lean();
+  }
+
+  async getTodaysAllowance(
+    userId: Types.ObjectId,
+    day?: string,
+  ): Promise<{ allowance: number; day: string }> {
+    const effectiveDay = day || new Date().toISOString().slice(0, 10);
+    const user = await this.userModel.findById(userId).lean();
+    if (!user || user.isUnemployed || !user.baseSalary || user.baseSalary <= 0) {
+      return { allowance: 0, day: effectiveDay };
+    }
+
+    const latestMetric = await this.dailyMetricModel
+      .findOne({ userId, day: { $lte: effectiveDay } })
+      .sort({ day: -1 })
+      .lean();
+
+    const actualCash = latestMetric?.actualCash || 0;
+    const allowance = calculateTodaysAllowance(
+      user.baseSalary,
+      actualCash,
+      user.salaryDay1,
+      user.salaryDay2,
+      effectiveDay,
+    );
+
+    return { allowance, day: effectiveDay };
   }
 }

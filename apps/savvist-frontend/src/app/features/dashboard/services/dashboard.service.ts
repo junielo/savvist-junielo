@@ -26,6 +26,11 @@ export interface DailyMetricModel {
   updatedAt?: Date;
 }
 
+export interface TodaysAllowanceResult {
+  allowance: number;
+  day: string;
+}
+
 export const toDailyMetricModel = (dto: DailyMetricDto): DailyMetricModel => ({
   id: dto._id,
   userId: dto.userId,
@@ -54,6 +59,11 @@ export class DashboardService {
     parse: (raw) => (raw as DailyMetricDto[]).map(toDailyMetricModel),
   });
 
+  // Allowance resource
+  private readonly allowanceResource = httpResource<TodaysAllowanceResult | null>(() => '/api/daily-metrics/allowance', {
+    defaultValue: null,
+  });
+
   readonly summary = this.summaryResource.value;
   readonly isLoadingSummary = this.summaryResource.isLoading;
   readonly summaryError = this.summaryResource.error;
@@ -62,9 +72,22 @@ export class DashboardService {
   readonly isLoadingTrend = this.trendResource.isLoading;
   readonly trendError = this.trendResource.error;
 
+  readonly todaysAllowance = this.allowanceResource.value;
+
   reload(): void {
     this.summaryResource.reload();
     this.trendResource.reload();
+    this.allowanceResource.reload();
+  }
+
+  async getTodaysAllowance(day?: string): Promise<TodaysAllowanceResult> {
+    let params = new HttpParams();
+    if (day) {
+      params = params.set('day', day);
+    }
+    return firstValueFrom(
+      this.http.get<TodaysAllowanceResult>('/api/daily-metrics/allowance', { params }),
+    );
   }
 
   async getLatest(): Promise<DailyMetricModel | null> {
