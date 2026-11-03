@@ -51,3 +51,4 @@ Thumbs.db
 .nx/migrate-runs
 .env
 GEMINI.md
+skills-lock.json

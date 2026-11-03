@@ -30,6 +30,22 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   MONGODB_URI!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  TYPESAFE_API_KEY!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  JEV_MODEL!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_API_KEY!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GEMINI_MODEL!: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

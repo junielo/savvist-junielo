@@ -1,0 +1,21 @@
+{
+  "skills": {
+    "disabled": [
+      "figma-use-slides",
+      "figma-use-motion",
+      "figma-use-figjam",
+      "figma-use",
+      "figma-swiftui",
+      "figma-shaders",
+      "figma-implement-motion",
+      "figma-generative-plugins",
+      "figma-generate-diagram",
+      "figma-generate-library",
+      "figma-generate-design",
+      "figma-design-to-code",
+      "figma-create-new-file",
+      "figma-code-connect",
+      "microsoft-foundry"
+    ]
+  }
+}
