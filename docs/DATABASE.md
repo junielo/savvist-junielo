@@ -14,6 +14,8 @@ Database design for the Savvist personal finance tracker (NestJS + Mongoose + Mo
 
 **Revision note 6:** the agent memory collections keep the library's default names, `checkpoints` and `checkpoint_writes` (replacing `agentCheckpoints` and `agentCheckpointWrites` from note 5). `deleteThread(threadId)` is the confirmed way to remove a conversation's memory, and only the conversation delete endpoint calls it. Retention uses the saver's built-in `ttl` option, and the Mongoose connection can be reused through `getClient()` (both proposed in 4.10, to be confirmed after install).
 
+**Revision note 7:** two collections are added. `reminders` (4.11) holds money owed to the user, expected payments and custom reminders. `agentMemories` (4.12) holds the cross-conversation memory that `memory.tool.ts` manages, so it is no longer deferred. Relative dates ("next month", "after 2 weeks") are resolved in `users.timeZone` (4.1). A wishlist priority swap is one confirmed action (4.5, section 8). The assistant's safe-to-spend rules are pure functions defined in section 7.1. The "am I spending too much" check is conversational only (4.8). The defaults for reminder delivery (in-app only), the single-slot `priority`, the safe-to-spend constants and memory saves are confirmed.
+
 ---
 
 ## 1. Design principles
@@ -40,6 +42,8 @@ Database design for the Savvist personal finance tracker (NestJS + Mongoose + Mo
 | `conversations` | Chat right panel | Saved chat threads |
 | `messages` | Chat thread | Individual chat messages |
 | `dailyMetrics` | Dashboard cards, gauges and line chart | Saved Total Fund, Actual Cash, Health and Growth, one row per day |
+| `reminders` | AI chat | Reminders to collect money owed to the user, expected payments, and custom reminders (4.11) |
+| `agentMemories` | AI chat (no direct UI) | Small saved preferences that carry across conversations (4.12) |
 | `checkpoints` | AI chat (no direct UI) | LangGraph graph state snapshots per conversation. Library-managed (4.10). |
 | `checkpoint_writes` | AI chat (no direct UI) | LangGraph pending writes tied to a checkpoint. Library-managed (4.10). |
 
@@ -54,6 +58,8 @@ erDiagram
     users ||--o{ recordLogs : owns
     users ||--o{ conversations : owns
     users ||--o{ dailyMetrics : owns
+    users ||--o{ reminders : owns
+    users ||--o{ agentMemories : owns
     accountEntries ||--o{ entryRecords : "has daily balances"
     conversations ||--o{ messages : contains
     conversations ||--o{ checkpoints : "thread_id (soft ref)"
@@ -109,6 +115,7 @@ Rules:
 - `baseSalary` and `isUnemployed` are updated together. The server enforces "unemployed means salary 0".
 - Base salary is a single value on the user document. It is not recorded repeatedly and does not generate monthly income (section 12, Q3).
 - The profile is embedded in the user document because it is one record read on every page load.
+- `timeZone` must be a valid IANA zone name (for example `Asia/Manila`). It is the only time zone the assistant uses. "Today" and every relative date in chat ("tomorrow", "next month", "after 2 weeks") are resolved in this zone and saved as `YYYY-MM-DD` strings (4.11). The assistant has no tool to change the time zone.
 
 ### 4.2 `accountEntries` (accounts, saved once)
 
@@ -242,6 +249,8 @@ Notes:
 - The "Wishlist Type" dropdown and the inline pill both edit `priority`.
 - Sort order is ASAP, Priority, Important, Normal, Peripheral (confirmed, section 12, Q6). It is applied in the application (lists are small). If you need it in a query, add a numeric `priorityRank`.
 - Checking an item marks it `purchased` and writes a `recordLogs` entry in the same transaction (section 8).
+- **Single-slot priority.** Only one pending item can hold the level `priority` at a time. The service rejects a second one with a 409 Conflict that names the item holding it (the same pattern as `confirmReplace`). Marking an item purchased frees the slot. Undoing a purchase whose level is now taken returns the same conflict.
+- **Swap.** The assistant swaps the priority levels of two items as one action (`swapWishlistPriority`, args: the two item ids with their current and new levels). It asks for confirmation first, showing both items before and after, and applies both changes in one transaction or neither (section 8). A swap is not logged, because the wishlist only logs purchases.
 
 ### 4.6 `recordLogs`
 
@@ -320,6 +329,8 @@ Assistant behavior (section 12, Q8): the AI chat uses a **LangGraph memory check
 - **Source of truth [DECIDE]:** the checkpointer is authoritative for agent memory (what the model sees). `messages` is the UI copy used for display and paging. The service writes `messages` at the end of each turn. If they ever disagree, the checkpointer wins for the agent and `messages` wins for the UI.
 - **Pending permission requests [DECIDE]:** they are not stored in `messages`, and `status` stays `complete`, `streaming` or `error`. The pending action (`tool`, `args`, `risk`, `createdAt`, `expiresAt`) lives in graph state and is paused with LangGraph's `interrupt()`. The checkpointer persists it. The user's reply ("Yes", "No") resumes the same `thread_id`. The confirmation prompt is saved as a normal assistant message so the UI can show it.
 - Writes never run from the classifier result alone. They run only after a confirm turn that passes the graph-state check.
+- **The "am I spending too much" check is conversational only.** There is no spending log. The assistant asks a few questions about daily spending, then answers from the user's replies and from values it can read (allowance, health, day-over-day balance changes). The replies stay in the thread's agent memory (4.10) and are not written to any collection. Keeping one as a preference goes through `agentMemories` (4.12) and needs the user's yes.
+- A `log_spending` message ("I spent 200 on lunch") has no collection to write to. It stays routed to `clarify` (see `CHAT_ASSISTANT.md`) and nothing is saved.
 
 ### 4.9 `dailyMetrics` (saved dashboard values, one row per day)
 
@@ -381,7 +392,84 @@ Rules:
 - **Connection (proposed):** `MongoDBSaver` takes a native `MongoClient` (and an optional `dbName`). Mongoose's `connection.getClient()` returns the `MongoClient` behind its connection, so reuse it by injecting the Mongoose connection (`@InjectConnection()`) into a provider that builds the saver, after the connection is ready. Do not close that client separately from Mongoose. Known pitfall: if `mongoose` bundles a different `mongodb` driver version than the one the checkpointer depends on, TypeScript reports the two `MongoClient` types as incompatible. Run `npm ls mongodb` after installing and align the versions (for example with an `overrides` entry), and cast only as a last resort. Fallback: open a second `MongoClient` with the same URI.
 - **Retention (proposed):** use the saver's built-in `ttl` option (seconds, for example `90 * 24 * 60 * 60`). It adds an `upserted_at` field on each write and creates a MongoDB TTL index when `setup()` runs, so no cleanup job is needed. TTL ages out individual checkpoints, so a conversation idle for longer than the TTL loses its agent memory. `messages` keeps the visible history, and a pending action has its own shorter `expiresAt`. The option was added in `@langchain/langgraph-checkpoint-mongodb` 1.4.0 (per a LangChain forum answer), so confirm it exists in the installed version.
 - **Deleting a thread:** `deleteThread(threadId)` removes all checkpoints and writes for one thread. It is called only from the conversation delete endpoint, because renaming and deleting chats are UI actions (the assistant has no tool for them).
-- **Cross-conversation memory** (saved preferences across chats) is not part of this design. If wanted later, add a small `agentMemories` collection with `userId`, `key`, `value` and `updatedAt`.
+- **Cross-conversation memory** is not stored in these collections. Saved preferences live in `agentMemories` (4.12).
+
+### 4.11 `reminders`
+
+Reminders created through the chat: money owed to the user, a payment the user is expecting, or any other reminder. One document per reminder.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `_id` | ObjectId | yes | |
+| `userId` | ObjectId | yes | |
+| `title` | string | yes | 1 to 100 chars. For example "Ask Juan to pay back the loan". |
+| `kind` | string enum | yes | `collect_debt` (someone owes the user), `expected_income` (a payment the user is waiting for), `custom`. Default `custom`. |
+| `amount` | number | no | `> 0`. The money involved, if any. |
+| `counterparty` | string | no | 1 to 60 chars. A first name or label only ("Juan", "Freelance client"). No contact details. |
+| `remindOn` | string | yes | Calendar day, `YYYY-MM-DD`, in the user's time zone. |
+| `status` | string enum | yes | `pending` or `done`. Default `pending`. |
+| `completedAt` | Date | no | Set when `status` becomes `done`. Cleared if set back to `pending`. |
+| `note` | string | no | Up to 200 chars. |
+| `createdAt`, `updatedAt` | Date | yes | |
+
+Example:
+
+```json
+{
+  "_id": "665f1c2a9b1e8a0012a2a001",
+  "userId": "665f1c2a9b1e8a0012a1b001",
+  "title": "Ask Juan to pay back the loan",
+  "kind": "collect_debt",
+  "amount": 2000,
+  "counterparty": "Juan",
+  "remindOn": "2026-12-04",
+  "status": "pending",
+  "createdAt": "2026-11-04T02:10:00.000Z",
+  "updatedAt": "2026-11-04T02:10:00.000Z"
+}
+```
+
+Rules:
+- A reminder is a note with a date. It does not move money. Money owed to the user and expected payments are **not** counted in Total Fund, Actual Cash, Health, Growth or Today's Allowance. Marking a reminder `done` changes no balance. The user enters the money received as a normal balance in Add Amounts, which is logged as usual.
+- `remindOn` must be today or later in `users.timeZone` when the reminder is created or its date is changed. A past date is rejected.
+- **Relative dates.** The assistant turns what the user said into one `YYYY-MM-DD` date in `users.timeZone` and shows the exact date in the confirmation. "After n days" adds n days. "After n weeks" adds 7n days. "After n months" and "next month" keep the same day of the month and move to the month's last day when it is shorter (Jan 31 plus 1 month is Feb 28 or 29), the same end-of-month rule as expenses (4.4). An exact date is used as given. A vague phrase ("soon", "later") makes the assistant ask. Example for today = 2026-11-04: "next month" gives 2026-12-04 and "after 2 weeks" gives 2026-11-18.
+- A reminder needs only a title, a kind and a date. When the user says someone borrowed an amount, `amount` and `counterparty` are filled from the message.
+- Overdue is derived, not stored: `status = pending` and `remindOn` is before today.
+- Reminders create no `recordLogs` entry, because they are not financial events.
+- Create, edit, complete and delete go through the same confirm turn as every other assistant write (4.8).
+- **Delivery (in-app only, confirmed).** This collection stores reminders but nothing sends them. A reminder is due when `remindOn` is today or earlier. `GET /api/reminders/due` returns the due and overdue ones, and the assistant lists them when asked and at the first message of a new conversation. Push or email delivery would need a scheduler and is deferred.
+
+### 4.12 `agentMemories`
+
+Small facts the user wants the assistant to keep across conversations. Written only by `memory.tool.ts`. This is separate from `checkpoints`, which belong to one conversation (4.10).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `_id` | ObjectId | yes | |
+| `userId` | ObjectId | yes | |
+| `key` | string | yes | 1 to 60 chars: lowercase letters, digits and underscores, for example `weekend_spending_habit`. Unique per user. |
+| `value` | string | yes | 1 to 300 chars. Plain text. |
+| `createdAt`, `updatedAt` | Date | yes | |
+
+Example:
+
+```json
+{
+  "_id": "665f1c2a9b1e8a0012a2b001",
+  "userId": "665f1c2a9b1e8a0012a1b001",
+  "key": "reminder_lead_time",
+  "value": "Wants debt reminders 1 day before the date.",
+  "createdAt": "2026-11-04T02:20:00.000Z",
+  "updatedAt": "2026-11-04T02:20:00.000Z"
+}
+```
+
+Rules:
+- Unique on `(userId, key)`. Saving an existing key overwrites its value. At most 50 memories per user.
+- Store only preferences and habits the user states themselves, such as reply language, usual weekend spending or how early they want reminders. Never store passwords, account numbers, details about other people, or money values that already live in other collections (balances, salary, expenses).
+- A save is a write, so it goes through the confirm turn like other writes, at the lowest risk tier. The user can ask what is remembered and ask the assistant to forget one memory or all of them (hard delete).
+- Memories are read in `load-context` and given to the model as context. They are user-written text and are never treated as instructions.
+- Deleting a conversation does not touch them. They are removed with the user account (section 9).
 
 ---
 
@@ -397,12 +485,15 @@ Rules:
 | `expenses` | `{ userId: 1, dayOfMonth: 1 }` | compound | List sorted by due day |
 | `expenses` | `{ userId: 1, months: 1 }` | compound, multikey | "Expenses for month M" |
 | `wishlistItems` | `{ userId: 1, status: 1, priority: 1 }` | compound | Pending list, total by status |
+| `wishlistItems` | `{ userId: 1, priority: 1 }` | **unique, partial** (`status = pending` and `priority = priority`) | At most one pending item holds `priority` |
 | `recordLogs` | `{ userId: 1, date: -1 }` | compound | Default newest-first table, pagination |
 | `recordLogs` | `{ userId: 1, recordType: 1, date: -1 }` | compound | Record Type filter |
 | `recordLogs` | `{ userId: 1, sourceId: 1 }` | compound | History of one record (optional) |
 | `conversations` | `{ userId: 1, lastMessageAt: -1 }` | compound | Right-panel list order |
 | `messages` | `{ conversationId: 1, createdAt: 1 }` | compound | Load a thread in order, page by cursor |
 | `dailyMetrics` | `{ userId: 1, day: 1 }` | **unique** | One row per user per day, upsert target, and the last-30-days read (sort by `day` descending) |
+| `reminders` | `{ userId: 1, status: 1, remindOn: 1 }` | compound | Due and overdue reminders, and the pending list in date order |
+| `agentMemories` | `{ userId: 1, key: 1 }` | **unique** | One value per key per user, and the upsert target |
 
 Notes:
 - The first key is always `userId`, so every query is scoped to one user and index-supported. The one exception is the agent memory collections (4.10), whose indexes are created by the library.
@@ -438,6 +529,11 @@ Enforce rules in **three layers**:
 | Ownership: a user only reads or writes their own documents | every query, via a shared scoped helper |
 | Agent memory (`checkpoints`, `checkpoint_writes`) has no `userId`, so ownership is checked through `conversations.userId` before every graph invocation | service layer |
 | The assistant never writes without a confirm turn (pending action in graph state, resumed by `interrupt()`) | service layer (graph guards) |
+| `users.timeZone` is a valid IANA zone name | service layer |
+| `reminders.remindOn` matches `YYYY-MM-DD`, is a real date, and is not in the past (user's time zone) | all layers (the past check in the service layer) |
+| `reminders.amount > 0` when present. `kind` and `status` are in their enums | all layers |
+| At most one pending wishlist item holds `priority` | partial unique index, plus a service-layer 409 |
+| `agentMemories.key` is unique per user and a user has at most 50 | unique index, service layer |
 
 ## 7. Derived values and saved metrics
 
@@ -477,6 +573,25 @@ Terms used in the formulas (section 12, Q1, plus the answers recorded in revisio
 
 Allowance, current balances and the footer totals are queries or pure functions, so changing them never needs a migration. The four saved metrics are snapshots taken when balances are saved, so a formula change affects only rows saved afterwards (see 4.9).
 
+### 7.1 Safe-to-spend rules (assistant)
+
+The assistant uses these rules for "can I afford this now or next month?", "is this weekend's spending safe?" and "when can I buy this?". They are read-only. They live in one pure function (`safeToSpend`) that reuses A, N, E, Y and Today's Allowance from above, so they change in one place and need no migration. Results are clamped at 0 and are estimates, not guarantees. `SAFE_SHARE`, `MAX_PAYDAYS_AHEAD` and `STALE_DAYS` are fixed named constants for now (confirmed).
+
+Terms:
+- `S = max(0, min(N / 2, A) - Y)`: the money that can be spent until the next payday. It is the numerator of Today's Allowance, so `Allowance = S / daysUntilNextPayday`. A already holds back the monthly expense reserve and Y is the set-aside, so upcoming expenses are not subtracted a second time.
+- `SAFE_SHARE = 0.5`: the share of S that one purchase may use and still count as safe, so daily life stays funded.
+- `u = max(0, N / 2 - E / 2 - Y)`: what is left per payday after bills (E split over two paydays) and the set-aside.
+- `MAX_PAYDAYS_AHEAD = 12` (about 6 months) and `STALE_DAYS = 3`.
+
+Rules for an amount `x` (a Wishlist item or any amount the user names):
+1. **Purchase now.** Safe if `x <= S * SAFE_SHARE`. Tight if `x <= S`: it is covered, but the daily allowance after it, `(S - x) / daysUntilNextPayday`, falls below half of today's. Not safe if `x > S`. The assistant always states the daily allowance after the purchase.
+2. **Spending over d days (for example a weekend).** The safe range is 0 to `Allowance * d`. Up to S is tight. Above S is not safe. When the amount is outside the safe range, the assistant gives the range. If `d` is longer than `daysUntilNextPayday`, only the days up to payday are checked, and the assistant says so.
+3. **When can I buy it.** For k = 0, 1, 2, ... up to `MAX_PAYDAYS_AHEAD`, the pool is `S * SAFE_SHARE + k * c`, where `c = SAFE_SHARE * u`. If the user states an amount to set aside per payday, that amount is used as `c`, capped at `u`. The first k where the pool reaches `x` gives the answer: k = 0 is now, and k >= 1 is the k-th payday after today (paydays and month-end rule as in `daysUntilNextPayday`). If no k works, the answer is "not within about 6 months at the current numbers".
+4. **Assumptions stated in every "when" answer:** salary stays at B, expenses stay as saved, the user spends at the allowance pace except for the amount set aside, and there is no new income. Expected payments in `reminders` are not counted, and no one-off costs are assumed.
+5. **Edge cases.** If `S = 0` (no cash left, base salary 0, or a missing payday), nothing is safe, and the assistant says which reason applies. If `x` is missing or not above 0, the assistant asks for it.
+6. **Stale data.** If the latest `entryRecords.day` is more than `STALE_DAYS` before today, the assistant says its numbers may be out of date and offers to update the balances first.
+7. Every answer shows safe, tight or not safe, the numbers behind it (S and the allowance), and a short line that this is an estimate from the user's own entries and not financial advice.
+
 ## 8. Transactions and consistency
 
 MongoDB multi-document transactions require a **replica set**, including in development. Run a single-node replica set locally (for example through Docker or `mongod --replSet`), and use a managed cluster such as Atlas in production.
@@ -490,6 +605,9 @@ MongoDB multi-document transactions require a **replica set**, including in deve
 | Create, edit or delete an expense | Write `expenses`, insert `recordLogs` (`dailyMetrics` is not recomputed) |
 | Delete a conversation | Delete the `conversations` document and its `messages` in one transaction. Then delete the thread's `checkpoints` and `checkpoint_writes` with the checkpointer's `deleteThread(threadId)`. This step may use a different client, so it cannot join the transaction. Make it idempotent and safe to retry. |
 | Delete an account that has no records | Delete `accountEntries` document (a single write, no transaction needed) |
+| Swap wishlist priorities | In one transaction, update the item that leaves the shared level first (so the partial unique index never sees two), then the other. No `recordLogs` entry. |
+| Create, edit, complete or delete a reminder | Single write on `reminders`. No transaction, no `recordLogs` entry. |
+| Save or forget an agent memory | Single upsert or delete on `agentMemories`. No transaction. |
 
 The unique index on `entryRecords` also protects against a double-click or two tabs creating duplicate daily records.
 
@@ -498,6 +616,8 @@ The unique index on `entryRecords` also protects against a double-click or two t
 - **Accounts (`accountEntries`):** hard delete only if the account has no `entryRecords`. Otherwise set `archivedAt`. Archived accounts disappear from the dialog and from current totals, but their past records still feed history and charts. The delete button in the dialog calls one endpoint, and the server picks delete or archive.
 - **Daily records (`entryRecords`):** editing overwrites. Deleting a single day's record is allowed (the balance then carries forward from the previous day), and it is logged.
 - **Expenses, wishlist items, conversations, messages:** hard delete. History survives in `recordLogs` snapshots.
+- **Reminders:** hard delete. They are not logged, so nothing remains in `recordLogs`. A `done` reminder stays until the user deletes it.
+- **Agent memories (`agentMemories`):** hard delete, one or all, when the user asks the assistant to forget. Removed with the user account.
 - **Agent memory (`checkpoints`, `checkpoint_writes`):** deleted with their conversation, and trimmed by the retention policy in 4.10.
 - **Record logs:** never deleted, except when the whole user account is deleted.
 - **Daily metrics (`dailyMetrics`):** snapshots. A row is replaced only when balances for that same day are saved again, is never edited by the user, and is removed with the user account.
@@ -513,7 +633,9 @@ All routes are under `/api` (matching the dev proxy) and scoped to the authentic
 | Account entries | `GET/POST /api/account-entries`, `PATCH/DELETE /api/account-entries/:id` |
 | Entry records | `GET /api/entry-records?day=YYYY-MM-DD` (accounts with that day's balance, or last known), `PUT /api/entry-records/:day` (bulk upsert from the dialog, any past day or today), `GET /api/entry-records?from=&to=` (range for charts). If the body would replace existing balances and does not include `confirmReplace: true`, the server responds **409 Conflict** with the list of affected accounts (existing balance and proposed balance) and writes nothing. The client shows the warning, then resends with `confirmReplace: true`. |
 | Expenses | `GET/POST /api/expenses`, `PATCH/DELETE /api/expenses/:id`, `GET /api/expenses/total?month=` |
-| Wishlist | `GET/POST /api/wishlist`, `PATCH/DELETE /api/wishlist/:id`, `POST /api/wishlist/:id/purchase`, `POST /api/wishlist/:id/undo-purchase` |
+| Wishlist | `GET/POST /api/wishlist`, `PATCH/DELETE /api/wishlist/:id`, `POST /api/wishlist/:id/purchase`, `POST /api/wishlist/:id/undo-purchase`, `POST /api/wishlist/swap-priority` (body: the two item ids and their new levels, applied together or not at all) |
+| Reminders | `GET/POST /api/reminders`, `PATCH/DELETE /api/reminders/:id`, `POST /api/reminders/:id/complete`, `GET /api/reminders/due` (pending, `remindOn` today or earlier) |
+| Agent memories | `GET /api/agent-memories`, `DELETE /api/agent-memories/:key`, `DELETE /api/agent-memories` (forget all). Saves come only from the assistant, after confirmation. |
 | Record logs | `GET /api/record-logs?type=&cursor=&limit=` (read-only) |
 | Dashboard | `GET /api/dashboard/summary` (latest `dailyMetrics` row plus today's allowance), `GET /api/dashboard/trend` (`dailyMetrics` for the last 30 days, with missing days carried forward) |
 | Conversations | `GET/POST /api/conversations`, `PATCH/DELETE /api/conversations/:id` |
@@ -533,6 +655,8 @@ Seed the development database so the frontend and backend show the same data:
 - Daily balances for each account over the last 30 days, with a few skipped days to exercise the carry-forward logic.
 - 5 expenses, one of them month-specific (months `[1, 12]`).
 - 5 wishlist items, one for each priority.
+- 3 reminders, one of each kind (`collect_debt`, `expected_income`, `custom`), all with future dates.
+- 2 agent memories, for example `reminder_lead_time` and `weekend_spending_habit`.
 - Record logs covering each record type.
 - `dailyMetrics` rows for each seeded day, computed with the section 7 formulas.
 - 2 conversations with a few messages each. Do not seed `checkpoints` or `checkpoint_writes`. They are created by the checkpointer at runtime.
@@ -568,8 +692,16 @@ Seed the development database so the frontend and backend show the same data:
 6. Priority sort order for the wishlist. **Yes (ASAP, Priority, Important, Normal, Peripheral).**
 7. Single user for now, or multiple users with authentication from the start? **Single user for now.**
 8. Should chat messages persist an AI context or system prompt, and does the assistant get read access to the user's financial data? **AI chat should have a LangGraph memory checkpointer. It should have read and write access to financial data, but for write operations, it must ask permission first from the user.**
+9. Where do reminders, money owed to the user and expected payments live? **In a new `reminders` collection (4.11).**
+10. Where is the time zone for relative dates stored? **In `users.timeZone` (4.1). Every relative date is resolved there.**
+11. Does the assistant confirm before swapping wishlist priorities? **Yes. One confirmation, one action (4.5, section 8).**
+12. How does the assistant decide what is safe to spend? **The rules in section 7.1 (confirmed).**
+13. Is the "am I spending too much" check stored? **No. It is conversational only (4.8).**
+14. Is cross-conversation memory part of the design? **Yes, as `agentMemories` (4.12), because `memory.tool.ts` needs it. Saves need a confirm turn.**
+15. Which wishlist level allows only one pending item? **Only `priority` (4.5).**
+16. How are reminders delivered? **In-app only: listed on request and at the first message of a new conversation (4.11).**
 
 ### Still open
 
 **Deferred**
-1. Cross-conversation assistant memory (`agentMemories`), if wanted (allows the assistant to remember user preferences and facts across different chat threads).
+1. Push or email delivery for reminders (needs a scheduler), if wanted.

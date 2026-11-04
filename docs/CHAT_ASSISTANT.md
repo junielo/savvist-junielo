@@ -14,7 +14,7 @@ This document details the architecture, component breakdown, and implementation 
 
 ## 1. Overview
 
-The chat assistant is built on a **LangGraph state machine** integrated with **NestJS**. It uses **Jev (TypeSafe AI)** for intent classification and **Google Gemini** for slot extraction, query rewriting, and reply generation. It features durable state persistence via MongoDB checkpointers, strict policy enforcement, and an explicit human-in-the-loop confirmation workflow for write operations.
+The chat assistant is built on a **LangGraph state machine** integrated with **NestJS**. It uses **Jev (TypeSafe AI)** for intent classification and **Google Gemini** for slot extraction, query rewriting, and reply generation. It features durable state persistence via MongoDB checkpointers, strict policy enforcement, and an explicit human-in-the-loop confirmation workflow for write operations. It is a daily-money assistant: balances, spending, expenses, wishlist and reminders for one user. Large purchases, loans, investing, and tax or legal advice are out of scope ([4.6](#46-boundaries-and-legal-safety)).
 
 ---
 
@@ -43,25 +43,25 @@ apps/savvist-backend/src/app/modules/chat/
     │   ├── pending-action.schema.ts  # [TO ADD] Zod schema for pending_action
     │   ├── agent.routers.ts          # [TO UPDATE] Conditional routing functions
     │   └── nodes/                    # 14 nodes: 13 existing, plus prepare-action
-    │       ├── load-context.node.ts        # Loads user profile, date, and previous context
+    │       ├── load-context.node.ts        # [TO UPDATE] Loads profile (with time zone), date, saved memories, due-reminder count, previous context
     │       ├── state-guard.node.ts         # [TO UPDATE] Handles answers to a clarification question
     │       ├── classify-intent.node.ts     # Invokes intent classifier
-    │       ├── extract-slots.node.ts       # Gemini slot extraction
+    │       ├── extract-slots.node.ts       # [TO UPDATE] Gemini slot extraction. Relative dates are resolved in code
     │       ├── capability-check.node.ts    # Validates against policy and capability rules
     │       ├── clarify.node.ts             # Handles ambiguity or unknown intents
     │       ├── blocked.node.ts             # Formulates refusal messages for forbidden actions
     │       ├── read-data.node.ts           # Fetches relevant financial records
-    │       ├── analyze.node.ts             # Performs financial calculations (affordability, what-if)
+    │       ├── analyze.node.ts             # [TO UPDATE] Safe-to-spend, spending review, what-if
     │       ├── prepare-action.node.ts      # [TO ADD] Builds pending_action before the confirmation pause
     │       ├── confirm-first.node.ts       # [TO UPDATE] Calls interrupt()
     │       ├── resolve-confirmation.node.ts# [TO UPDATE] Resolves confirmation / denial / correction
     │       ├── execute-write.node.ts       # [TO UPDATE] Executes authorized write operations
-    │       └── respond.node.ts             # Generates final user-facing response via Gemini
+    │       └── respond.node.ts             # [TO UPDATE] Gemini reply; numbers come from code only
     │
     ├── intent/                       # Intent classification subsystem
-    │   ├── intent.types.ts           # Intent groups, intents, entities, results
-    │   ├── intent.taxonomy.ts        # Intent-to-group and intent-to-entity mapping
-    │   ├── risk-tier.ts              # Code-only risk mapping. Read by prepare-action
+    │   ├── intent.types.ts           # [TO UPDATE] Intent groups, intents, entities, results
+    │   ├── intent.taxonomy.ts        # [TO UPDATE] Intent-to-group and intent-to-entity mapping
+    │   ├── risk-tier.ts              # [TO UPDATE] Code-only risk mapping. Read by prepare-action
     │   ├── state-guards.ts           # State validation guards
     │   ├── scores-to-result.ts       # Threshold evaluation for classifier scores
     │   ├── intent-classifier.interface.ts  # Classifier abstraction
@@ -69,14 +69,14 @@ apps/savvist-backend/src/app/modules/chat/
     │   └── classifiers/
     │       ├── jev.classifier.ts     # Primary Jev (TypeSafe AI) classifier
     │       ├── jev.client.ts         # HTTP adapter for Jev
-    │       ├── jev.questions.ts      # Typed questions per intent
+    │       ├── jev.questions.ts      # [TO UPDATE] Typed questions per intent
     │       └── keyword.classifier.ts # Baseline keyword classifier for evaluation
     │
     ├── llm/                          # Gemini LLM integration
     │   ├── gemini.service.ts         # Core Gemini client service
-    │   ├── slot-extractor.ts         # Extracts numerical and entity slots
+    │   ├── slot-extractor.ts         # [TO UPDATE] Extracts numerical and entity slots, and relative-date phrases as structured values
     │   ├── query-rewriter.ts         # Rewrites queries for semantic retrieval
-    │   ├── reply-writer.ts           # Generates natural conversational responses
+    │   ├── reply-writer.ts           # [TO UPDATE] Generates natural conversational responses
     │   └── prompts/                  # System prompts for slots, queries, and replies
     │
     ├── capability/                   # Deterministic policy rules
@@ -85,21 +85,27 @@ apps/savvist-backend/src/app/modules/chat/
     │       ├── read-only-data.rule.ts
     │       ├── future-data.rule.ts
     │       ├── account-type-lock.rule.ts
-    │       ├── unsupported-feature.rule.ts
+    │       ├── large-amount.rule.ts        # [TO ADD] Blocks analysis of very large amounts
+    │       ├── reminder-date.rule.ts       # [TO ADD] Rejects reminder dates in the past
+    │       ├── unsupported-feature.rule.ts   # [TO UPDATE] Also blocks out-of-scope topics
     │       └── policy-flag.rule.ts   # Enforces config flags for deletes & base salary changes
     │
     ├── tools/                        # Domain adapters & memory tools
-    │   ├── read.tool.ts              # Fetches balances, metrics, expenses, wishlist, logs, profile
-    │   ├── write.tool.ts             # Executes write intents (expenses, wishlist, base salary, accounts)
-    │   ├── memory.tool.ts            # Manages cross-conversation persistent agent memory (`agentMemories`)
+    │   ├── read.tool.ts              # [TO UPDATE] Fetches balances, metrics, expenses, wishlist, reminders, logs, profile
+    │   ├── write.tool.ts             # [TO UPDATE] Executes write intents (expenses, wishlist incl. swap, base salary, accounts, entry records, reminders)
+    │   ├── memory.tool.ts            # [TO UPDATE] Agent memory (`agentMemories`): list, save, forget. Saves need a confirm turn
     │   └── tool-registry.ts          # Intent-to-tool mapping registry
+    │
+    ├── analysis/                     # [TO ADD] Pure functions, no model calls
+    │   ├── safe-to-spend.ts          # [TO ADD] Safe-to-spend rules (DATABASE.md 7.1)
+    │   └── resolve-relative-date.ts  # [TO ADD] "next month", "after 2 weeks" to YYYY-MM-DD in users.timeZone
     │
     ├── persistence/                  # State persistence
     │   └── mongo-checkpointer.provider.ts # [TO UPDATE] MongoDBSaver checkpointer with Mongoose connection reuse
     │
     └── eval/                         # Evaluation harness
         ├── eval-intents.ts           # Accuracy and write-boundary evaluation suites
-        ├── cases.jsonl               # Test case corpus
+        ├── cases.jsonl               # [TO UPDATE] Test case corpus
         └── seed-cases.ts             # Seed cases generator
 ```
 
@@ -109,7 +115,7 @@ apps/savvist-backend/src/app/modules/chat/
 |---|---|---|
 | `agent.service.ts` | Update | Add the ownership check, paused-thread detection from the saved state, and the pending-action expiry check before each turn (see [4.2](#42-pause-detection)) |
 | `graph/agent.graph.ts` | Update | Add the `prepare-action` node, entered from `capability-check` (write allowed) and from `execute-write` (409) |
-| `graph/agent.state.ts` | Update | State defined with `Annotation.Root` (`messages`, `intentResult`, `pending_action`, etc.). See [4.1](#41-state-definition-style) |
+| `graph/agent.state.ts` | Update | State defined with `Annotation.Root` (`messages`, `intentResult`, `pending_action`, etc.). See [4.1](#41-state-definition-style). Also holds `spending_review` ([4.9](#49-safe-to-spend-and-spending-review)) and `dueReminderCount` ([4.7](#47-reminders-and-relative-dates)) |
 | `graph/pending-action.schema.ts` | Add | Zod schema for `pending_action` (`tool`, `args`, `risk`, `createdAt`, `expiresAt`). Used by `prepare-action` and `resolve-confirmation` |
 | `graph/agent.routers.ts` | Update | A write that passes `capability-check` goes to `prepare-action` |
 | `nodes/state-guard.node.ts` | Update | Handles answers to a clarification question only. Paused confirmations are detected in `agent.service` |
@@ -118,6 +124,18 @@ apps/savvist-backend/src/app/modules/chat/
 | `nodes/resolve-confirmation.node.ts` | Update | Parses `pending_action` with its schema, treats an expired one as cancelled, then resolves confirmation / denial / correction |
 | `nodes/execute-write.node.ts` | Update | Executes authorized write operations. Safe to retry. On a 409 it goes back to `prepare-action` |
 | `persistence/mongo-checkpointer.provider.ts` | Update | Async provider, explicit `dbName`, `setup()` at startup (see [4.3](#43-mongodbsaver-setup)) |
+| `nodes/load-context.node.ts` | Update | Also loads `users.timeZone`, saved memories and the count of due reminders ([4.7](#47-reminders-and-relative-dates), [4.10](#410-agent-memory)) |
+| `nodes/extract-slots.node.ts`, `llm/slot-extractor.ts` | Update | Date phrases come back as structured values and are resolved in code. New slots: amount, span in days, set-aside per payday ([4.7](#47-reminders-and-relative-dates), [4.9](#49-safe-to-spend-and-spending-review)) |
+| `nodes/analyze.node.ts` | Update | Calls `safe-to-spend.ts` and runs the spending review ([4.9](#49-safe-to-spend-and-spending-review)) |
+| `nodes/respond.node.ts`, `llm/reply-writer.ts` | Update | Numbers only from code results, an estimate note on analysis answers, a due-reminder line on a new conversation ([4.6](#46-boundaries-and-legal-safety), [4.7](#47-reminders-and-relative-dates)) |
+| `analysis/safe-to-spend.ts` | Add | Pure function for the rules in `DATABASE.md` section 7.1 |
+| `analysis/resolve-relative-date.ts` | Add | Pure function that turns a structured date phrase into `YYYY-MM-DD` in the user's time zone |
+| `capability/rules/large-amount.rule.ts` | Add | Blocks analysis of amounts above `LARGE_AMOUNT_MULTIPLE * N` ([4.6](#46-boundaries-and-legal-safety)) |
+| `capability/rules/reminder-date.rule.ts` | Add | Rejects a reminder date before today in the user's time zone |
+| `capability/rules/unsupported-feature.rule.ts` | Update | Also blocks out-of-scope topics ([4.6](#46-boundaries-and-legal-safety)) |
+| `tools/read.tool.ts`, `tools/write.tool.ts`, `tools/memory.tool.ts` | Update | Reminders, wishlist swap, entry records, memory list, save and forget ([4.5](#45-what-the-assistant-can-do)) |
+| `intent/intent.types.ts`, `intent.taxonomy.ts`, `risk-tier.ts`, `classifiers/jev.questions.ts` | Update | New intents and risk tiers ([4.5](#45-what-the-assistant-can-do)) |
+| `eval/cases.jsonl` | Update | Cases for the new intents and for every blocked case in [4.6](#46-boundaries-and-legal-safety) |
 
 ---
 
@@ -130,6 +148,7 @@ Two views of the same workflow. The high-level view shows the routing order for 
 - `undo_last` is dropped. "Undo that" is a blocked request (`unsupported_feature`).
 - Follow-ups use **option C**: there is no `follow_up` intent. Jev receives the previous assistant message as context and picks the real intent directly. Gemini produces the standalone query together with the slots. Option B is the documented fallback (see [3.6](#36-fallback-for-follow-ups-option-b)).
 - On resume, LangGraph restarts the paused node from its beginning. So `confirm-first` contains only the `interrupt()` call, and `pending_action` is built in a separate `prepare-action` node before it.
+- Reminders, the wishlist swap, safe-to-spend, the spending review and agent memory add no new graph nodes. They use the existing path ([4.5](#45-what-the-assistant-can-do) to [4.10](#410-agent-memory)).
 
 ### 3.2 High-level routing
 
@@ -377,6 +396,103 @@ The checkpointer is `MongoDBSaver` from `@langchain/langgraph-checkpoint-mongodb
 - The 409 path includes the conflict details.
 - After the correction loop, the rebuilt `pending_action` has the corrected values.
 
+### 4.5 What the assistant can do
+
+The assistant handles day-to-day money for one user. Intent names are illustrative; the final names live in `intent.types.ts`. Nothing here needs a new graph node.
+
+| Capability | Group | Confirm first | Notes |
+|---|---|---|---|
+| Read balances, Total Fund, Actual Cash, Health, Growth, Today's Allowance and the 30-day trend, and explain any of them | C | no | Values come from `read.tool.ts`, never from the model |
+| Read expenses (month total, what is due before the next payday), wishlist (pending total, next by priority), record logs, reminders, profile | C | no | Record logs are read-only |
+| Update base salary and employment status | D | yes | Unemployed forces salary 0. Logged. Subject to `policy-flag.rule.ts` |
+| Account entries: create, rename, delete | D | yes | Type cannot change once the account has records. Delete archives when records exist |
+| Entry records: save a day's balance, change the amount, delete a day | D | yes, and again before replacing an existing balance | No future days. Only the amount changes, never the account type |
+| Expenses: create, edit, delete | D | yes | |
+| Wishlist: create, edit, delete, mark purchased, undo purchase | D | yes | |
+| Wishlist: swap priority levels | D | yes, one confirmation | [4.8](#48-wishlist-priority-swap) |
+| Reminders: create, edit, complete, delete (money owed to the user, expected payments, custom) | D | yes | [4.7](#47-reminders-and-relative-dates) |
+| Memory: list, save, forget | C and D | save and forget need a yes | [4.10](#410-agent-memory) |
+| Can I afford this now or next month? When can I safely buy it? (a Wishlist item or any amount) | E | no | [4.9](#49-safe-to-spend-and-spending-review) |
+| Is spending this amount over a few days (a weekend) safe? What is the safe range? | E | no | [4.9](#49-safe-to-spend-and-spending-review) |
+| When will I have this amount in my account? | E | no | An estimate with stated assumptions |
+| Am I spending too much? Help me lessen it | E | no | Several questions, conversational only ([4.9](#49-safe-to-spend-and-spending-review)) |
+| What-if: how does a new expense change my allowance? | E | no | |
+| Greetings, "what can you do?" | B | no | No data lookup |
+
+Risk tiers (code only, in `risk-tier.ts`). This is a proposal to reconcile with the existing file:
+
+| Tier | Intents |
+|---|---|
+| low | reminders (create, edit, complete, delete), memory save and forget, wishlist swap, mark purchased, undo purchase |
+| medium | create or edit an expense, wishlist item, account or daily balance |
+| high | any delete of an expense, wishlist item, account or daily balance, replacing an existing balance, base salary, employment status |
+
+### 4.6 Boundaries and legal safety
+
+The assistant covers daily money only. The `blocked` node explains the reason in one or two sentences and says what it can do instead.
+
+| Request | Blocked by |
+|---|---|
+| Property, vehicles, loans, mortgages, business funding, investing, crypto, stocks, insurance products | `unsupported-feature.rule.ts` (out-of-scope intent) |
+| Tax, legal or investment advice | `unsupported-feature.rule.ts` |
+| How to pressure, threaten or take legal action against a borrower, or hide a debt | `unsupported-feature.rule.ts` |
+| Affordability, "when", or what-if for a very large amount | `large-amount.rule.ts` |
+| "Undo that" | `unsupported-feature.rule.ts` |
+| A balance dated in the future | `future-data.rule.ts` |
+| Changing an account's type after it has records | `account-type-lock.rule.ts` |
+| Editing or deleting record logs | `read-only-data.rule.ts` |
+| Renaming or deleting a conversation, changing the time zone | `unsupported-feature.rule.ts` |
+
+- **Large amounts.** `large-amount.rule.ts` blocks the analysis intents when the amount is above `LARGE_AMOUNT_MULTIPLE * N`, where N is the net income from `DATABASE.md` section 7. `LARGE_AMOUNT_MULTIPLE = 6` is a placeholder. It does not block recording data, so the user can still save a large wishlist item. If N is 0 the rule is skipped, and `DATABASE.md` 7.1 already answers "not safe".
+- **Estimates, not advice.** Every analysis answer states that it is an estimate from the user's own entries and not financial, tax or legal advice. `reply-writer.ts` adds that line.
+- **Numbers come from code.** Gemini writes the reply from a result object and never calculates or invents a figure.
+- **Stale data.** If balances are older than `STALE_DAYS`, the answer says so first (`DATABASE.md` 7.1).
+- **Other people's data.** Only a first name or label is stored for a borrower or a payer. No contact details.
+
+### 4.7 Reminders and relative dates
+
+Reminders use the existing write path: `extract-slots`, `capability-check`, `prepare-action`, `confirm-first`, `execute-write` (`DATABASE.md` 4.11).
+
+- **Kinds.** "Someone borrowed X" becomes `collect_debt` with the amount and the name. "I'm expecting a payment on a date" becomes `expected_income`. Anything else is `custom`.
+- **Dates are resolved in code.** Gemini returns an exact date or a structured phrase: a unit (day, week or month), a number n, or "next month". `resolve-relative-date.ts` computes the date in `users.timeZone`, which `load-context` provides, using the rules in `DATABASE.md` 4.11. A vague phrase ("soon") goes to `clarify`.
+- **Past dates.** `reminder-date.rule.ts` rejects a date before today. Today is allowed. This is the reverse of `future-data.rule.ts`, which applies to balances.
+- **Confirmation shows the exact date,** for example "Remind you on 2026-12-04 to ask Juan for 2000?".
+- **Reminders do not move money.** An unpaid debt or an expected payment is never counted in balances or the allowance. When the user says the money arrived, the assistant offers to mark the reminder done and, as a separate confirmed write, to update the balance.
+- **Delivery is in-app only.** `load-context` puts only the count of due and overdue reminders in graph state (`dueReminderCount`). `respond` adds one line on the first message of a new conversation, and `read-data` answers "what reminders do I have". No push or email.
+
+### 4.8 Wishlist priority swap
+
+- Intent `swap_wishlist_priority`. The user names two items, or says "make X the priority item". An ambiguous item name goes to `clarify`.
+- Only one pending item can hold `priority` (`DATABASE.md` 4.5). When the user sets another item to `priority` and the slot is taken, `execute-write` gets the 409 that names the holder. It goes back to `prepare-action`, which builds a swap: the target takes `priority` and the holder takes the level the target had. This is the same loop as `confirmReplace`, with no new edge.
+- `pending_action` is one action: `tool: swapWishlistPriority`, `args` holding both item ids with their current and new levels. The confirmation text shows both items before and after. The user confirms once, and both changes apply in one transaction or neither does.
+- Undoing a purchase into a taken `priority` slot uses the same 409 and the same swap.
+
+### 4.9 Safe-to-spend and spending review
+
+**Safe-to-spend.** The rules are in `DATABASE.md` 7.1 and live in `analysis/safe-to-spend.ts`.
+
+- `read-data` fetches what the function needs (base salary, payday dates, Actual Cash, Total Fund, expenses, latest balance day). `analyze` calls the function. Gemini only words the reply.
+- The result is a small plain object: verdict (`safe`, `tight` or `not_safe`), S, the allowance, the allowance after the purchase, the safe range or the earliest payday, the assumptions, and a stale flag. Only that object goes into graph state.
+- Intents: `check_affordability` (now), `check_spending_range` (a number of days), `estimate_when_available`. "Can I afford it next month?" is evaluated at the first payday of next month, using the same pool calculation as "when".
+- The amount comes from a Wishlist item (looked up in `read-data`) or from a number the user gives.
+
+**Spending review** ("am I spending too much?").
+
+- Intent `spending_review`. State field `spending_review` holds the questions asked and the answers, as plain values (small).
+- `clarify` asks one question per turn, and `state-guard` sends each answer back to `extract-slots`. Questions cover normal daily spending: meals and food per day, transport per day, load, data and subscriptions per month, groceries and household per week, leisure, going out and shopping per week. Already answered questions are skipped.
+- `MAX_REVIEW_QUESTIONS = 5`. After the last answer, or when the user stops answering, `analyze` runs with what it has and says what was missing.
+- The answers are turned into a daily figure and compared with Today's Allowance. At or below it: within budget. Above it: over by the gap. When over, the assistant suggests at most three trims, starting with the largest category, aimed at bringing the daily figure down to the allowance. These are options, not orders.
+- **Conversational only.** The answers stay in the thread's agent memory and are not written to any collection (`DATABASE.md` 4.8). A user can ask the assistant to remember a habit, which goes through [4.10](#410-agent-memory).
+- `log_spending` ("I spent 200 on lunch") stays routed to `clarify`. Nothing is saved.
+
+### 4.10 Agent memory
+
+- `memory.tool.ts` offers `listMemory`, `saveMemory` and `forgetMemory` over `agentMemories` (`DATABASE.md` 4.12).
+- `load-context` reads the memories (at most 50) each turn and passes them to the prompts as quoted data, never as instructions. They are not stored in graph state.
+- Saving and forgetting go through the normal confirm turn at the low risk tier. Nothing is saved automatically. The assistant may offer to remember a habit or preference the user stated.
+- Code checks a save before `prepare-action`: the key format, a value of at most 300 characters, and no value that looks like a password or a long digit string such as an account or card number. A rejected save is explained to the user.
+- Balances, salary, expenses and other data that already exist in collections are never saved as memories.
+
 ---
 
 ## 5. Open Points
@@ -386,3 +502,7 @@ The checkpointer is `MongoDBSaver` from `@langchain/langgraph-checkpoint-mongodb
 - **MongoDBSaver: design agreed, install-time checks pending.** See [4.3](#43-mongodbsaver-setup) and `DATABASE.md` section 4.10. Still to confirm after install: the single `mongodb` driver version, `getClient()` on the installed Mongoose version, and whether the saver has a `ttl` option (see Retention in 4.3).
 - **`prepare-action`: decided.** See [4.4](#44-prepare-action). It stays a separate node and is now in the scaffold.
 - **Option C is untested.** Add follow-up cases to `cases.jsonl` (for example "What about last month?" after different assistant answers) and compare against option B.
+- **Large-amount threshold is a placeholder.** `LARGE_AMOUNT_MULTIPLE = 6` in [4.6](#46-boundaries-and-legal-safety) needs a final value.
+- **Risk tiers are proposed.** Reconcile the table in [4.5](#45-what-the-assistant-can-do) with the existing `risk-tier.ts`.
+- **New intents need classifier coverage.** Add typed questions in `jev.questions.ts` and cases in `cases.jsonl` for reminder phrasings, the swap, safe-to-spend boundaries, out-of-scope topics, large amounts and memory refusals.
+- **Push or email reminders are deferred.** They need a scheduler (`DATABASE.md` section 12).
