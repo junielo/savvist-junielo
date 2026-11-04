@@ -57,3 +57,5 @@ skills-lock.json
 .nx
 .vscode
 .angular
+# LangGraph API
+.langgraph_api

@@ -35,7 +35,7 @@
   </mat-drawer>
   <mat-drawer-content style="display: flex; flex-direction: column">
     <app-top-bar />
-    <div style="height: 100%">
+    <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
       <router-outlet />
     </div>
   </mat-drawer-content>

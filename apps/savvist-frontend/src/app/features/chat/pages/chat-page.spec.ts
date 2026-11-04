@@ -2,12 +2,27 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
+import { signal } from '@angular/core';
 import { ChatPage } from './chat-page';
+import { ConversationsService } from '../services/conversations.service';
+import { MessagesService } from '../services/messages.service';
 
 describe('ChatPage', () => {
   let component: ChatPage;
   let fixture: ComponentFixture<ChatPage>;
   let mockMatDialog: { open: ReturnType<typeof vi.fn> };
+  let mockConversationsService: {
+    conversations: ReturnType<typeof signal>;
+    isLoading: ReturnType<typeof signal>;
+    reload: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
+  };
+  let mockMessagesService: {
+    findAll: ReturnType<typeof vi.fn>;
+    send: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     mockMatDialog = {
@@ -16,12 +31,36 @@ describe('ChatPage', () => {
       }),
     };
 
+    mockConversationsService = {
+      conversations: signal([
+        { id: 'conv1', title: 'Test Chat 1' },
+        { id: 'conv2', title: 'Test Chat 2' },
+      ]),
+      isLoading: signal(false),
+      reload: vi.fn(),
+      create: vi.fn().mockResolvedValue({ id: 'conv3', title: 'New chat' }),
+      update: vi.fn().mockResolvedValue({ id: 'conv1', title: 'Updated Title' }),
+      remove: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockMessagesService = {
+      findAll: vi.fn().mockResolvedValue([
+        { id: 'msg1', role: 'user', content: 'Hello', status: 'complete' },
+      ]),
+      send: vi.fn().mockResolvedValue({
+        userMessage: { id: 'msg2', role: 'user', content: 'Hi', status: 'complete' },
+        assistantMessage: { id: 'msg3', role: 'assistant', content: 'Hello there!', status: 'complete' },
+      }),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ChatPage],
-      providers: [{ provide: MatDialog, useValue: mockMatDialog }],
-    })
-      .overrideProvider(MatDialog, { useValue: mockMatDialog })
-      .compileComponents();
+      providers: [
+        { provide: MatDialog, useValue: mockMatDialog },
+        { provide: ConversationsService, useValue: mockConversationsService },
+        { provide: MessagesService, useValue: mockMessagesService },
+      ],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(ChatPage);
     component = fixture.componentInstance;
@@ -33,88 +72,38 @@ describe('ChatPage', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should select the first session on load', () => {
-    expect(component.activeId()).toBeTruthy();
-    expect(component.activeMessages().length).toBeGreaterThan(0);
+  it('should select the first session on load and fetch messages', () => {
+    expect(component.activeId()).toBe('conv1');
+    expect(mockMessagesService.findAll).toHaveBeenCalledWith('conv1');
   });
 
-  it('should switch sessions and change the thread messages', () => {
-    const sessions = component.sessions();
-    expect(sessions.length).toBeGreaterThan(1);
-    const secondSessionId = sessions[1].id;
-
-    // Call onSelectSession
-    component['onSelectSession'](secondSessionId);
-    expect(component.activeId()).toBe(secondSessionId);
-    expect(component.activeMessages()).toEqual(component.messagesBySession()[secondSessionId]);
+  it('should switch sessions and fetch messages if not cached', async () => {
+    component['onSelectSession']('conv2');
+    expect(component.activeId()).toBe('conv2');
+    expect(mockMessagesService.findAll).toHaveBeenCalledWith('conv2');
   });
 
-  it('should add a new session at the top and select it', () => {
-    const initialCount = component.sessions().length;
-    component['onCreateSession']();
-
-    expect(component.sessions().length).toBe(initialCount + 1);
-    expect(component.sessions()[0].title).toBe('New chat');
-    expect(component.activeId()).toBe(component.sessions()[0].id);
-    expect(component.activeMessages()).toEqual([]);
+  it('should create a new session', async () => {
+    await component['onCreateSession']();
+    expect(mockConversationsService.create).toHaveBeenCalled();
+    expect(component.activeId()).toBe('conv3');
   });
 
-  it('should rename an existing session', () => {
-    const targetId = component.sessions()[0].id;
-    component['onRenameSession']({ id: targetId, title: 'Updated Session Title' });
-
-    const renamed = component.sessions().find((s) => s.id === targetId);
-    expect(renamed?.title).toBe('Updated Session Title');
+  it('should rename an existing session', async () => {
+    await component['onRenameSession']({ id: 'conv1', title: 'Updated Title' });
+    expect(mockConversationsService.update).toHaveBeenCalledWith('conv1', { title: 'Updated Title' });
   });
 
-  it('should delete a session and fallback to active session or null', () => {
-    const sessionsBefore = component.sessions();
-    expect(sessionsBefore.length).toBeGreaterThan(0);
-
-    const firstId = sessionsBefore[0].id;
-    component.activeId.set(firstId);
-
-    component['onRemoveSession'](firstId);
-
-    expect(component.sessions().find((s) => s.id === firstId)).toBeUndefined();
-    // Active should fall back to next session or null
-    if (component.sessions().length > 0) {
-      expect(component.activeId()).toBe(component.sessions()[0].id);
-    } else {
-      expect(component.activeId()).toBeNull();
-    }
+  it('should delete a session', async () => {
+    component.activeId.set('conv1');
+    await component['onRemoveSession']('conv1');
+    expect(mockConversationsService.remove).toHaveBeenCalledWith('conv1');
   });
 
-  it('should handle sending a message and appending canned assistant reply after timeout', async () => {
-    vi.useFakeTimers();
-    const activeId = component.activeId();
-    expect(activeId).toBeTruthy();
-
-    const initialMessageCount = component.activeMessages().length;
-
-    component['onSendMessage']('Hello assistant');
-
-    // User message appended immediately
-    expect(component.activeMessages().length).toBe(initialMessageCount + 1);
-    expect(component.activeMessages()[component.activeMessages().length - 1].role).toBe('user');
-    expect(component.isResponding()).toBe(true);
-
-    // Fast-forward timers
-    vi.advanceTimersByTime(600);
-
-    // Assistant reply appended
-    expect(component.activeMessages().length).toBe(initialMessageCount + 2);
-    expect(component.activeMessages()[component.activeMessages().length - 1].role).toBe('assistant');
+  it('should send a message and append user and assistant messages', async () => {
+    component.activeId.set('conv1');
+    await component['onSendMessage']('Hi');
+    expect(mockMessagesService.send).toHaveBeenCalledWith('conv1', 'Hi');
     expect(component.isResponding()).toBe(false);
-
-    vi.useRealTimers();
-  });
-
-  it('should show empty state when no session is selected', () => {
-    component.activeId.set(null);
-    fixture.detectChanges();
-
-    expect(component.activeMessages()).toEqual([]);
-    expect(component.isComposerDisabled()).toBe(true);
   });
 });

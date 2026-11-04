@@ -1,0 +1,798 @@
+﻿{
+  "name": "@langchain/typesafe",
+  "version": "0.0.2",
+  "description": "TypeSafe System One integration for LangChain.js (Jev classifier).",
+  "author": "LangChain",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:langchain-ai/langchainjs.git"
+  },
+  "homepage": "https://github.com/langchain-ai/langchainjs/tree/main/libs/providers/langchain-typesafe/",
+  "dependencies": {
+    "zod": "^4"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^1.0.0",
+    "langchain": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "langchain": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@langchain/openai": "^1.5.13",
+    "@tsconfig/recommended": "^1.0.3",
+    "dotenv": "^17.4.2",
+    "typescript": "~7.0.2",
+    "vitest": "^4.1.11",
+    "@langchain/core": "^1.2.14",
+    "@langchain/tsconfig": "0.0.1",
+    "langchain": "^1.5.15"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "input": "./src/index.ts",
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./middleware": {
+      "input": "./src/middleware/index.ts",
+      "require": {
+        "types": "./dist/middleware/index.d.cts",
+        "default": "./dist/middleware/index.cjs"
+      },
+      "import": {
+        "types": "./dist/middleware/index.d.ts",
+        "default": "./dist/middleware/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "module": "./dist/index.js",
+  "scripts": {
+    "build": "turbo build:compile --filter @langchain/typesafe --output-logs new-only",
+    "build:compile": "tsdown",
+    "clean": "rm -rf .turbo dist/",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:int": "vitest run --mode int"
+  }
+}
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\middleware\autoMode.d.ts
+import { NoulCriteria, QuestionContent } from "../types.js";
+import "../utils/state.js";
+import { TypeSafeClassifierFields } from "../classifier.js";
+import { BaseMessage } from "@langchain/core/messages";
+//#region src/middleware/autoMode.d.ts
+interface AutoModeMiddlewareConfig {
+  /** Tools to check. Non-empty; anything not listed is never classified. */
+  tools: (string | {
+    name: string;
+  })[];
+  instructions?: QuestionContent;
+  /**
+   * Descriptions for the two outcomes. Pass `null` to classify on
+   * `instructions` alone.
+   */
+  criteria?: NoulCriteria | null;
+  /** Supports `{tool_name}` and `{probability}`. */
+  blockedMessage?: string;
+  /**
+   * Transport and model settings forwarded to the classifier this middleware
+   * builds â€” everything except `questions`, which is construction-time only.
+   * Same rationale as `modelRouterMiddleware`. Pass `fetch` for unit tests.
+   */
+  classifierOptions?: Omit<TypeSafeClassifierFields, "questions">;
+}
+/**
+ * Blocks risky tool calls using a calibrated TypeSafe `Noul` probability.
+ *
+ * This is the part an LLM guardrail cannot do: an LLM's "80% sure" is not
+ * calibrated, so it cannot be a threshold. A System One probability can.
+ *
+ * @experimental
+ */
+declare function autoModeMiddleware(config: AutoModeMiddlewareConfig): import("langchain").AgentMiddleware<undefined, undefined, unknown, readonly (import("@langchain/core/tools").ServerTool | import("@langchain/core/tools").ClientTool)[], readonly []>;
+//#endregion
+export { AutoModeMiddlewareConfig, autoModeMiddleware };
+//# sourceMappingURL=autoMode.d.ts.map
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\middleware\index.d.ts
+import { ModelChoice, ModelRouterMiddlewareConfig, modelRouterMiddleware } from "./modelRouter.js";
+import { AutoModeMiddlewareConfig, autoModeMiddleware } from "./autoMode.js";
+export { type AutoModeMiddlewareConfig, type ModelChoice, type ModelRouterMiddlewareConfig, autoModeMiddleware, modelRouterMiddleware };
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\middleware\modelRouter.d.ts
+import { JsonValue, QuestionContent } from "../types.js";
+import { TypeSafeClassifierFields } from "../classifier.js";
+import { BaseMessage, HumanMessage } from "@langchain/core/messages";
+import * as z from "zod";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+//#region src/middleware/modelRouter.d.ts
+/** A model available to the router, with the criterion for selecting it. */
+interface ModelChoice {
+  /** A model instance, or a string accepted by `initChatModel`. */
+  model: string | BaseChatModel;
+  /** Description of the tasks this model suits. Becomes the Choice criterion. */
+  criteria: JsonValue;
+}
+interface ModelRouterMiddlewareConfig {
+  /** Named choices. Must be non-empty; the criteria ARE the Choice criteria. */
+  choices: Record<string, ModelChoice>;
+  /** Extra guidance for the selection, e.g. "Choose the least costly model." */
+  instructions: QuestionContent;
+  /**
+   * Transport and model settings forwarded to the classifier this middleware
+   * builds â€” everything `TypeSafeClassifier` accepts EXCEPT `questions`.
+   *
+   * The question is the middleware's own business and cannot be supplied by
+   * the caller: `TypeSafeClassifier.questions` is `readonly` and fixed at
+   * construction, and `TypeSafeClassifierCallOptions` has no `questions`
+   * field, so there is no way to bind one per call. Accepting a whole
+   * classifier instance would therefore force the caller to author the very
+   * criteria that `choices` already describes.
+   *
+   * Pass `fetch` here to make unit tests network-free.
+   */
+  classifierOptions?: Omit<TypeSafeClassifierFields, "questions">;
+}
+/**
+ * Selects an agent's model with a TypeSafe `Choice` classification.
+ *
+ * Classifies the latest human message ONCE per agent run in `beforeAgent`,
+ * stores the complete `ChoiceAnswer` in state, then reuses it for every model
+ * call in the run. A ten-turn loop pays one classification; classifying per
+ * model call would not be economic.
+ *
+ * The complete answer is stored rather than the winning label so probabilities
+ * and confidence are visible in state and traces.
+ *
+ * Classifier failures propagate and end the run. A silent fallback to a
+ * different model would make routing unauditable. Classification happens in
+ * `beforeAgent`, which the agent does not wrap, so those errors arrive as
+ * this package's own error types. A failure in `wrapModelCall` â€” an
+ * unresolvable model, say â€” is wrapped in `MiddlewareError`
+ * (`agents/nodes/AgentNode.ts:701`) and must be read via `err.cause`.
+ *
+ * @experimental
+ */
+declare function modelRouterMiddleware(config: ModelRouterMiddlewareConfig): import("langchain").AgentMiddleware<z.ZodObject<{
+  modelRoute: z.ZodOptional<z.ZodCustom<{
+    type: "choice";
+    choice: string;
+    probabilities: Record<string, number>;
+    confidence: number;
+  }, {
+    type: "choice";
+    choice: string;
+    probabilities: Record<string, number>;
+    confidence: number;
+  }>>;
+}, z.core.$strip>, undefined, unknown, readonly (import("@langchain/core/tools").ServerTool | import("@langchain/core/tools").ClientTool)[], readonly []>;
+//#endregion
+export { ModelChoice, ModelRouterMiddlewareConfig, modelRouterMiddleware };
+//# sourceMappingURL=modelRouter.d.ts.map
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\utils\errors.d.ts
+import { LangChainError } from "@langchain/core/errors";
+//#region src/utils/errors.d.ts
+declare const TypeSafeError_base: typeof LangChainError & {
+  isInstance: <T extends abstract new (...args: any[]) => any>(this: T, obj: unknown) => obj is InstanceType<T>;
+};
+/** Base class for every error this package throws. */
+declare class TypeSafeError extends TypeSafeError_base {
+  readonly name: string;
+}
+declare const TypeSafeAPIError_base: typeof TypeSafeError & {
+  isInstance: <T extends abstract new (...args: any[]) => any>(this: T, obj: unknown) => obj is InstanceType<T>;
+};
+/**
+ * An HTTP error from the TypeSafe API.
+ *
+ * `body` and `headers` are non-enumerable on purpose: TypeSafe error
+ * bodies echo the caller's request, including the `state` being
+ * classified, so they must never reach a log line or a trace.
+ */
+declare class TypeSafeAPIError extends TypeSafeAPIError_base {
+  readonly name: string;
+  readonly status: number;
+  readonly endpoint?: string;
+  /** Non-enumerable. Parsed JSON, raw text, or undefined. */
+  readonly body: unknown;
+  /** Non-enumerable. */
+  readonly headers: Headers;
+  constructor(status: number, body: unknown, headers: Headers, endpoint?: string, detail?: string);
+  get statusCode(): number;
+  get requestId(): string | undefined;
+  /**
+   * An allowlist: `body` is already non-enumerable via `defineHidden`, so
+   * this method's real job is excluding the ENUMERABLE fields that would
+   * otherwise leak through `JSON.stringify` â€” `endpoint` here, and
+   * `retryAfterMs`/`fieldPath` on this class's subclasses (`timeoutMs`, on
+   * `TypeSafeAPITimeoutError`, is excluded by its own inherited `toJSON`
+   * on `TypeSafeAPIConnectionError` instead).
+   */
+  toJSON(): Record<string, unknown>;
+}
+declare const TypeSafeAuthenticationError_base: typeof TypeSafeAPIError & {
+  isInstance: <T extends abstract new (...args: any[]) => any>(this: T, obj: unknown) => obj is InstanceType<T>;
+};
+declare class TypeSafeAuthenticationError extends TypeSafeAuthenticationError_base {
+  readonly name: string;
+}
+declare const TypeSafeRateLimitError_base: typeof TypeSafeAPIError & {
+  isInstance: <T extends abstract new (...args: any[]) => any>(this: T, obj: unknown) => obj is InstanceType<T>;
+};
+declare class TypeSafeRateLimitError extends TypeSafeRateLimitError_base {
+  readonly name: string;
+  readonly retryAfterMs?: number;
+  constructor(status: number, body: unknown, headers: Headers, endpoint?: string, detail?: string);
+}
+//#endregion
+export { TypeSafeAPIError, TypeSafeAuthenticationError, TypeSafeError, TypeSafeRateLimitError };
+//# sourceMappingURL=errors.d.ts.map
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\utils\state.d.ts
+import "../types.js";
+import { BaseMessage } from "@langchain/core/messages";
+//#region src/utils/state.d.ts
+/** A value legal anywhere below the root. `Date` becomes an ISO string. */
+type StateValue = string | number | boolean | null | Date | BaseMessage | StateValue[] | {
+  [key: string]: StateValue;
+};
+/**
+ * Input accepted by `TypeSafeClassifier`. Narrower than `StateValue`: the
+ * API 422s on a bare scalar or null at the root, though both are legal
+ * nested.
+ */
+type State = string | BaseMessage | StateValue[] | {
+  [key: string]: StateValue;
+};
+//#endregion
+export { State, StateValue };
+//# sourceMappingURL=state.d.ts.map
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\classifier.d.ts
+import { ClassificationResponse, Question, ValidatedQuestions } from "./types.js";
+import { State } from "./utils/state.js";
+import { Runnable, RunnableConfig } from "@langchain/core/runnables";
+import { AsyncCaller, AsyncCallerParams } from "@langchain/core/utils/async_caller";
+//#region src/classifier.d.ts
+interface TypeSafeClassifierCallOptions extends RunnableConfig {}
+interface TypeSafeClassifierFields extends AsyncCallerParams {
+  /** The questions to ask. At least one is required. */
+  questions: Record<string, Question>;
+  /** Model or alias. Defaults to `jev-latest`. */
+  model?: string;
+  /** Falls back to the `TYPESAFE_API_KEY` environment variable. */
+  apiKey?: string;
+  /** Falls back to `TYPESAFE_BASE_URL`, then `https://api.typesafe.ai`. */
+  baseUrl?: string;
+  /** Per-request timeout in **milliseconds**. Defaults to 30000. */
+  timeout?: number;
+  /** Custom transport, for tests, proxies or shared connection pools. */
+  fetch?: typeof fetch;
+  /**
+   * Whether to permit use in a browser, where the API key would be
+   * exposed to anyone who can read the bundle.
+   *
+   * Defaults to `true`, matching every other LangChain.js provider. Set
+   * it to `false` to adopt the stricter posture the vendor SDK takes.
+   */
+  dangerouslyAllowBrowser?: boolean;
+}
+/**
+ * Classifies unstructured state into typed, probabilistic answers using
+ * TypeSafe's System One models.
+ *
+ * Questions in one call are evaluated in parallel by the model, so
+ * batching many questions into a single classifier is far cheaper than
+ * making one call per question.
+ *
+ * @example
+ * ```ts
+ * const classifier = new TypeSafeClassifier({
+ *   questions: {
+ *     urgent: { type: "noul", instructions: "Is this urgent?" },
+ *   },
+ * });
+ * const result = await classifier.invoke("My payouts have been failing.");
+ * ```
+ */
+declare class TypeSafeClassifier extends Runnable<State, ClassificationResponse, TypeSafeClassifierCallOptions> {
+  static lc_name(): string;
+  lc_serializable: boolean;
+  lc_namespace: string[];
+  get lc_secrets(): Record<string, string>;
+  readonly questions: ValidatedQuestions;
+  readonly model: string;
+  readonly baseUrl: string;
+  readonly timeout: number;
+  /** Non-enumerable: `util.inspect`/`console.log` must never print it. */
+  protected apiKey: string;
+  protected caller: AsyncCaller;
+  protected fetchImpl: typeof fetch;
+  constructor(fields: TypeSafeClassifierFields);
+  invoke(input: State, options?: Partial<TypeSafeClassifierCallOptions>): Promise<ClassificationResponse>;
+  /** Builds the request body. Question key order is significant. */
+  protected payload(state: State): string;
+  protected classify(state: State, signal?: AbortSignal): Promise<ClassificationResponse>;
+}
+//#endregion
+export { TypeSafeClassifier, TypeSafeClassifierCallOptions, TypeSafeClassifierFields };
+//# sourceMappingURL=classifier.d.ts.map
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\index.d.ts
+import { Answer, Choice, ChoiceAnswer, ClassificationResponse, JsonValue, Noul, NoulAnswer, NoulCriteria, Question, QuestionContent, Score, ScoreAnswer, Usage, ValidatedQuestions } from "./types.js";
+import { State } from "./utils/state.js";
+import { TypeSafeClassifier, TypeSafeClassifierCallOptions, TypeSafeClassifierFields } from "./classifier.js";
+import { TypeSafeAPIError, TypeSafeAuthenticationError, TypeSafeError, TypeSafeRateLimitError } from "./utils/errors.js";
+export { type Answer, type Choice, type ChoiceAnswer, type ClassificationResponse, type JsonValue, type Noul, type NoulAnswer, type NoulCriteria, type Question, type QuestionContent, type Score, type ScoreAnswer, type State, TypeSafeAPIError, TypeSafeAuthenticationError, TypeSafeClassifier, type TypeSafeClassifierCallOptions, type TypeSafeClassifierFields, TypeSafeError, TypeSafeRateLimitError, type Usage, type ValidatedQuestions };
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\dist\types.d.ts
+import * as z from "zod/v4";
+//#region src/types.d.ts
+declare const jsonValueSchema: z.ZodJSONSchema;
+declare const questionContentSchema: z.ZodUnion<readonly [z.ZodString, z.ZodRecord<z.ZodString, z.ZodJSONSchema>, z.ZodArray<z.ZodJSONSchema>]>;
+declare const noulCriteriaSchema: z.ZodObject<{
+  true: z.ZodOptional<z.ZodJSONSchema>;
+  false: z.ZodOptional<z.ZodJSONSchema>;
+}, z.core.$strip>;
+declare const noulQuestionSchema: z.ZodObject<{
+  type: z.ZodLiteral<"noul">;
+  instructions: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodRecord<z.ZodString, z.ZodJSONSchema>, z.ZodArray<z.ZodJSONSchema>]>>;
+  criteria: z.ZodOptional<z.ZodObject<{
+    true: z.ZodOptional<z.ZodJSONSchema>;
+    false: z.ZodOptional<z.ZodJSONSchema>;
+  }, z.core.$strip>>;
+}, z.core.$strip>;
+declare const choiceQuestionSchema: z.ZodObject<{
+  type: z.ZodLiteral<"choice">;
+  criteria: z.ZodPipe<z.ZodCustom<Record<string, z.JSONType>, Record<string, z.JSONType>>, z.ZodRecord<z.ZodString, z.ZodJSONSchema>>;
+  instructions: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodRecord<z.ZodString, z.ZodJSONSchema>, z.ZodArray<z.ZodJSONSchema>]>>;
+}, z.core.$strip>;
+declare const scoreQuestionSchema: z.ZodObject<{
+  type: z.ZodLiteral<"score">;
+  criteria: z.ZodArray<z.ZodJSONSchema>;
+  instructions: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodRecord<z.ZodString, z.ZodJSONSchema>, z.ZodArray<z.ZodJSONSchema>]>>;
+}, z.core.$strip>;
+/**
+ * Validates the shape of a single question, mirroring the `Question` union
+ * member-for-member, and enforces each variant's cardinality rule (Noul
+ * needs criteria or instructions; Choice needs at least one option; Score
+ * needs at least two ordered levels).
+ *
+ * Used by `parseQuestions` to catch a malformed or under-specified
+ * `criteria`/`instructions` from untrusted input (e.g. parsed JSON/YAML)
+ * with a clean, named error instead of a bare runtime `TypeError`.
+ */
+declare const questionSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
+  type: z.ZodLiteral<"noul">;
+  instructions: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodRecord<z.ZodString, z.ZodJSONSchema>, z.ZodArray<z.ZodJSONSchema>]>>;
+  criteria: z.ZodOptional<z.ZodObject<{
+    true: z.ZodOptional<z.ZodJSONSchema>;
+    false: z.ZodOptional<z.ZodJSONSchema>;
+  }, z.core.$strip>>;
+}, z.core.$strip>, z.ZodObject<{
+  type: z.ZodLiteral<"choice">;
+  criteria: z.ZodPipe<z.ZodCustom<Record<string, z.JSONType>, Record<string, z.JSONType>>, z.ZodRecord<z.ZodString, z.ZodJSONSchema>>;
+  instructions: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodRecord<z.ZodString, z.ZodJSONSchema>, z.ZodArray<z.ZodJSONSchema>]>>;
+}, z.core.$strip>, z.ZodObject<{
+  type: z.ZodLiteral<"score">;
+  criteria: z.ZodArray<z.ZodJSONSchema>;
+  instructions: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodRecord<z.ZodString, z.ZodJSONSchema>, z.ZodArray<z.ZodJSONSchema>]>>;
+}, z.core.$strip>], "type">;
+declare const questionsMapSchema: z.core.$ZodBranded<z.ZodCustom<Record<string, {
+  type: "noul";
+  instructions?: string | z.JSONType[] | Record<string, z.JSONType> | undefined;
+  criteria?: {
+    true?: z.JSONType | undefined;
+    false?: z.JSONType | undefined;
+  } | undefined;
+} | {
+  type: "choice";
+  criteria: Record<string, z.JSONType>;
+  instructions?: string | z.JSONType[] | Record<string, z.JSONType> | undefined;
+} | {
+  type: "score";
+  criteria: z.JSONType[];
+  instructions?: string | z.JSONType[] | Record<string, z.JSONType> | undefined;
+}>, Record<string, {
+  type: "noul";
+  instructions?: string | z.JSONType[] | Record<string, z.JSONType> | undefined;
+  criteria?: {
+    true?: z.JSONType | undefined;
+    false?: z.JSONType | undefined;
+  } | undefined;
+} | {
+  type: "choice";
+  criteria: Record<string, z.JSONType>;
+  instructions?: string | z.JSONType[] | Record<string, z.JSONType> | undefined;
+} | {
+  type: "score";
+  criteria: z.JSONType[];
+  instructions?: string | z.JSONType[] | Record<string, z.JSONType> | undefined;
+}>>, "ValidatedQuestions", "out">;
+declare const noulAnswerSchema: z.ZodObject<{
+  type: z.ZodLiteral<"noul">;
+  noul: z.ZodNumber;
+}, z.core.$strip>;
+declare const choiceAnswerSchema: z.ZodObject<{
+  type: z.ZodLiteral<"choice">;
+  choice: z.ZodString;
+  probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+  confidence: z.ZodNumber;
+}, z.core.$strip>;
+declare const scoreAnswerSchema: z.ZodObject<{
+  type: z.ZodLiteral<"score">;
+  score: z.ZodNumber;
+  legend: z.ZodRecord<z.ZodString, z.ZodJSONSchema>;
+  probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+  confidence: z.ZodNumber;
+}, z.core.$strip>;
+declare const answerSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
+  type: z.ZodLiteral<"noul">;
+  noul: z.ZodNumber;
+}, z.core.$strip>, z.ZodObject<{
+  type: z.ZodLiteral<"choice">;
+  choice: z.ZodString;
+  probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+  confidence: z.ZodNumber;
+}, z.core.$strip>, z.ZodObject<{
+  type: z.ZodLiteral<"score">;
+  score: z.ZodNumber;
+  legend: z.ZodRecord<z.ZodString, z.ZodJSONSchema>;
+  probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+  confidence: z.ZodNumber;
+}, z.core.$strip>], "type">;
+/**
+ * Parses a `POST /v1/systemone` success body.
+ *
+ * Renames the wire's snake_case usage fields to camelCase; the wire format
+ * itself stays snake_case.
+ */
+declare const classificationResponseSchema: z.ZodPipe<z.ZodObject<{
+  model: z.ZodString;
+  answers: z.ZodRecord<z.ZodString, z.ZodDiscriminatedUnion<[z.ZodObject<{
+    type: z.ZodLiteral<"noul">;
+    noul: z.ZodNumber;
+  }, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"choice">;
+    choice: z.ZodString;
+    probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+    confidence: z.ZodNumber;
+  }, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"score">;
+    score: z.ZodNumber;
+    legend: z.ZodRecord<z.ZodString, z.ZodJSONSchema>;
+    probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+    confidence: z.ZodNumber;
+  }, z.core.$strip>], "type">>;
+  usage: z.ZodOptional<z.ZodObject<{
+    input_tokens: z.ZodOptional<z.ZodNumber>;
+    output_tokens: z.ZodOptional<z.ZodNumber>;
+  }, z.core.$strip>>;
+}, z.core.$strip>, z.ZodTransform<{
+  model: string;
+  answers: Record<string, Answer>;
+  usage: {
+    inputTokens?: number | undefined;
+    outputTokens?: number | undefined;
+  };
+}, {
+  model: string;
+  answers: Record<string, {
+    type: "noul";
+    noul: number;
+  } | {
+    type: "choice";
+    choice: string;
+    probabilities: Record<string, number>;
+    confidence: number;
+  } | {
+    type: "score";
+    score: number;
+    legend: Record<string, z.JSONType>;
+    probabilities: Record<string, number>;
+    confidence: number;
+  }>;
+  usage?: {
+    input_tokens?: number | undefined;
+    output_tokens?: number | undefined;
+  } | undefined;
+}>>;
+/** Any value expressible in JSON. */
+type JsonValue = z.infer<typeof jsonValueSchema>;
+/**
+ * Content accepted for a question's `instructions` or `criteria`. Not
+ * narrowed to `string`: the API accepts structured instructions, verified
+ * live, though the compact HTTP reference shows only strings.
+ */
+type QuestionContent = z.infer<typeof questionContentSchema>;
+/**
+ * Descriptions for a Noul's two outcomes.
+ *
+ * The keys are literally `true` and `false`, not `yes`/`no`.
+ */
+type NoulCriteria = z.infer<typeof noulCriteriaSchema>;
+/** A yes/no question. Must carry `instructions`, `criteria`, or both. */
+type Noul = z.infer<typeof noulQuestionSchema>;
+/** A pick-one-of-N question. `criteria` maps each label to a description. */
+type Choice = z.infer<typeof choiceQuestionSchema>;
+/** An ordered-rubric question. `criteria` is low-to-high; index = level. */
+type Score = z.infer<typeof scoreQuestionSchema>;
+type Question = z.infer<typeof questionSchema>;
+/**
+ * A questions map that has been through `parseQuestions`: every entry
+ * matches `questionSchema` â€” cardinality rules included â€” and the map has
+ * at least one entry. Branded so a plain, unparsed `Record<string,
+ * Question>` cannot be assigned where this type is required; only
+ * `parseQuestions` can produce one.
+ */
+type ValidatedQuestions = z.infer<typeof questionsMapSchema>;
+/**
+ * A Noul answer: a bare probability, with no `confidence` and no
+ * `probabilities`. For a binary question the probability IS the
+ * confidence, and a value near 0.5 is the uncertainty signal.
+ */
+type NoulAnswer = z.infer<typeof noulAnswerSchema>;
+/** A Choice answer. `probabilities` is keyed by option label. */
+type ChoiceAnswer = z.infer<typeof choiceAnswerSchema>;
+/**
+ * A Score answer. `legend` and `probabilities` are keyed by level index,
+ * typed `Record<string, ...>` because JSON keys are strings â€”
+ * `answer.legend[0]` still works. Do not "fix" them to `Record<number>`:
+ * `Object.keys` yields strings regardless, so that would be fiction.
+ */
+type ScoreAnswer = z.infer<typeof scoreAnswerSchema>;
+type Answer = z.infer<typeof answerSchema>;
+/**
+ * Token usage. Output tokens are billed at zero by TypeSafe.
+ *
+ * Not inferred: this is the camelCase form the schema's transform
+ * produces, not the snake_case shape the wire sends.
+ */
+interface Usage {
+  inputTokens?: number;
+  outputTokens?: number;
+}
+/**
+ * A parsed `POST /v1/systemone` response.
+ *
+ * The parsed fields are inferred from `classificationResponseSchema`; the
+ * three accessors are attached afterwards by `withAnswerAccessors` and so
+ * are not part of the schema.
+ */
+type ParsedResponse = z.infer<typeof classificationResponseSchema> & {
+  /** From the `x-typesafe-request-id` response header, when present. */
+  requestId?: string;
+};
+type ClassificationResponse = ParsedResponse & {
+  /** Noul answers only, keyed by question id. Non-enumerable. */
+  readonly nouls: Record<string, NoulAnswer>;
+  /** Choice answers only, keyed by question id. Non-enumerable. */
+  readonly choices: Record<string, ChoiceAnswer>;
+  /** Score answers only, keyed by question id. Non-enumerable. */
+  readonly scores: Record<string, ScoreAnswer>;
+};
+//#endregion
+export { Answer, Choice, ChoiceAnswer, ClassificationResponse, JsonValue, Noul, NoulAnswer, NoulCriteria, ParsedResponse, Question, QuestionContent, Score, ScoreAnswer, Usage, ValidatedQuestions, classificationResponseSchema, questionSchema };
+//# sourceMappingURL=types.d.ts.map
+=== C:\Users\Junielo\Documents\Dev_Projects\Savvist\savvist-junielo\node_modules\@langchain\typesafe\README.md
+# @langchain/typesafe
+
+This package contains the LangChain.js integration for [TypeSafe](https://typesafe.ai) System One models.
+
+TypeSafe's `jev` model answers typed questions about unstructured input â€” no string generation, no parsing, no schema wrangling. It returns calibrated probabilities in 70â€“500ms, and every question in a single request is evaluated in parallel, so asking ten questions costs barely more than asking one.
+
+## Installation
+
+```bash npm2yarn
+npm install @langchain/typesafe @langchain/core
+```
+
+This package passes `@langchain/core` as a peer dependency. Make sure your project resolves a single instance of it:
+
+```json
+{
+  "overrides": { "@langchain/core": "^1.0.0" },
+  "resolutions": { "@langchain/core": "^1.0.0" },
+  "pnpm": { "overrides": { "@langchain/core": "^1.0.0" } }
+}
+```
+
+## Usage
+
+Set `TYPESAFE_API_KEY` in your environment, then:
+
+```ts
+import { TypeSafeClassifier } from "@langchain/typesafe";
+
+const classifier = new TypeSafeClassifier({
+  questions: {
+    department: {
+      type: "choice",
+      criteria: {
+        billing: "Payment and payout issues",
+        technical: "Bugs and outages",
+        sales: null,
+      },
+      instructions: "Which team should handle this?",
+    },
+    urgent: { type: "noul", instructions: "Does this convey urgency?" },
+    frustration: {
+      type: "score",
+      criteria: ["calm", "frustrated", "angry"],
+      instructions: "How frustrated is the writer?",
+    },
+  },
+});
+
+const result = await classifier.invoke({
+  message: "Help! My payouts have been failing for 3 days.",
+  account_tier: "enterprise",
+});
+
+result.answers.department; // { type: "choice", choice: "billing", confidence: 0.99, probabilities: {...} }
+result.answers.urgent; // { type: "noul", noul: 0.97 }
+result.answers.frustration; // { type: "score", score: 1.3, legend: { 0: "calm", ... }, ... }
+```
+
+`result.model` is the versioned model that actually answered (e.g. `jev-1.13.0`), not the alias you sent â€” `jev-latest` in, `jev-1.13.0` out.
+
+Three read-only, non-enumerable helpers partition `answers` by variant, keyed by question id â€” handy when you only care about one kind of question:
+
+```ts
+result.choices.department; // same object as result.answers.department
+result.nouls.urgent;
+result.scores.frustration;
+```
+
+Because they're non-enumerable, they never duplicate `answers` in `JSON.stringify(result)` or a LangSmith trace.
+
+### Question types
+
+| Type     | Ask                                         | Get back                                                                                     |
+| -------- | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `choice` | pick one of N labels you define             | the winning label, the full distribution, and a confidence                                   |
+| `score`  | position on an ordered rubric (low to high) | a probability-weighted number that may land _between_ levels, plus a legend and distribution |
+| `noul`   | a single yes/no proposition                 | a bare probability from 0 to 1                                                               |
+
+A Noul answer carries **no `confidence` and no `probabilities`**. For a binary question the probability is the confidence: 0.97 means "almost certainly yes", and 0.5 means genuine uncertainty. Threshold it when your code needs a hard decision.
+
+`score` and `choice` may omit `instructions` if `criteria` alone is clear. A `noul` needs at least one of the two.
+
+### Messages as input
+
+LangChain messages are the common unit of context, so they are accepted anywhere in the input and converted automatically:
+
+```ts
+await classifier.invoke([new HumanMessage("..."), new AIMessage("...")]);
+await classifier.invoke({ conversation: messages, account: { tier: "pro" } });
+```
+
+### Tracing
+
+`TypeSafeClassifier` is a `Runnable`, so calls appear in LangSmith traces with their inputs, outputs and configuration, nested inside whatever agent or chain invoked them. The API key is redacted before it reaches the tracer. Note that LangSmith does not attribute token cost to non-LLM runs, so `usage` appears in the traced output rather than as a costed metric.
+
+### Errors
+
+```ts
+import { TypeSafeRateLimitError } from "@langchain/typesafe";
+
+try {
+  await classifier.invoke(input);
+} catch (error) {
+  if (TypeSafeRateLimitError.isInstance(error)) {
+    console.log(error.retryAfterMs, error.requestId);
+  }
+}
+```
+
+Use `.isInstance()` rather than `instanceof` â€” it stays correct when more than one copy of the library ends up in a dependency tree.
+
+Errors carry `status`, `requestId`, `body` and `headers` as properties, but never render the response body into their message, because TypeSafe error bodies echo the request â€” including the content you asked it to classify.
+
+Retries are handled by LangChain's `AsyncCaller`; configure them with `maxRetries` and `maxConcurrency` on the constructor.
+
+## `@langchain/typesafe/middleware`
+
+Two `createMiddleware`-based factories for use with LangChain agents.
+
+`langchain` is an **optional** peer dependency â€” the base package does not
+need it, so install it alongside if you use this entrypoint:
+
+```bash
+npm install @langchain/typesafe langchain
+```
+
+### `modelRouterMiddleware`
+
+Classifies the latest human message ONCE per agent run with a TypeSafe `Choice`, then routes every model call in that run to the selected model:
+
+```ts
+import { modelRouterMiddleware } from "@langchain/typesafe/middleware";
+import { createAgent } from "langchain";
+
+const agent = createAgent({
+  model: "openai:gpt-5-mini",
+  middleware: [
+    modelRouterMiddleware({
+      choices: {
+        fast: {
+          model: "openai:gpt-5-mini",
+          criteria: "Simple, well-scoped tasks.",
+        },
+        powerful: {
+          model: "openai:gpt-5",
+          criteria: "Complex tasks requiring deeper reasoning.",
+        },
+      },
+      instructions: "Choose the least costly model suited to the task.",
+    }),
+  ],
+});
+```
+
+### `autoModeMiddleware`
+
+Blocks a tool call before it runs when a TypeSafe `Noul` scores it above a risk threshold. It blocks rather than asking, and composes with `humanInTheLoopMiddleware` rather than replacing it:
+
+```ts
+import { autoModeMiddleware } from "@langchain/typesafe/middleware";
+import { createAgent } from "langchain";
+
+const agent = createAgent({
+  model: "openai:gpt-5",
+  tools: [runSqlTool, sendEmailTool],
+  middleware: [
+    autoModeMiddleware({
+      tools: ["run_sql", "send_email"],
+    }),
+  ],
+});
+```
+
+Both middlewares build their own `TypeSafeClassifier` internally; pass `classifierOptions` (everything `TypeSafeClassifier` accepts except `questions`) to configure transport and model settings.
+
+## Development
+
+```bash
+pnpm install
+pnpm build --filter @langchain/typesafe
+pnpm test
+```
+
+Integration tests hit the live API and are excluded from `pnpm test`. To run them, put your key in `libs/providers/langchain-typesafe/.env` (this path, not the repo root â€” `dotenv` resolves relative to the package directory):
+
+```
+TYPESAFE_API_KEY=your-key
+```
+
+then:
+
+```bash
+pnpm test:int
+```
+
+They skip rather than fail when no key is present.
+
+## License
+
+MIT

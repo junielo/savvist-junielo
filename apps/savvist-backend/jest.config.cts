@@ -5,7 +5,7 @@ module.exports = {
   transform: {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
-  transformIgnorePatterns: ['node_modules/(?!(@nestjs/mongoose))'],
+  transformIgnorePatterns: ['node_modules/(?!(@nestjs/.*))'],
   moduleNameMapper: {
     '^@nestjs/mapped-types$': '<rootDir>/src/test-utils/mapped-types.mock.ts',
   },

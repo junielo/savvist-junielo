@@ -1,0 +1,7 @@
+{
+  "node_version": "20",
+  "graphs": {
+    "savvist_chat": "./apps/savvist-backend/src/app/modules/chat/agent/graph/studio.ts:graph"
+  },
+  "env": ".env"
+}

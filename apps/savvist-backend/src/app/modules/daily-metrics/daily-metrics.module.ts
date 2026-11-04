@@ -7,6 +7,7 @@ import { EntryRecord, EntryRecordSchema } from '../entry-records/schemas/entry-r
 import { UsersModule } from '../users/users.module';
 import { AccountEntriesModule } from '../account-entries/account-entries.module';
 import { ExpensesModule } from '../expenses/schemas/../expenses.module';
+import { CurrentUserGuard } from '../../common/current-user/current-user.guard';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { ExpensesModule } from '../expenses/schemas/../expenses.module';
     ExpensesModule,
   ],
   controllers: [DailyMetricsController],
-  providers: [DailyMetricsService],
+  providers: [DailyMetricsService, CurrentUserGuard],
   exports: [DailyMetricsService, MongooseModule],
 })
 export class DailyMetricsModule {}

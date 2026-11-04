@@ -9,9 +9,9 @@ import {
   routeAfterResolve,
   routeAfterExec,
 } from './agent.routers';
-import { loadContextNode } from './nodes/load-context.node';
-import { stateGuardNode } from './nodes/state-guard.node';
-import { classifyIntentNode } from './nodes/classify-intent.node';
+import { LoadContextDeps, loadContextNode } from './nodes/load-context.node';
+import { stateGuardNode, StateGuardOptions } from './nodes/state-guard.node';
+import { classifyIntentNode, type ClassifyIntentDeps } from './nodes/classify-intent.node';
 import { extractSlotsNode } from './nodes/extract-slots.node';
 import { clarifyNode } from './nodes/clarify.node';
 import { capabilityCheckNode } from './nodes/capability-check.node';
@@ -24,11 +24,16 @@ import { resolveConfirmationNode } from './nodes/resolve-confirmation.node';
 import { executeWriteNode } from './nodes/execute-write.node';
 import { respondNode } from './nodes/respond.node';
 
-export function buildGraph(checkpointer?: BaseCheckpointSaver) {
+export interface AgentDeps extends ClassifyIntentDeps {
+  loadContext?: LoadContextDeps;
+  stateGuard?: StateGuardOptions;
+}
+
+export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) {
   const graph = new StateGraph(AgentState)
-    .addNode('load-context', loadContextNode)
-    .addNode('state-guard', stateGuardNode)
-    .addNode('classify-intent', classifyIntentNode)
+    .addNode('load-context', loadContextNode(deps.loadContext))
+    .addNode('state-guard', stateGuardNode(deps.stateGuard))
+    .addNode('classify-intent', classifyIntentNode(deps))
     .addNode('extract-slots', extractSlotsNode)
     .addNode('clarify', clarifyNode)
     .addNode('capability-check', capabilityCheckNode)

@@ -1,0 +1,1 @@
+export const INTENT_CLASSIFIER = Symbol('INTENT_CLASSIFIER');

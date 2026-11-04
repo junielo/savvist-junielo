@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -46,6 +47,25 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   GEMINI_MODEL!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  LANGSMITH_TRACING?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  LANGSMITH_ENDPOINT?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  LANGSMITH_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  LANGSMITH_PROJECT?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
