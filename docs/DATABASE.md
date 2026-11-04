@@ -23,7 +23,7 @@ Database design for the Savvist personal finance tracker (NestJS + Mongoose + Mo
 1. **Every document belongs to a user.** The wireframe says "Welcome User A", and the app may grow to several users. Every collection except `users` carries a `userId`, every query filters by it, and every index starts with it. Adding authentication later then needs no schema change. The app is single-user for now (section 12, Q7), so the backend uses one configured user until authentication exists.
 2. **Separate "what exists" from "what happened".** Accounts are slow-changing definitions (saved once). Daily balances are time-series facts (one per account per day). They live in different collections.
 3. **Store only what cannot be derived, with one exception.** Total Fund, Actual Cash, Health and Growth are saved once per day in `dailyMetrics` (4.9). Today's Allowance, current balances and the footer totals are computed from other collections (section 7).
-4. **Money is stored as direct numbers** (e.g., PHP 1,000.50 is stored as `100050` or `1000.50` directly). The API sends and receives direct numeric values.
+4. **Money is stored as direct numbers** (plain numbers in pesos, up to 2 decimals). The API sends and receives direct numeric values.
 5. **Calendar days are stored as `YYYY-MM-DD` strings** (the user's local day, Asia/Manila). Moments in time are BSON `Date` in UTC. A daily balance belongs to a calendar day, and a UTC midnight timestamp would land on 8:00 AM Manila time and cause off-by-one-day bugs.
 6. **Embed what is always read together and stays small. Reference what grows without bound.** Chat messages and daily balances are therefore their own collections.
 7. **Record logs are append-only and self-contained.** They snapshot the name and amount at the time of the event, so they stay correct if the source is later edited or deleted.
@@ -173,7 +173,7 @@ Example:
   "userId": "665f1c2a9b1e8a0012a1b001",
   "accountEntryId": "665f1c2a9b1e8a0012a1c001",
   "day": "2026-10-23",
-  "balance": 1500000,
+  "balance": 15000,
   "accountName": "BDO Debit",
   "accountType": "cash",
   "createdAt": "2026-10-23T02:10:00.000Z",
@@ -208,8 +208,8 @@ Rules:
 Example, a monthly expense and a month-specific one:
 
 ```json
-{ "name": "Internet", "amount": 150000, "dayOfMonth": 21, "months": [] }
-{ "name": "Insurance", "amount": 600000, "dayOfMonth": 5, "months": [1, 12] }
+{ "name": "Internet", "amount": 1500, "dayOfMonth": 21, "months": [] }
+{ "name": "Insurance", "amount": 6000, "dayOfMonth": 5, "months": [1, 12] }
 ```
 
 Rules:
@@ -237,7 +237,7 @@ Example:
   "_id": "665f1c2a9b1e8a0012a1d001",
   "userId": "665f1c2a9b1e8a0012a1b001",
   "name": "Mechanical keyboard",
-  "amount": 450000,
+  "amount": 4500,
   "priority": "important",
   "status": "pending",
   "createdAt": "2026-10-23T02:10:00.000Z",
@@ -278,7 +278,7 @@ Example, a daily balance saved:
   "_id": "665f1c2a9b1e8a0012a1e001",
   "userId": "665f1c2a9b1e8a0012a1b001",
   "name": "BDO Debit",
-  "amount": 1500000,
+  "amount": 15000,
   "recordType": "cash",
   "action": "created",
   "date": "2026-10-23T02:10:00.000Z",
@@ -354,8 +354,8 @@ Example:
   "_id": "665f1c2a9b1e8a0012a1f001",
   "userId": "665f1c2a9b1e8a0012a1b001",
   "day": "2026-10-23",
-  "totalFund": 4250000,
-  "actualCash": 1800000,
+  "totalFund": 42500,
+  "actualCash": 18000,
   "health": 0.42,
   "growth": 0.08,
   "createdAt": "2026-10-23T02:10:00.000Z",
@@ -390,7 +390,7 @@ Rules:
 - **Interrupt rules:** keep each `interrupt()` in its own node and one per node. The node re-runs from its start on resume, so classifier calls and writes stay outside it and writes must be idempotent. The 409 `confirmReplace` response becomes a second confirm step with the conflict details stored in `pending_action`.
 - **No `userId`, no `$jsonSchema` validator, no custom indexes.** These documents are exempt from principle 1 and from the section 5 and 6 rules. Ownership is checked through `conversations` (by `userId`) before every graph invocation.
 - **Connection (proposed):** `MongoDBSaver` takes a native `MongoClient` (and an optional `dbName`). Mongoose's `connection.getClient()` returns the `MongoClient` behind its connection, so reuse it by injecting the Mongoose connection (`@InjectConnection()`) into a provider that builds the saver, after the connection is ready. Do not close that client separately from Mongoose. Known pitfall: if `mongoose` bundles a different `mongodb` driver version than the one the checkpointer depends on, TypeScript reports the two `MongoClient` types as incompatible. Run `npm ls mongodb` after installing and align the versions (for example with an `overrides` entry), and cast only as a last resort. Fallback: open a second `MongoClient` with the same URI.
-- **Retention (proposed):** use the saver's built-in `ttl` option (seconds, for example `90 * 24 * 60 * 60`). It adds an `upserted_at` field on each write and creates a MongoDB TTL index when `setup()` runs, so no cleanup job is needed. TTL ages out individual checkpoints, so a conversation idle for longer than the TTL loses its agent memory. `messages` keeps the visible history, and a pending action has its own shorter `expiresAt`. The option was added in `@langchain/langgraph-checkpoint-mongodb` 1.4.0 (per a LangChain forum answer), so confirm it exists in the installed version.
+- **Retention (proposed):** use the saver's built-in `ttl` option (seconds, for example `90 * 24 * 60 * 60`). It adds an `upserted_at` field on each write and creates a MongoDB TTL index when `setup()` runs, so no cleanup job is needed. TTL ages out individual checkpoints, so a conversation idle for longer than the TTL loses its agent memory. `messages` keeps the visible history, and a pending action has its own shorter `expiresAt`. The option was added in `@langchain/langgraph-checkpoint-mongodb` 1.4.0 (per a LangChain forum answer).
 - **Deleting a thread:** `deleteThread(threadId)` removes all checkpoints and writes for one thread. It is called only from the conversation delete endpoint, because renaming and deleting chats are UI actions (the assistant has no tool for them).
 - **Cross-conversation memory** is not stored in these collections. Saved preferences live in `agentMemories` (4.12).
 
@@ -511,7 +511,7 @@ Enforce rules in **three layers**:
 
 | Rule | Where |
 |---|---|
-| Money fields are integers, `>= 0` (`> 0` for expense and wishlist amounts) | all layers |
+| Money fields are numbers, `>= 0`, at most 2 decimals (`> 0` for expense and wishlist amounts) | all layers |
 | `day` matches `YYYY-MM-DD` and is a real calendar date | all layers |
 | One `entryRecords` document per account per day | unique index |
 | `entryRecords.accountEntryId` belongs to the same `userId` | service layer |
