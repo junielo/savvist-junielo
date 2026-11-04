@@ -3,3 +3,6 @@ npx tsx --env-file=.env apps/savvist-backend/scripts/jev.spike.ts
 
 Run Gemini spike
 npx tsx --env-file=.env apps/savvist-backend/scripts/gemini.spike.ts
+
+To run checkpointer
+npx nx test savvist-backend --testPathPatterns=checkpointer.spike

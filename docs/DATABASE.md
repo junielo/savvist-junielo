@@ -539,7 +539,7 @@ Seed the development database so the frontend and backend show the same data:
 
 ## 12. Open questions
 
-**Resolved:** balances can be entered for past days, with a warning that the new balance replaces the old one (enforced by the server). Future days cannot be entered. A credit account's balance is the amount owed.
+**Resolved:** balances can be entered for past days, with a warning that the new balance replaces the old one (enforced by the server). Future days cannot be entered. A credit account's balance is the amount owed. The 4 LangGraph checkpointer revisions are confirmed (thread mapping via `conversations._id`, checkpointer as source of truth with `messages` as UI copy, pending permissions via `interrupt()`, and Mongoose connection reuse with TTL retention). The AI chat assistant is permitted to modify base salary, change unemployment status, and delete data, provided it always obtains explicit user confirmation first through graph interrupts.
 
 1. Final formulas for Total Fund, Actual Cash, Today's Allowance, Health, and Growth:
 
@@ -571,12 +571,5 @@ Seed the development database so the frontend and backend show the same data:
 
 ### Still open
 
-**Proposed in revision note 5, awaiting confirmation**
-1. Thread mapping: `conversations._id` is the LangGraph `thread_id` (4.10).
-2. Source of truth: the checkpointer for agent memory, `messages` as the UI copy (4.8).
-3. Pending permission requests: kept in graph state through `interrupt()`, with no new `messages.status` value (4.8).
-4. Checkpointer connection reuse with Mongoose and the TTL retention setting (4.10). The collection names are settled: the library defaults `checkpoints` and `checkpoint_writes`.
-
 **Deferred**
-1. Whether the assistant may delete data or change `users.baseSalary`. Implement as a config flag, not hard-coded.
-2. Cross-conversation assistant memory (`agentMemories`), if wanted.
+1. Cross-conversation assistant memory (`agentMemories`), if wanted (allows the assistant to remember user preferences and facts across different chat threads).

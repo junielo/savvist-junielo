@@ -66,7 +66,7 @@ apps/savvist-frontend/src/app/
 │       ├── entry-records.service.ts   # Entry records HTTP service
 │       └── user.service.ts            # User profile HTTP service
 ├── features/                # Vertical feature modules encapsulating domain logic
-│   ├── chat/                # AI assistant chat interface feature
+│   ├── chat/                # AI assistant chat interface feature (see docs/CHAT_ASSISTANT.md)
 │   │   ├── chat.routes.ts   # Chat feature routing module
 │   │   └── pages/           # Chat page views (chat-page)
 │   ├── dashboard/           # Financial metrics, gauges, line charts, and overview
@@ -77,7 +77,7 @@ apps/savvist-frontend/src/app/
 │   │   │   ├── apex-table-data/  # Financial data table summary widget
 │   │   │   └── card-computed-amount/ # Computed amount stat card component
 │   │   ├── services/        # Dashboard services
-│   │   │   └── cards-TAT.service.ts # Turnaround / metric computation service
+│   │   │   └── dashboard.service.ts # Dashboard HTTP and metrics service
 │   │   └── pages/           # Dashboard page views
 │   ├── expenses/            # Recurring and monthly expense management
 │   │   ├── expenses.routes.ts# Expenses feature routing
@@ -89,6 +89,7 @@ apps/savvist-frontend/src/app/
 │   │   │   ├── expense-list-tem.ts
 │   │   │   └── expense.model.ts
 │   │   ├── services/        # Expense HTTP service
+│   │   │   └── expense.service.ts
 │   │   └── pages/           # Expenses page views
 │   ├── record-logs/         # Read-only audit log of financial events
 │   │   ├── record-logs.routes.ts # Record logs feature routing
@@ -96,6 +97,8 @@ apps/savvist-frontend/src/app/
 │   │   │   └── record-list-item/
 │   │   ├── models/          # Record log models
 │   │   │   └── record-log-list-item-model.ts
+│   │   ├── services/        # Record log HTTP service
+│   │   │   └── record-log.service.ts
 │   │   └── pages/           # Record logs page views
 │   └── wishlist/            # Priority-ranked wishlist purchases
 │       ├── wishlist.routes.ts # Wishlist feature routing
@@ -107,6 +110,7 @@ apps/savvist-frontend/src/app/
 │       │   ├── wishlist-list-item.ts
 │       │   └── wishlist-type.ts
 │       ├── services/        # Wishlist HTTP service
+│       │   └── wishlist.service.ts
 │       └── pages/           # Wishlist page views
 └── shared/                  # Domain-free, reusable UI primitives and utilities
     ├── charts/              # Generic chart wrappers
