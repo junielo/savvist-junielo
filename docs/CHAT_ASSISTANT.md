@@ -1,4 +1,4 @@
-# Savvist Ã¢â‚¬â€ Chat Assistant Architecture & Implementation Status
+# Savvist Chat Assistant Architecture & Implementation Status
 
 This document details the architecture, component breakdown, and implementation status of the AI Chat Assistant module (`apps/savvist-backend/src/app/modules/chat`).
 

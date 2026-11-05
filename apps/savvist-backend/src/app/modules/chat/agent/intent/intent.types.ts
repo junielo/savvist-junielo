@@ -52,6 +52,7 @@ export type IntentSource = 'jev' | 'keyword' | 'guard';
 
 export interface IntentResult {
   intent: IntentName;
+  secondary?: JevIntentName[];
   group: IntentGroup;
   confidence: number;
   runnerUp: { intent: string; probability: number } | null;

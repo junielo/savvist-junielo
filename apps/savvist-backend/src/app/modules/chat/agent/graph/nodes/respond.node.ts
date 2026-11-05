@@ -50,8 +50,8 @@ export async function respondNode(state: AgentStateType): Promise<Partial<AgentS
     // 2. User declined or the action expired
     text = "Okay, I've cancelled that. Nothing was changed.";
   } else if (ir?.group === 'non-domain') {
-    // 3. Small talk
-    text = prefix + smalltalk(ir.intent);
+    const intents = [ir.intent, ...(ir.secondary ?? [])];
+    text = prefix + intents.map(smalltalk).join(' ');
   } else if (!ir || ir.group === 'unknown' || state.awaiting_clarification) {
     // 4. Clarification: the question text comes from the clarify node
     text = state.awaiting_clarification ?? ASK_REPHRASE;
