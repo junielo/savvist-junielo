@@ -1,4 +1,4 @@
-# Savvist — Chat Assistant Architecture & Implementation Status
+# Savvist Ã¢â‚¬â€ Chat Assistant Architecture & Implementation Status
 
 This document details the architecture, component breakdown, and implementation status of the AI Chat Assistant module (`apps/savvist-backend/src/app/modules/chat`).
 
@@ -20,122 +20,111 @@ The chat assistant is built on a **LangGraph state machine** integrated with **N
 
 ## 2. Directory Structure & Implementation Status
 
-All components under `apps/savvist-backend/src/app/modules/chat/` are implemented, except the changes marked below:
-
-- **[TO ADD]**: a new file.
-- **[TO UPDATE]**: an existing file whose behavior changes because of the decisions recorded in this document.
-
-Details for each marked file are in [Planned changes](#planned-changes) below the tree.
-
 ```
 apps/savvist-backend/src/app/modules/chat/
-├── chat.module.ts                    # Root chat module importing conversations, messages, and agent
-├── conversations/                    # Conversation management controllers & services
-├── messages/                         # Message persistence and streaming controllers & services
-└── agent/                            # AI agent domain
-    ├── agent.module.ts               # Wires agent services, graph, intent classifiers, and tools
-    ├── agent.service.ts              # [TO UPDATE] Entry point (`run`, `resume`, `stream`)
-    ├── agent.service.spec.ts         # Unit tests for agent execution flow
-    │
-    ├── graph/                        # LangGraph workflow
-    │   ├── agent.graph.ts            # [TO UPDATE] StateGraph builder, nodes, edges, compiled checkpointer
-    │   ├── agent.state.ts            # [TO UPDATE] Graph state schema, defined with Annotation.Root
-    │   ├── pending-action.schema.ts  # [TO ADD] Zod schema for pending_action
-    │   ├── agent.routers.ts          # [TO UPDATE] Conditional routing functions
-    │   └── nodes/                    # 14 nodes: 13 existing, plus prepare-action
-    │       ├── load-context.node.ts        # [TO UPDATE] Loads profile (with time zone), date, saved memories, due-reminder count, previous context
-    │       ├── state-guard.node.ts         # [TO UPDATE] Handles answers to a clarification question
-    │       ├── classify-intent.node.ts     # Invokes intent classifier
-    │       ├── extract-slots.node.ts       # [TO UPDATE] Gemini slot extraction. Relative dates are resolved in code
-    │       ├── capability-check.node.ts    # Validates against policy and capability rules
-    │       ├── clarify.node.ts             # Handles ambiguity or unknown intents
-    │       ├── blocked.node.ts             # Formulates refusal messages for forbidden actions
-    │       ├── read-data.node.ts           # Fetches relevant financial records
-    │       ├── analyze.node.ts             # [TO UPDATE] Safe-to-spend, spending review, what-if
-    │       ├── prepare-action.node.ts      # [TO ADD] Builds pending_action before the confirmation pause
-    │       ├── confirm-first.node.ts       # [TO UPDATE] Calls interrupt()
-    │       ├── resolve-confirmation.node.ts# [TO UPDATE] Resolves confirmation / denial / correction
-    │       ├── execute-write.node.ts       # [TO UPDATE] Executes authorized write operations
-    │       └── respond.node.ts             # [TO UPDATE] Gemini reply; numbers come from code only
-    │
-    ├── intent/                       # Intent classification subsystem
-    │   ├── intent.types.ts           # [TO UPDATE] Intent groups, intents, entities, results
-    │   ├── intent.taxonomy.ts        # [TO UPDATE] Intent-to-group and intent-to-entity mapping
-    │   ├── risk-tier.ts              # [TO UPDATE] Code-only risk mapping. Read by prepare-action
-    │   ├── state-guards.ts           # State validation guards
-    │   ├── scores-to-result.ts       # Threshold evaluation for classifier scores
-    │   ├── intent-classifier.interface.ts  # Classifier abstraction
-    │   ├── intent-classifier.token.ts      # NestJS DI token
-    │   └── classifiers/
-    │       ├── jev.classifier.ts     # Primary Jev (TypeSafe AI) classifier
-    │       ├── jev.client.ts         # HTTP adapter for Jev
-    │       ├── jev.questions.ts      # [TO UPDATE] Typed questions per intent
-    │       └── keyword.classifier.ts # Baseline keyword classifier for evaluation
-    │
-    ├── llm/                          # Gemini LLM integration
-    │   ├── gemini.service.ts         # Core Gemini client service
-    │   ├── slot-extractor.ts         # [TO UPDATE] Extracts numerical and entity slots, and relative-date phrases as structured values
-    │   ├── query-rewriter.ts         # Rewrites queries for semantic retrieval
-    │   ├── reply-writer.ts           # [TO UPDATE] Generates natural conversational responses
-    │   └── prompts/                  # System prompts for slots, queries, and replies
-    │
-    ├── capability/                   # Deterministic policy rules
-    │   ├── capability-check.service.ts
-    │   └── rules/
-    │       ├── read-only-data.rule.ts
-    │       ├── future-data.rule.ts
-    │       ├── account-type-lock.rule.ts
-    │       ├── large-amount.rule.ts        # [TO ADD] Blocks analysis of very large amounts
-    │       ├── reminder-date.rule.ts       # [TO ADD] Rejects reminder dates in the past
-    │       ├── unsupported-feature.rule.ts   # [TO UPDATE] Also blocks out-of-scope topics
-    │       └── policy-flag.rule.ts   # Enforces config flags for deletes & base salary changes
-    │
-    ├── tools/                        # Domain adapters & memory tools
-    │   ├── read.tool.ts              # [TO UPDATE] Fetches balances, metrics, expenses, wishlist, reminders, logs, profile
-    │   ├── write.tool.ts             # [TO UPDATE] Executes write intents (expenses, wishlist incl. swap, base salary, accounts, entry records, reminders)
-    │   ├── memory.tool.ts            # [TO UPDATE] Agent memory (`agentMemories`): list, save, forget. Saves need a confirm turn
-    │   └── tool-registry.ts          # Intent-to-tool mapping registry
-    │
-    ├── analysis/                     # [TO ADD] Pure functions, no model calls
-    │   ├── safe-to-spend.ts          # [TO ADD] Safe-to-spend rules (DATABASE.md 7.1)
-    │   └── resolve-relative-date.ts  # [TO ADD] "next month", "after 2 weeks" to YYYY-MM-DD in users.timeZone
-    │
-    ├── persistence/                  # State persistence
-    │   └── mongo-checkpointer.provider.ts # [TO UPDATE] MongoDBSaver checkpointer with Mongoose connection reuse
-    │
-    └── eval/                         # Evaluation harness
-        ├── eval-intents.ts           # Accuracy and write-boundary evaluation suites
-        ├── cases.jsonl               # [TO UPDATE] Test case corpus
-        └── seed-cases.ts             # Seed cases generator
+|-- chat.module.ts                              # 27 lines -- Root chat module importing conversations, messages, and agent
+|-- conversations/                              # Conversation management controllers & services
+|   |-- dto/
+|   |   |-- create-conversation.dto.ts          # 12 lines
+|   |   \-- update-conversation.dto.ts          # 3 lines
+|   |-- schemas/
+|   |   \-- conversation.schema.ts              # 16 lines
+|   |-- conversations.controller.ts             # 60 lines
+|   |-- conversations.controller.spec.ts        # 45 lines
+|   |-- conversations.service.ts                # 62 lines
+|   \-- conversations.service.spec.ts           # 62 lines
+|-- messages/                                   # Message persistence and streaming controllers & services
+|   |-- dto/
+|   |   \-- create-message.dto.ts               # 17 lines
+|   |-- schemas/
+|   |   \-- message.schema.ts                   # 19 lines
+|   |-- messages.controller.ts                  # 51 lines
+|   |-- messages.controller.spec.ts             # 52 lines
+|   |-- messages.service.ts                     # 101 lines
+|   \-- messages.service.spec.ts                # 122 lines
+\-- agent/                                      # AI agent domain
+    |-- agent.module.ts                         # 33 lines -- Wires agent services, graph, intent classifiers, and tools
+    |-- agent.service.ts                        # 66 lines -- Entry point (run, resume, stream)
+    |-- agent.service.spec.ts                   # 22 lines -- Unit tests for agent execution flow
+    |
+    |-- graph/                                  # LangGraph workflow
+    |   |-- agent.graph.ts                      # 85 lines -- StateGraph builder, nodes, edges, compiled checkpointer
+    |   |-- agent.state.ts                      # 16 lines -- Graph state schema, defined with Annotation.Root
+    |   |-- agent.routers.ts                    # 65 lines -- Conditional routing functions
+    |   |-- pending-action.schema.ts            # 0 lines  -- Zod schema for pending_action
+    |   |-- studio.ts                           # 16 lines -- LangGraph Studio dev entrypoint
+    |   |-- turn-context.ts                     # 37 lines -- Per-turn shared context passed between nodes
+    |   \-- nodes/
+    |       |-- load-context.node.ts            # 64 lines -- Loads profile (with time zone), date, saved memories, due-reminder count, previous context
+    |       |-- state-guard.node.ts             # 32 lines -- Handles answers to a clarification question
+    |       |-- classify-intent.node.ts         # 62 lines -- Invokes intent classifier
+    |       |-- extract-slots.node.ts           # 5 lines  -- Gemini slot extraction. Relative dates are resolved in code
+    |       |-- capability-check.node.ts        # 5 lines  -- Validates against policy and capability rules
+    |       |-- clarify.node.ts                 # 5 lines  -- Handles ambiguity or unknown intents
+    |       |-- blocked.node.ts                 # 5 lines  -- Formulates refusal messages for forbidden actions
+    |       |-- read-data.node.ts               # 5 lines  -- Fetches relevant financial records
+    |       |-- analyze.node.ts                 # 5 lines  -- Safe-to-spend, spending review, what-if
+    |       |-- prepare-action.node.ts          # 5 lines  -- Builds pending_action before the confirmation pause
+    |       |-- confirm-first.node.ts           # 8 lines  -- Calls interrupt()
+    |       |-- resolve-confirmation.node.ts    # 5 lines  -- Resolves confirmation / denial / correction
+    |       |-- execute-write.node.ts           # 5 lines  -- Executes authorized write operations
+    |       |-- respond.node.ts                 # 65 lines -- Gemini reply; numbers come from code only
+    |       \-- respond.node.spec.ts            # 67 lines -- Unit tests for respond node
+    |
+    |-- intent/                                 # Intent classification subsystem
+    |   |-- intent.types.ts                     # 59 lines  -- Intent groups, intents, entities, results
+    |   |-- intent.taxonomy.ts                  # 121 lines -- Intent-to-group and intent-to-entity mapping
+    |   |-- risk-tier.ts                        # 0 lines   -- Code-only risk mapping. Read by prepare-action
+    |   |-- state-guards.ts                     # 9 lines   -- State validation guards
+    |   |-- score-to-result.ts                  # 30 lines  -- Threshold evaluation for classifier scores
+    |   |-- assistant-profile.ts                # 17 lines  -- Assistant identity and behavioral profile constants
+    |   |-- intent-classifier.interface.ts      # 0 lines   -- Classifier abstraction
+    |   |-- intent-classifier.token.ts          # 1 line    -- NestJS DI token
+    |   \-- classifiers/
+    |       |-- jev.classifier.ts               # 21 lines -- Primary Jev (TypeSafe AI) classifier
+    |       |-- jev.client.ts                   # 33 lines -- HTTP adapter for Jev
+    |       |-- jev.questions.ts                # 16 lines -- Typed questions per intent
+    |       \-- keyword.classifier.ts           # 0 lines  -- Baseline keyword classifier for evaluation
+    |
+    |-- llm/                                    # Gemini LLM integration
+    |   |-- gemini.service.ts                   # 0 lines -- Core Gemini client service
+    |   |-- slot-extractor.ts                   # 0 lines -- Extracts numerical and entity slots, and relative-date phrases as structured values
+    |   |-- query-rewriter.ts                   # 0 lines -- Rewrites queries for semantic retrieval
+    |   |-- reply-writer.ts                     # 0 lines -- Generates natural conversational responses
+    |   \-- prompts/                            # System prompts for slots, queries, and replies
+    |       |-- reply.prompt.ts                 # 0 lines
+    |       |-- slot-extractor.prompt.ts        # 0 lines
+    |       \-- standalone-query.prompt.ts      # 0 lines
+    |
+    |-- capabilities/                           # Deterministic policy rules
+    |   |-- capability-check.service.ts         # 0 lines
+    |   \-- rules/
+    |       |-- read-only-data.rule.ts          # 0 lines
+    |       |-- future-data.rule.ts             # 0 lines
+    |       |-- account-type-lock.rule.ts       # 0 lines
+    |       |-- policy-flag.rule.ts             # 0 lines -- Enforces config flags for deletes & base salary changes
+    |       |-- large-amount.rule.ts            # 0 lines -- Blocks analysis of very large amounts
+    |       |-- reminder-date.rule.ts           # 0 lines -- Rejects reminder dates in the past
+    |       \-- unsupported-feature.rule.ts     # 0 lines -- Also blocks out-of-scope topics
+    |
+    |-- tools/                                  # Domain adapters & memory tools
+    |   |-- read.tool.ts                        # 0 lines -- Fetches balances, metrics, expenses, wishlist, reminders, logs, profile
+    |   |-- write.tool.ts                       # 0 lines -- Executes write intents (expenses, wishlist incl. swap, base salary, accounts, entry records, reminders)
+    |   |-- memory.tool.ts                      # 0 lines -- Agent memory (agentMemories): list, save, forget. Saves need a confirm turn
+    |   \-- tool-registry.ts                    # 0 lines -- Intent-to-tool mapping registry
+    |
+    |-- analysis/                               # Pure functions, no model calls
+    |   |-- safe-to-spend.ts                    # 0 lines -- Safe-to-spend rules (DATABASE.md 7.1)
+    |   \-- resolve-relative-date.ts            # 0 lines -- "next month", "after 2 weeks" to YYYY-MM-DD in users.timeZone
+    |
+    |-- persistence/                            # State persistence
+    |   \-- mongo-checkpointer.provider.ts      # 22 lines -- MongoDBSaver checkpointer with Mongoose connection reuse
+    |
+    \-- eval/                                   # Evaluation harness
+        |-- eval-intents.ts                     # 0 lines -- Accuracy and write-boundary evaluation suites
+        |-- cases.jsonl                         # 0 lines -- Test case corpus
+        \-- seed-cases.ts                       # 0 lines -- Seed cases generator
 ```
-
-### Planned changes
-
-| File | Change | Details |
-|---|---|---|
-| `agent.service.ts` | Update | Add the ownership check, paused-thread detection from the saved state, and the pending-action expiry check before each turn (see [4.2](#42-pause-detection)) |
-| `graph/agent.graph.ts` | Update | Add the `prepare-action` node, entered from `capability-check` (write allowed) and from `execute-write` (409) |
-| `graph/agent.state.ts` | Update | State defined with `Annotation.Root` (`messages`, `intentResult`, `pending_action`, etc.). See [4.1](#41-state-definition-style). Also holds `spending_review` ([4.9](#49-safe-to-spend-and-spending-review)) and `dueReminderCount` ([4.7](#47-reminders-and-relative-dates)) |
-| `graph/pending-action.schema.ts` | Add | Zod schema for `pending_action` (`tool`, `args`, `risk`, `createdAt`, `expiresAt`). Used by `prepare-action` and `resolve-confirmation` |
-| `graph/agent.routers.ts` | Update | A write that passes `capability-check` goes to `prepare-action` |
-| `nodes/state-guard.node.ts` | Update | Handles answers to a clarification question only. Paused confirmations are detected in `agent.service` |
-| `nodes/prepare-action.node.ts` | Add | Builds `pending_action` from the completed slots, with risk from `risk-tier.ts` and an expiry time. Adds conflict details on the 409 loop (see [4.4](#44-prepare-action)) |
-| `nodes/confirm-first.node.ts` | Update | Calls `interrupt()` only, so a restart on resume repeats nothing else |
-| `nodes/resolve-confirmation.node.ts` | Update | Parses `pending_action` with its schema, treats an expired one as cancelled, then resolves confirmation / denial / correction |
-| `nodes/execute-write.node.ts` | Update | Executes authorized write operations. Safe to retry. On a 409 it goes back to `prepare-action` |
-| `persistence/mongo-checkpointer.provider.ts` | Update | Async provider, explicit `dbName`, `setup()` at startup (see [4.3](#43-mongodbsaver-setup)) |
-| `nodes/load-context.node.ts` | Update | Also loads `users.timeZone`, saved memories and the count of due reminders ([4.7](#47-reminders-and-relative-dates), [4.10](#410-agent-memory)) |
-| `nodes/extract-slots.node.ts`, `llm/slot-extractor.ts` | Update | Date phrases come back as structured values and are resolved in code. New slots: amount, span in days, set-aside per payday ([4.7](#47-reminders-and-relative-dates), [4.9](#49-safe-to-spend-and-spending-review)) |
-| `nodes/analyze.node.ts` | Update | Calls `safe-to-spend.ts` and runs the spending review ([4.9](#49-safe-to-spend-and-spending-review)) |
-| `nodes/respond.node.ts`, `llm/reply-writer.ts` | Update | Numbers only from code results, an estimate note on analysis answers, a due-reminder line on a new conversation ([4.6](#46-boundaries-and-legal-safety), [4.7](#47-reminders-and-relative-dates)) |
-| `analysis/safe-to-spend.ts` | Add | Pure function for the rules in `DATABASE.md` section 7.1 |
-| `analysis/resolve-relative-date.ts` | Add | Pure function that turns a structured date phrase into `YYYY-MM-DD` in the user's time zone |
-| `capability/rules/large-amount.rule.ts` | Add | Blocks analysis of amounts above `LARGE_AMOUNT_MULTIPLE * N` ([4.6](#46-boundaries-and-legal-safety)) |
-| `capability/rules/reminder-date.rule.ts` | Add | Rejects a reminder date before today in the user's time zone |
-| `capability/rules/unsupported-feature.rule.ts` | Update | Also blocks out-of-scope topics ([4.6](#46-boundaries-and-legal-safety)) |
-| `tools/read.tool.ts`, `tools/write.tool.ts`, `tools/memory.tool.ts` | Update | Reminders, wishlist swap, entry records, memory list, save and forget ([4.5](#45-what-the-assistant-can-do)) |
-| `intent/intent.types.ts`, `intent.taxonomy.ts`, `risk-tier.ts`, `classifiers/jev.questions.ts` | Update | New intents and risk tiers ([4.5](#45-what-the-assistant-can-do)) |
-| `eval/cases.jsonl` | Update | Cases for the new intents and for every blocked case in [4.6](#46-boundaries-and-legal-safety) |
 
 ---
 

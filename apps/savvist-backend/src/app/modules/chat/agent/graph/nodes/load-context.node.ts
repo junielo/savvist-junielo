@@ -3,6 +3,7 @@ import type { RunnableConfig } from '@langchain/core/runnables';
 import { AgentStateType } from '../agent.state';
 import {
   isValidTimeZone,
+  ReminderCounter,
   todayIn,
   type TurnContext,
   type UserContextProvider,
@@ -14,6 +15,7 @@ export interface LoadContextDeps {
   defaultLocale?: string;
   defaultTimeZone?: string;
   now?: () => Date;                  // injectable for tests
+  reminders?: ReminderCounter
 }
 
 // helper at the top of the file
@@ -47,6 +49,15 @@ export function loadContextNode(deps: LoadContextDeps = {}) {
 
     const now = (deps.now ?? (() => new Date()))();
 
+    let dueReminderCount = 0;
+    if (userId && deps.reminders) {
+      try {
+        dueReminderCount = await deps.reminders.countDue(userId, todayIn(timeZone, now));
+      } catch {
+        dueReminderCount = 0; // fail soft
+      }
+    }
+
     const context: TurnContext = {
       userId,
       displayName: profile?.displayName,
@@ -54,6 +65,7 @@ export function loadContextNode(deps: LoadContextDeps = {}) {
       timeZone,
       today: todayIn(timeZone, now),
       nowIso: now.toISOString(),
+      dueReminderCount,
     };
 
     return { context };

@@ -182,13 +182,32 @@ export class ChatPage implements OnInit, OnDestroy {
 
     this.isResponding.set(true);
 
+    // Optimistically append the user message so it appears immediately in the thread.
+    const optimisticId = 'optimistic_' + Date.now();
+    const optimisticUserMsg: ChatMessage = {
+      id: optimisticId,
+      role: 'user',
+      content,
+      status: 'complete',
+    };
+    this.messagesBySession.update((map) => ({
+      ...map,
+      [activeId]: [...(map[activeId] || []), optimisticUserMsg],
+    }));
+
     try {
       const { userMessage, assistantMessage } = await this.messagesService.send(activeId, content);
+      // Replace the optimistic entry with the persisted userMessage, then append the assistant reply.
       this.messagesBySession.update((map) => ({
         ...map,
-        [activeId]: [...(map[activeId] || []), userMessage, assistantMessage],
+        [activeId]: [
+          ...(map[activeId] || []).filter((m) => m.id !== optimisticId),
+          userMessage,
+          assistantMessage,
+        ],
       }));
     } catch {
+      // Keep the optimistic user message visible and append an error reply.
       const errorMsg: ChatMessage = {
         id: 'msg_' + Date.now() + '_error',
         role: 'assistant',

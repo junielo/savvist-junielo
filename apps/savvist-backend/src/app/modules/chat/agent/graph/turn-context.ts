@@ -5,6 +5,7 @@ export interface TurnContext {
   timeZone: string;
   today: string;   // 'YYYY-MM-DD' in the user's time zone
   nowIso: string;  // UTC instant
+  dueReminderCount?: number;
 }
 
 export interface UserProfile {
@@ -34,4 +35,8 @@ export function todayIn(timeZone: string, now: Date): string {
     month: '2-digit',
     day: '2-digit',
   }).format(now);
+}
+
+export interface ReminderCounter {
+  countDue(userId: string, today: string): Promise<number>;
 }

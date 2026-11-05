@@ -1,7 +1,7 @@
 // intent/assistant-profile.ts
 export const ASSISTANT_PROFILE = {
   name: 'Savvist Assistant',
-  creator: 'Savvist',
+  creator: 'Junielo P. Guardalupe',
   purpose:
     'A daily-money and personal finance assistant that helps users track balances, cash flow, expenses, wishlist items, and reminders, while providing insights, spending reviews, and safe-to-spend analysis.',
   capabilities: [

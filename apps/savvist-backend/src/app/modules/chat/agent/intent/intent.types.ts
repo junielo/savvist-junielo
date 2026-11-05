@@ -9,8 +9,40 @@ export const NON_DOMAIN_INTENTS = [
   'out-of-scope',      // clearly unrelated to the app
 ] as const;
 
-// Add 'read-...', 'write-...', 'analysis-...' intents here later.
-export const INTENT_NAMES = [...NON_DOMAIN_INTENTS] as const;
+export const READ_INTENTS = [
+  'read_balances',
+  'read_expenses',
+  'read_wishlist',
+  'read_record_logs',
+  'read_reminders',
+  'read_profile',
+] as const;
+
+export const WRITE_INTENTS = [
+  'update_base_salary',
+  'manage_account_entry',
+  'manage_entry_record',
+  'manage_expense',
+  'manage_wishlist',
+  'swap_wishlist_priority',
+  'manage_reminder',
+  'manage_memory',
+] as const;
+
+export const ANALYSIS_INTENTS = [
+  'check_affordability',
+  'check_spending_range',
+  'estimate_when_available',
+  'spending_review',
+  'what_if_analysis',
+] as const;
+
+export const INTENT_NAMES = [
+  ...NON_DOMAIN_INTENTS,
+  ...READ_INTENTS,
+  ...WRITE_INTENTS,
+  ...ANALYSIS_INTENTS,
+] as const;
 
 export type JevIntentName = (typeof INTENT_NAMES)[number];
 export type IntentName = JevIntentName | 'unknown';
