@@ -3,6 +3,9 @@ import { AgentService } from './agent.service';
 import { INTENT_CLASSIFIER } from './intent/intent-classifier.token';
 import { CHECKPOINTER } from './persistence/mongo-checkpointer.provider';
 import { ConfigService } from '@nestjs/config';
+import { SlotExtractor } from './llm/slot-extractor';
+import { ReadTool } from './tools/read.tool';
+import { ReplyWriter } from './llm/reply-writer';
 
 describe('AgentService', () => {
   let service: AgentService;
@@ -14,6 +17,9 @@ describe('AgentService', () => {
         { provide: INTENT_CLASSIFIER, useValue: { classify: jest.fn() } },
         { provide: CHECKPOINTER, useValue: {} },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: SlotExtractor, useValue: { extract: jest.fn() } },
+        { provide: ReadTool, useValue: { getBalances: jest.fn() } },
+        { provide: ReplyWriter, useValue: { writeReply: jest.fn() } },
       ],
     }).compile();
 

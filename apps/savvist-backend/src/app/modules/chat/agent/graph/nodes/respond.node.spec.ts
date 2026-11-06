@@ -19,16 +19,24 @@ describe('respondNode', () => {
     clarification_turns: 0,
   };
 
-  it('should generate default success response', async () => {
+  it('should generate clarification response when intent is unknown or null', async () => {
     const result = await respondNode(baseState);
     expect(result.messages).toBeDefined();
     expect(result.messages?.[0]).toBeInstanceOf(AIMessage);
-    expect((result.messages?.[0] as AIMessage).content).toContain('processed your request successfully');
+    expect((result.messages?.[0] as AIMessage).content).toContain("I'm not quite sure I caught that");
   });
 
   it('should include due reminders on new conversation if count > 0', async () => {
     const stateWithReminders: AgentStateType = {
       ...baseState,
+      intentResult: {
+        intent: 'greeting',
+        group: 'non-domain',
+        confidence: 0.99,
+        runnerUp: null,
+        probabilities: {},
+        source: 'jev',
+      },
       context: {
         ...baseState.context!,
         dueReminderCount: 2,
@@ -59,11 +67,12 @@ describe('respondNode', () => {
       ...baseState,
       intentResult: {
         intent: 'unsupported_feature',
-        group: 'blocked',
+        group: 'unknown',
         confidence: 0.99,
         runnerUp: null,
         probabilities: {},
         source: 'guard',
+        capabilityCheck: { blocked: true, reason: 'This request falls outside my scope.' },
       },
     };
     const result = await respondNode(blockedState);

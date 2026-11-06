@@ -6,6 +6,9 @@ import { buildGraph } from './graph/agent.graph';
 import type { IntentClassifierPort } from './graph/nodes/classify-intent.node';
 import { INTENT_CLASSIFIER } from './intent/intent-classifier.token';
 import { CHECKPOINTER } from './persistence/mongo-checkpointer.provider';
+import { SlotExtractor } from './llm/slot-extractor';
+import { ReadTool } from './tools/read.tool';
+import { ReplyWriter } from './llm/reply-writer';
 
 export interface AgentReply {
   reply: string;
@@ -20,11 +23,17 @@ export class AgentService {
   constructor(
     @Inject(INTENT_CLASSIFIER) classifier: IntentClassifierPort,
     @Inject(CHECKPOINTER) checkpointer: BaseCheckpointSaver,
+    slotExtractor: SlotExtractor,
+    readTool: ReadTool,
+    replyWriter: ReplyWriter,
     config: ConfigService,
   ) {
     this.graph = buildGraph(
       {
         classifier,
+        slotExtractor,
+        readTool,
+        replyWriter,
         loadContext: {
           defaultTimeZone: config.get<string>('AGENT_DEFAULT_TIMEZONE', 'Asia/Manila'),
           defaultLocale: config.get<string>('AGENT_DEFAULT_LOCALE', 'en'),
@@ -40,7 +49,7 @@ export class AgentService {
   async run(p: { userId: string; conversationId: string; text: string }): Promise<AgentReply> {
     return this.serialize(p.conversationId, async () => {
       const result = await this.graph.invoke(
-        { messages: [new HumanMessage(p.text)] },   // HumanMessage is used here
+        { messages: [new HumanMessage(p.text)] },
         { configurable: { thread_id: p.conversationId, userId: p.userId } },
       );
       return {
@@ -53,7 +62,7 @@ export class AgentService {
   private replyFrom(messages: unknown[]): string {
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
-      if (AIMessage.isInstance(m) && typeof m.content === 'string' && m.content) {   // AIMessage is used here
+      if (AIMessage.isInstance(m) && typeof m.content === 'string' && m.content) {
         return m.content;
       }
     }

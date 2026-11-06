@@ -8,7 +8,7 @@ export class RecordLogsService {
   constructor(
     @InjectModel(RecordLog.name)
     private readonly recordLogModel: Model<RecordLogDocument>,
-  ) {}
+  ) { }
 
   async create(
     data: {
@@ -38,6 +38,25 @@ export class RecordLogsService {
 
   async findAll(userId: Types.ObjectId): Promise<RecordLog[]> {
     return this.getAll(userId);
+  }
+
+  // Search and limit run in the query, so older logs can still be found.
+  async search(
+    userId: Types.ObjectId,
+    opts: { search?: string; limit?: number } = {},
+  ): Promise<RecordLog[]> {
+    const rx = opts.search
+      ? new RegExp(opts.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      : null;
+
+    return this.recordLogModel
+      .find({
+        userId,
+        ...(rx ? { $or: [{ name: rx }, { sourceCollection: rx }, { action: rx }] } : {}),
+      })
+      .sort({ date: -1, createdAt: -1 })
+      .limit(opts.limit ?? 20)
+      .lean();
   }
 
   async findOne(

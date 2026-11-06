@@ -7,8 +7,12 @@
 
 .center-container {
   height: 100%;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 header {
@@ -16,16 +20,22 @@ header {
   justify-content: end;
   padding: 15px 25px;
   background-color: rgb(87, 126, 255);
+  flex-shrink: 0;
 }
 
 section {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
-  height: 0;
+  flex: 1;
+  min-height: 0;
   gap: 10px;
-  padding: 10px 0px;
+  padding: 10px 20px;
+  overflow-y: auto;
   overflow-x: hidden;
+}
+
+footer {
+  flex-shrink: 0;
 }
 
 .custom-thick-divider {

@@ -9,5 +9,6 @@ import { CurrentUserGuard } from '../../common/current-user/current-user.guard';
   imports: [DailyMetricsModule, UsersModule],
   controllers: [DashboardController],
   providers: [DashboardService, CurrentUserGuard],
+  exports: [DashboardService],
 })
 export class DashboardModule {}

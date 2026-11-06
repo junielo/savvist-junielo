@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './schemas/user.schema';
 import { TransactionService } from '../../database/transaction.service';
@@ -28,6 +28,12 @@ export class UsersService implements OnModuleInit {
   // TODO: replace with the current-user guard (lookup by id) later.
   async findCurrent(): Promise<UserDocument> {
     const user = await this.userModel.findOne().sort({ createdAt: 1 });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async findById(id: Types.ObjectId): Promise<UserDocument> {
+    const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('User not found');
     return user;
   }

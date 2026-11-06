@@ -5,9 +5,29 @@ import { INTENT_CLASSIFIER } from './intent/intent-classifier.token';
 import { JevClient } from './intent/classifiers/jev.client';
 import { JevIntentClassifier } from './intent/classifiers/jev.classifier';
 import { mongoCheckpointerProvider } from './persistence/mongo-checkpointer.provider';
+import { GeminiService } from './llm/gemini.service';
+import { SlotExtractor } from './llm/slot-extractor';
+import { ReplyWriter } from './llm/reply-writer';
+import { ReadTool } from './tools/read.tool';
+import { DashboardModule } from '../../dashboard/dashboard.module';
+import { ExpensesModule } from '../../expenses/expenses.module';
+import { WishlistModule } from '../../wishlist/wishlist.module';
+import { RecordLogsModule } from '../../record-logs/record-logs.module';
+import { UsersModule } from '../../users/users.module';
+import { AccountEntriesModule } from '../../account-entries/account-entries.module';
+import { DailyMetricsModule } from '../../daily-metrics/daily-metrics.module';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [
+    ConfigModule,
+    DashboardModule,
+    ExpensesModule,
+    WishlistModule,
+    RecordLogsModule,
+    UsersModule,
+    AccountEntriesModule,
+    DailyMetricsModule,
+  ],
   providers: [
     // 1. Provides CHECKPOINTER
     mongoCheckpointerProvider,
@@ -28,7 +48,13 @@ import { mongoCheckpointerProvider } from './persistence/mongo-checkpointer.prov
       },
     },
 
-    // 3. The service that needs both of the above
+    // 3. LLM & Tools
+    GeminiService,
+    SlotExtractor,
+    ReplyWriter,
+    ReadTool,
+
+    // 4. The main agent service
     AgentService,
   ],
   exports: [AgentService],
