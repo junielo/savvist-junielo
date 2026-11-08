@@ -6,6 +6,7 @@ import { WishlistService } from '../../../wishlist/wishlist.service';
 import { RecordLogsService } from '../../../record-logs/record-logs.service';
 import { UsersService } from '../../../users/users.service';
 import { AccountEntriesService } from '../../../account-entries/account-entries.service';
+import { ObservabilityService } from '../observability/observability.service';
 
 const MAX_ITEMS = 10;
 const TREND_DAYS = 30;
@@ -25,6 +26,7 @@ export class ReadTool {
     private readonly recordLogsService: RecordLogsService,
     private readonly usersService: UsersService,
     private readonly accountEntriesService: AccountEntriesService,
+    private readonly observability?: ObservabilityService,
   ) {}
 
   async getBalances(userId: Types.ObjectId, accountName?: string) {
@@ -39,12 +41,14 @@ export class ReadTool {
       ? (accounts.find((acc) => acc.name.toLowerCase().includes(query)) ?? null)
       : null;
 
-    return plain({
+    const result = plain({
       summary,
       trend,
       matchingAccount,
       accountCount: accounts.length,
     });
+    this.observability?.setToolCall('read-tool', { method: 'getBalances', userId: String(userId), accountName, result });
+    return result;
   }
 
   async getExpenses(userId: Types.ObjectId, searchName?: string, options?: { month?: number }) {
@@ -58,7 +62,7 @@ export class ReadTool {
     const query = searchName?.toLowerCase();
     const matched = query ? forMonth.filter((exp) => exp.name.toLowerCase().includes(query)) : forMonth;
 
-    return plain({
+    const result = plain({
       found: query ? matched.length > 0 : true,
       searchName: searchName ?? null,
       month: month ?? null,
@@ -71,6 +75,8 @@ export class ReadTool {
       })),
       monthlyTotal: sum(forMonth),
     });
+    this.observability?.setToolCall('read-tool', { method: 'getExpenses', userId: String(userId), searchName, month, result });
+    return result;
   }
 
   async getWishlist(userId: Types.ObjectId, searchName?: string) {
@@ -79,7 +85,7 @@ export class ReadTool {
     const query = searchName?.toLowerCase();
     const matched = query ? items.filter((item) => item.name.toLowerCase().includes(query)) : items;
 
-    return plain({
+    const result = plain({
       found: query ? matched.length > 0 : true,
       searchName: searchName ?? null,
       matchedCount: matched.length,
@@ -90,12 +96,14 @@ export class ReadTool {
       })),
       pendingTotal: sum(items.filter((item) => !item.purchasedAt)),
     });
+    this.observability?.setToolCall('read-tool', { method: 'getWishlist', userId: String(userId), searchName, result });
+    return result;
   }
 
   async getRecordLogs(userId: Types.ObjectId, query?: { search?: string; limit?: number }) {
     const logs = await this.recordLogsService.search(userId, query);
 
-    return plain({
+    const result = plain({
       count: logs.length,
       logs: logs.map((log) => ({
         name: log.name,
@@ -105,17 +113,21 @@ export class ReadTool {
         source: log.sourceCollection,
       })),
     });
+    this.observability?.setToolCall('read-tool', { method: 'getRecordLogs', userId: String(userId), query, result });
+    return result;
   }
 
   async getProfile(userId: Types.ObjectId) {
     const user = await this.usersService.findById(userId);
 
-    return plain({
+    const result = plain({
       displayName: user.displayName,
       baseSalary: user.baseSalary,
       salaryDay1: user.salaryDay1,
       salaryDay2: user.salaryDay2,
       isUnemployed: user.isUnemployed,
     });
+    this.observability?.setToolCall('read-tool', { method: 'getProfile', userId: String(userId), result });
+    return result;
   }
 }

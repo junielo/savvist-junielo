@@ -2,12 +2,20 @@ import { AgentStateType } from '../agent.state';
 import { ReadTool } from '../../tools/read.tool';
 import { Types } from 'mongoose';
 import { Logger } from '@nestjs/common';
-import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
+import { ObservabilityService } from '../../observability/observability.service';
 const logger = new Logger('ReadDataNode');
 
-export const readDataNodeFactory = (readTool?: ReadTool) => {
+export interface ReadDataDeps {
+  readTool?: ReadTool;
+  observability?: ObservabilityService;
+}
+
+export const readDataNodeFactory = (deps: ReadDataDeps | ReadTool = {}) => {
+  const readTool = deps instanceof ReadTool ? deps : deps.readTool;
+  const observability = deps instanceof ReadTool ? undefined : deps.observability;
+
   return async function readDataNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
-    saveAgentStateLog('readDataNode', state)
+    observability?.SetExecutedNode('read-data');
     const userIdStr = state.context?.userId;
     if (!userIdStr) {
       throw new Error('User ID missing in state context');

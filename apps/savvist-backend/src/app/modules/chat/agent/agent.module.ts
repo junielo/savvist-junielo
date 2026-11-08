@@ -16,6 +16,8 @@ import { RecordLogsModule } from '../../record-logs/record-logs.module';
 import { UsersModule } from '../../users/users.module';
 import { AccountEntriesModule } from '../../account-entries/account-entries.module';
 import { DailyMetricsModule } from '../../daily-metrics/daily-metrics.module';
+import { ObservabilityModule } from './observability/observability.module';
+import { ObservabilityService } from './observability/observability.service';
 
 @Module({
   imports: [
@@ -27,6 +29,7 @@ import { DailyMetricsModule } from '../../daily-metrics/daily-metrics.module';
     UsersModule,
     AccountEntriesModule,
     DailyMetricsModule,
+    ObservabilityModule,
   ],
   providers: [
     // 1. Provides CHECKPOINTER
@@ -35,11 +38,12 @@ import { DailyMetricsModule } from '../../daily-metrics/daily-metrics.module';
     // 2. Provides INTENT_CLASSIFIER
     {
       provide: INTENT_CLASSIFIER,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
+      inject: [ConfigService, ObservabilityService],
+      useFactory: (config: ConfigService, observability: ObservabilityService) => {
         const jev = new JevClient({
           model: config.get<string>('JEV_MODEL', 'jev-latest'),
           timeoutMs: config.get<number>('JEV_TIMEOUT_MS', 5000),
+          observability,
         });
         return new JevIntentClassifier(jev, {
           minConfidence: config.get<number>('INTENT_MIN_CONFIDENCE', 0.6),

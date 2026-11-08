@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { GeminiService } from './gemini.service';
+import { ObservabilityService } from '../observability/observability.service';
 
 // Used only to validate the model's JSON. It is NOT sent to Gemini.
 export const SlotSchema = z.object({
@@ -22,7 +23,10 @@ const parseJson = (raw: string): unknown => {
 export class SlotExtractor {
   private readonly logger = new Logger(SlotExtractor.name);
 
-  constructor(private readonly gemini: GeminiService) {}
+  constructor(
+    private readonly gemini: GeminiService,
+    private readonly observability?: ObservabilityService,
+  ) {}
 
   async extract(message: string, previousAssistantMessage?: string): Promise<ExtractedSlots> {
     const model = this.gemini.getModel();
@@ -44,7 +48,9 @@ User message: ${JSON.stringify(message)}`;
     try {
       const response = await model.invoke(prompt);
       const text = typeof response.content === 'string' ? response.content : String(response.content);
-      return SlotSchema.parse(parseJson(text));
+      const slots = SlotSchema.parse(parseJson(text));
+      this.observability?.setLLMCall('slot-extractor', { message, previousAssistantMessage, result: slots });
+      return slots;
     } catch (err) {
       this.logger.error('Failed to extract slots', err);
       return {

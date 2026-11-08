@@ -1,11 +1,19 @@
 import { AgentStateType } from '../agent.state';
 import { SlotExtractor } from '../../llm/slot-extractor';
 import { HumanMessage } from '@langchain/core/messages';
-import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
+import { ObservabilityService } from '../../observability/observability.service';
 
-export const extractSlotsNodeFactory = (slotExtractor?: SlotExtractor) => {
+export interface ExtractSlotsDeps {
+  slotExtractor?: SlotExtractor;
+  observability?: ObservabilityService;
+}
+
+export const extractSlotsNodeFactory = (deps: ExtractSlotsDeps | SlotExtractor = {}) => {
+  const slotExtractor = deps instanceof SlotExtractor ? deps : deps.slotExtractor;
+  const observability = deps instanceof SlotExtractor ? undefined : deps.observability;
+
   return async function extractSlotsNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
-    saveAgentStateLog('extractSlotsNode', state)
+    observability?.SetExecutedNode('extract-slots');
     const lastUserMessage = [...state.messages].reverse().find((m) => HumanMessage.isInstance(m))?.content;
     const prevAssistantMessage = [...state.messages]
       .reverse()

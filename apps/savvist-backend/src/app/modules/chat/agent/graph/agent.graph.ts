@@ -26,6 +26,7 @@ import { respondNodeFactory } from './nodes/respond.node';
 import { SlotExtractor } from '../llm/slot-extractor';
 import { ReadTool } from '../tools/read.tool';
 import { ReplyWriter } from '../llm/reply-writer';
+import { ObservabilityService } from '../observability/observability.service';
 
 export interface AgentDeps extends ClassifyIntentDeps {
   loadContext?: LoadContextDeps;
@@ -33,6 +34,7 @@ export interface AgentDeps extends ClassifyIntentDeps {
   slotExtractor?: SlotExtractor;
   readTool?: ReadTool;
   replyWriter?: ReplyWriter;
+  observability?: ObservabilityService;
 }
 
 export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) {
@@ -40,17 +42,17 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('load-context', loadContextNode(deps.loadContext))
     .addNode('state-guard', stateGuardNode(deps.stateGuard))
     .addNode('classify-intent', classifyIntentNode(deps))
-    .addNode('extract-slots', extractSlotsNodeFactory(deps.slotExtractor))
+    .addNode('extract-slots', extractSlotsNodeFactory({ slotExtractor: deps.slotExtractor, observability: deps.observability }))
     .addNode('clarify', clarifyNode)
     .addNode('capability-check', capabilityCheckNode)
     .addNode('blocked', blockedNode)
-    .addNode('read-data', readDataNodeFactory(deps.readTool))
+    .addNode('read-data', readDataNodeFactory({ readTool: deps.readTool, observability: deps.observability }))
     .addNode('analyze', analyzeNode)
     .addNode('prepare-action', prepareActionNode)
     .addNode('confirm-first', confirmFirstNode)
     .addNode('resolve-confirmation', resolveConfirmationNode)
     .addNode('execute-write', executeWriteNode)
-    .addNode('respond', respondNodeFactory({ replyWriter: deps.replyWriter }))
+    .addNode('respond', respondNodeFactory({ replyWriter: deps.replyWriter, observability: deps.observability }))
 
     .addEdge(START, 'load-context')
     .addEdge('load-context', 'state-guard')

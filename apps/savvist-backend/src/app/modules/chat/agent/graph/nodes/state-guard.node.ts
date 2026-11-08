@@ -1,15 +1,16 @@
-import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
+import { ObservabilityService } from '../../observability/observability.service';
 import { AgentStateType } from '../agent.state';
 
 export interface StateGuardOptions {
   maxClarificationTurns?: number; // default 2
+  observability?: ObservabilityService;
 }
 
 export function stateGuardNode(opts: StateGuardOptions = {}) {
   const max = opts.maxClarificationTurns ?? 2;
 
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
-    saveAgentStateLog('stateGuardNode', state)
+    opts.observability?.SetExecutedNode('stateGuardNode');
     if (state.awaiting_clarification) {
       // Bounded loop: if we've already asked too many times, drop the
       // half-finished request and treat this message as brand new.

@@ -2,7 +2,7 @@ import { AIMessage, HumanMessage, type BaseMessage } from '@langchain/core/messa
 import { AgentStateType } from '../agent.state';
 import type { ClassifierInput, IntentResult } from '../../intent/intent.types';
 import { applyStateGuards } from '../../intent/state-guards';
-import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
+import { ObservabilityService } from '../../observability/observability.service';
 
 export interface IntentClassifierPort {
   classify(input: ClassifierInput): Promise<IntentResult>;
@@ -10,6 +10,7 @@ export interface IntentClassifierPort {
 
 export interface ClassifyIntentDeps {
   classifier: IntentClassifierPort;
+  observability?: ObservabilityService;
 }
 
 function textOf(msg: BaseMessage): string {
@@ -47,7 +48,7 @@ function lastTurn(messages: BaseMessage[]): ClassifierInput | null {
 
 export function classifyIntentNode(deps: ClassifyIntentDeps) {
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
-    saveAgentStateLog('classifyIntentNode', state)
+    deps.observability?.SetExecutedNode('classifyIntentNode');
     const input = lastTurn(state.messages);
 
     // Nothing to classify: send to clarify via 'unknown'

@@ -61,3 +61,7 @@ skills-lock.json
 .langgraph_api
 /plan
 /plans
+
+# Observability logs
+**/observability/logs.json
+logs.json

@@ -9,14 +9,15 @@ import {
   type UserContextProvider,
   type UserProfile,
 } from '../turn-context';
-import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger'
+import { ObservabilityService } from '../../observability/observability.service';
 
 export interface LoadContextDeps {
   userContext?: UserContextProvider; // optional: Studio runs without it
   defaultLocale?: string;
   defaultTimeZone?: string;
   now?: () => Date;                  // injectable for tests
-  reminders?: ReminderCounter
+  reminders?: ReminderCounter;
+  observability?: ObservabilityService;
 }
 
 // helper at the top of the file
@@ -31,8 +32,8 @@ export function loadContextNode(deps: LoadContextDeps = {}) {
     _state: AgentStateType,
     config?: RunnableConfig,
   ): Promise<Partial<AgentStateType>> => {
+    deps.observability?.SetExecutedNode('load-context');
     // userId is passed by the service: graph.invoke(input, { configurable: { thread_id, userId } })
-    saveAgentStateLog('loadContextNode', _state)
     const userId = userIdFrom(config);
 
     let profile: UserProfile | null = null;

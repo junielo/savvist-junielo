@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiService } from './gemini.service';
+import { ObservabilityService } from '../observability/observability.service';
 
 @Injectable()
 export class ReplyWriter {
   private readonly logger = new Logger(ReplyWriter.name);
 
-  constructor(private readonly gemini: GeminiService) { }
+  constructor(
+    private readonly gemini: GeminiService,
+    private readonly observability?: ObservabilityService,
+  ) { }
 
   async writeReply(intent: string, readResult: unknown, question: string): Promise<string> {
     const model = this.gemini.getModel();
@@ -25,7 +29,9 @@ Rules:
 
     try {
       const response = await model.invoke(prompt);
-      return typeof response.content === 'string' ? response.content : String(response.content);
+      const reply = typeof response.content === 'string' ? response.content : String(response.content);
+      this.observability?.setLLMCall('reply-writer', { intent, question, reply });
+      return reply;
     } catch (err) {
       this.logger.error('Failed to generate reply', err);
       return 'Here is the information you requested based on your records.';

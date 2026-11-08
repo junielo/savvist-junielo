@@ -9,6 +9,7 @@ import { CHECKPOINTER } from './persistence/mongo-checkpointer.provider';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReadTool } from './tools/read.tool';
 import { ReplyWriter } from './llm/reply-writer';
+import { ObservabilityService } from './observability/observability.service';
 
 export interface AgentReply {
   reply: string;
@@ -21,6 +22,7 @@ export class AgentService {
   private readonly queues = new Map<string, Promise<unknown>>();
 
   constructor(
+    private readonly observeService: ObservabilityService,
     @Inject(INTENT_CLASSIFIER) classifier: IntentClassifierPort,
     @Inject(CHECKPOINTER) checkpointer: BaseCheckpointSaver,
     slotExtractor: SlotExtractor,
@@ -34,9 +36,11 @@ export class AgentService {
         slotExtractor,
         readTool,
         replyWriter,
+        observability: this.observeService,
         loadContext: {
           defaultTimeZone: config.get<string>('AGENT_DEFAULT_TIMEZONE', 'Asia/Manila'),
           defaultLocale: config.get<string>('AGENT_DEFAULT_LOCALE', 'en'),
+          observability: this.observeService,
         },
         stateGuard: {
           maxClarificationTurns: config.get<number>('AGENT_MAX_CLARIFY_TURNS', 2),
@@ -47,13 +51,17 @@ export class AgentService {
   }
 
   async run(p: { userId: string; conversationId: string; text: string }): Promise<AgentReply> {
+    this.observeService.reset();
+    this.observeService.setUserMessage(p.text);
     return this.serialize(p.conversationId, async () => {
       const result = await this.graph.invoke(
         { messages: [new HumanMessage(p.text)] },
         { configurable: { thread_id: p.conversationId, userId: p.userId } },
       );
+      const reply = this.replyFrom(result.messages);
+      this.observeService.setResponse(reply);
       return {
-        reply: this.replyFrom(result.messages),
+        reply,
         intent: result.intentResult?.intent ?? null,
       };
     });

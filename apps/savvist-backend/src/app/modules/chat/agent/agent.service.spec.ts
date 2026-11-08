@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReadTool } from './tools/read.tool';
 import { ReplyWriter } from './llm/reply-writer';
+import { ObservabilityService } from './observability/observability.service';
 
 describe('AgentService', () => {
   let service: AgentService;
@@ -20,6 +21,7 @@ describe('AgentService', () => {
         { provide: SlotExtractor, useValue: { extract: jest.fn() } },
         { provide: ReadTool, useValue: { getBalances: jest.fn() } },
         { provide: ReplyWriter, useValue: { writeReply: jest.fn() } },
+        ObservabilityService,
       ],
     }).compile();
 

@@ -2,7 +2,7 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentStateType } from '../agent.state';
 import { ASSISTANT_PROFILE as P } from '../../intent/assistant-profile';
 import { ReplyWriter } from '../../llm/reply-writer';
-import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
+import { ObservabilityService } from '../../observability/observability.service';
 
 const ASK_REPHRASE =
   "I'm not quite sure I caught that. Could you tell me what you'd like to do with your balances, expenses, wishlist, or reminders?";
@@ -31,11 +31,12 @@ function smalltalk(intent: string): string {
 
 export interface RespondNodeOptions {
   replyWriter?: ReplyWriter;
+  observability?: ObservabilityService;
 }
 
 export const respondNodeFactory = (options?: RespondNodeOptions) => {
   return async function respondNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
-    saveAgentStateLog('respondNode', state)
+    options?.observability?.SetExecutedNode('respond');
     const ir = state.intentResult;
     const cap = ir?.capabilityCheck;
     const resolution = state.pending_action?.resolution;
