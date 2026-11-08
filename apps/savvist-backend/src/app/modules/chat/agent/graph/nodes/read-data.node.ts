@@ -43,7 +43,7 @@ export const readDataNodeFactory = (deps: ReadDataDeps | ReadTool = {}) => {
           );
           break;
         case 'read_wishlist':
-          readResult = await readTool.getWishlist(userId, slots?.searchName ?? undefined);
+          readResult = await readTool.queryWishlist(userId, slots?.readArgs ?? {});
           break;
         case 'read_record_logs':
           readResult = await readTool.getRecordLogs(userId, {

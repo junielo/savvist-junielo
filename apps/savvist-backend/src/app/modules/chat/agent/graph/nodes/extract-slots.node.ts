@@ -21,12 +21,13 @@ export const extractSlotsNodeFactory = (deps: ExtractSlotsDeps | SlotExtractor =
 
     const messageText = typeof lastUserMessage === 'string' ? lastUserMessage : '';
     const prevText = typeof prevAssistantMessage === 'string' ? prevAssistantMessage : undefined;
+    const intent = state.intentResult?.intent;
 
     if (!slotExtractor) {
       return { slots: { searchName: null, month: null, limit: null, accountName: null, standaloneQuery: messageText } };
     }
 
-    const slots = await slotExtractor.extract(messageText, prevText);
+    const slots = await slotExtractor.extract(messageText, prevText, intent);
 
     return {
       slots,

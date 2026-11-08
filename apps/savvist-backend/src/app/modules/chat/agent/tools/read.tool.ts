@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { DashboardService } from '../../../dashboard/dashboard.service';
@@ -7,6 +8,8 @@ import { RecordLogsService } from '../../../record-logs/record-logs.service';
 import { UsersService } from '../../../users/users.service';
 import { AccountEntriesService } from '../../../account-entries/account-entries.service';
 import { ObservabilityService } from '../observability/observability.service';
+import { WishlistQueryArgs, applyQuery, Row } from '../../../wishlist/wishlist-query';
+import { todayIn, isValidTimeZone } from '../graph/turn-context';
 
 const MAX_ITEMS = 10;
 const TREND_DAYS = 30;
@@ -79,24 +82,41 @@ export class ReadTool {
     return result;
   }
 
-  async getWishlist(userId: Types.ObjectId, searchName?: string) {
-    const items = await this.wishlistService.findAll(userId);
+  async queryWishlist(userId: Types.ObjectId, args: WishlistQueryArgs) {
+    const [items, user] = await Promise.all([
+      this.wishlistService.findAll(userId),
+      this.usersService.findById(userId).catch(() => null),
+    ]);
 
-    const query = searchName?.toLowerCase();
-    const matched = query ? items.filter((item) => item.name.toLowerCase().includes(query)) : items;
+    const tz = user?.timeZone && isValidTimeZone(user.timeZone) ? user.timeZone : 'Asia/Manila';
+    const today = todayIn(tz, new Date());
+
+    const rows: Row[] = items.map((i: any) => ({
+      id: String(i._id),
+      name: i.name,
+      amount: i.amount,
+      priority: i.priority ?? 'normal',
+      status: i.status ?? (i.purchasedAt ? 'purchased' : 'pending'),
+      createdAt: i.createdAt ? new Date(i.createdAt).toISOString().split('T')[0] : null,
+      purchasedAt: i.purchasedAt ? new Date(i.purchasedAt).toISOString().split('T')[0] : null,
+    }));
+
+    const { rows: matched, appliedFilters } = applyQuery(rows, args, { today, tz });
+    const limit = args.limit ?? MAX_ITEMS;
 
     const result = plain({
-      found: query ? matched.length > 0 : true,
-      searchName: searchName ?? null,
-      matchedCount: matched.length,
-      matched: matched.slice(0, MAX_ITEMS).map((item) => ({
-        name: item.name,
-        amount: item.amount,
-        purchasedAt: item.purchasedAt,
-      })),
-      pendingTotal: sum(items.filter((item) => !item.purchasedAt)),
+      found: matched.length > 0,
+      appliedFilters,
+      totalMatched: matched.length,
+      returned: Math.min(matched.length, limit),
+      truncated: matched.length > limit,
+      count: matched.length,
+      sum: sum(matched),
+      pendingTotal: sum(rows.filter((r) => r.status === 'pending')),
+      items: matched.slice(0, limit),
     });
-    this.observability?.setToolCall('read-tool', { method: 'getWishlist', userId: String(userId), searchName, result });
+
+    this.observability?.setToolCall('read-tool', { method: 'queryWishlist', userId: String(userId), args, result });
     return result;
   }
 
