@@ -9,6 +9,7 @@ import {
   type UserContextProvider,
   type UserProfile,
 } from '../turn-context';
+import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger'
 
 export interface LoadContextDeps {
   userContext?: UserContextProvider; // optional: Studio runs without it
@@ -31,6 +32,7 @@ export function loadContextNode(deps: LoadContextDeps = {}) {
     config?: RunnableConfig,
   ): Promise<Partial<AgentStateType>> => {
     // userId is passed by the service: graph.invoke(input, { configurable: { thread_id, userId } })
+    saveAgentStateLog('loadContextNode', _state)
     const userId = userIdFrom(config);
 
     let profile: UserProfile | null = null;

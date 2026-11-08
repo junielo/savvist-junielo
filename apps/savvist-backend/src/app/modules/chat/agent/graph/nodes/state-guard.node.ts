@@ -1,3 +1,4 @@
+import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
 import { AgentStateType } from '../agent.state';
 
 export interface StateGuardOptions {
@@ -8,6 +9,7 @@ export function stateGuardNode(opts: StateGuardOptions = {}) {
   const max = opts.maxClarificationTurns ?? 2;
 
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
+    saveAgentStateLog('stateGuardNode', state)
     if (state.awaiting_clarification) {
       // Bounded loop: if we've already asked too many times, drop the
       // half-finished request and treat this message as brand new.

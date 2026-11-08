@@ -2,6 +2,7 @@ import { AIMessage, HumanMessage, type BaseMessage } from '@langchain/core/messa
 import { AgentStateType } from '../agent.state';
 import type { ClassifierInput, IntentResult } from '../../intent/intent.types';
 import { applyStateGuards } from '../../intent/state-guards';
+import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
 
 export interface IntentClassifierPort {
   classify(input: ClassifierInput): Promise<IntentResult>;
@@ -46,6 +47,7 @@ function lastTurn(messages: BaseMessage[]): ClassifierInput | null {
 
 export function classifyIntentNode(deps: ClassifyIntentDeps) {
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
+    saveAgentStateLog('classifyIntentNode', state)
     const input = lastTurn(state.messages);
 
     // Nothing to classify: send to clarify via 'unknown'

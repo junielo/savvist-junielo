@@ -2,6 +2,7 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentStateType } from '../agent.state';
 import { ASSISTANT_PROFILE as P } from '../../intent/assistant-profile';
 import { ReplyWriter } from '../../llm/reply-writer';
+import { saveAgentStateLog } from '../../../../../../../run-logs/run-logger';
 
 const ASK_REPHRASE =
   "I'm not quite sure I caught that. Could you tell me what you'd like to do with your balances, expenses, wishlist, or reminders?";
@@ -34,6 +35,7 @@ export interface RespondNodeOptions {
 
 export const respondNodeFactory = (options?: RespondNodeOptions) => {
   return async function respondNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
+    saveAgentStateLog('respondNode', state)
     const ir = state.intentResult;
     const cap = ir?.capabilityCheck;
     const resolution = state.pending_action?.resolution;

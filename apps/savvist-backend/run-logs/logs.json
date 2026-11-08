@@ -1,0 +1,312 @@
+[
+  {
+    "node_name": "loadContextNode",
+    "timestamp": "2026-11-06T12:04:03.879Z",
+    "messages": [
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      }
+    ],
+    "intentResult": null,
+    "slots": null,
+    "readResult": null,
+    "pending_action": null,
+    "awaiting_clarification": null,
+    "context": null,
+    "clarification_turns": 0
+  },
+  {
+    "node_name": "stateGuardNode",
+    "timestamp": "2026-11-06T12:04:03.885Z",
+    "messages": [
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      }
+    ],
+    "intentResult": null,
+    "slots": null,
+    "readResult": null,
+    "pending_action": null,
+    "awaiting_clarification": null,
+    "context": {
+      "userId": "6adf58efb1a87dfd54b8d3a3",
+      "locale": "en",
+      "timeZone": "Asia/Manila",
+      "today": "2026-11-06",
+      "nowIso": "2026-11-06T12:04:03.880Z",
+      "dueReminderCount": 0
+    },
+    "clarification_turns": 0
+  },
+  {
+    "node_name": "classifyIntentNode",
+    "timestamp": "2026-11-06T12:04:03.891Z",
+    "messages": [
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      }
+    ],
+    "intentResult": null,
+    "slots": null,
+    "readResult": null,
+    "pending_action": null,
+    "awaiting_clarification": null,
+    "context": {
+      "userId": "6adf58efb1a87dfd54b8d3a3",
+      "locale": "en",
+      "timeZone": "Asia/Manila",
+      "today": "2026-11-06",
+      "nowIso": "2026-11-06T12:04:03.880Z",
+      "dueReminderCount": 0
+    },
+    "clarification_turns": 0
+  },
+  {
+    "node_name": "respondNode",
+    "timestamp": "2026-11-06T12:04:04.840Z",
+    "messages": [
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      }
+    ],
+    "intentResult": {
+      "intent": "greeting",
+      "secondary": [],
+      "group": "non-domain",
+      "confidence": 1,
+      "runnerUp": {
+        "intent": "about-assistant",
+        "probability": 0
+      },
+      "probabilities": {
+        "greeting": 1,
+        "about-assistant": 0,
+        "capabilities": 0,
+        "purpose": 0,
+        "creator": 0,
+        "thanks": 0,
+        "goodbye": 0,
+        "out-of-scope": 0,
+        "read_balances": 0,
+        "read_expenses": 0,
+        "read_wishlist": 0,
+        "read_record_logs": 0,
+        "read_profile": 0,
+        "read_reminders": 0,
+        "update_base_salary": 0,
+        "manage_account_entry": 0,
+        "manage_entry_record": 0,
+        "manage_expense": 0,
+        "manage_wishlist": 0,
+        "swap_wishlist_priority": 0,
+        "manage_reminder": 0,
+        "manage_memory": 0,
+        "check_affordability": 0,
+        "check_spending_range": 0,
+        "estimate_when_available": 0,
+        "spending_review": 0,
+        "what_if_analysis": 0
+      },
+      "source": "jev"
+    },
+    "slots": null,
+    "readResult": null,
+    "pending_action": null,
+    "awaiting_clarification": null,
+    "context": {
+      "userId": "6adf58efb1a87dfd54b8d3a3",
+      "locale": "en",
+      "timeZone": "Asia/Manila",
+      "today": "2026-11-06",
+      "nowIso": "2026-11-06T12:04:03.880Z",
+      "dueReminderCount": 0
+    },
+    "clarification_turns": 0
+  },
+  {
+    "node_name": "loadContextNode",
+    "timestamp": "2026-11-06T12:05:12.436Z",
+    "messages": [
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      },
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      }
+    ],
+    "intentResult": {
+      "intent": "greeting",
+      "secondary": [],
+      "group": "non-domain",
+      "confidence": 1,
+      "runnerUp": {
+        "intent": "about-assistant",
+        "probability": 0
+      },
+      "probabilities": {
+        "greeting": 1,
+        "about-assistant": 0,
+        "capabilities": 0,
+        "purpose": 0,
+        "creator": 0,
+        "thanks": 0,
+        "goodbye": 0,
+        "out-of-scope": 0,
+        "read_balances": 0,
+        "read_expenses": 0,
+        "read_wishlist": 0,
+        "read_record_logs": 0,
+        "read_profile": 0,
+        "read_reminders": 0,
+        "update_base_salary": 0,
+        "manage_account_entry": 0,
+        "manage_entry_record": 0,
+        "manage_expense": 0,
+        "manage_wishlist": 0,
+        "swap_wishlist_priority": 0,
+        "manage_reminder": 0,
+        "manage_memory": 0,
+        "check_affordability": 0,
+        "check_spending_range": 0,
+        "estimate_when_available": 0,
+        "spending_review": 0,
+        "what_if_analysis": 0
+      },
+      "source": "jev"
+    },
+    "slots": null,
+    "readResult": null,
+    "pending_action": null,
+    "awaiting_clarification": null,
+    "context": {
+      "userId": "6adf58efb1a87dfd54b8d3a3",
+      "locale": "en",
+      "timeZone": "Asia/Manila",
+      "today": "2026-11-06",
+      "nowIso": "2026-11-06T12:04:03.880Z",
+      "dueReminderCount": 0
+    },
+    "clarification_turns": 0
+  },
+  {
+    "node_name": "stateGuardNode",
+    "timestamp": "2026-11-06T12:05:12.443Z",
+    "messages": [
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      },
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      }
+    ],
+    "intentResult": {
+      "intent": "greeting",
+      "secondary": [],
+      "group": "non-domain",
+      "confidence": 1,
+      "runnerUp": {
+        "intent": "about-assistant",
+        "probability": 0
+      },
+      "probabilities": {
+        "greeting": 1,
+        "about-assistant": 0,
+        "capabilities": 0,
+        "purpose": 0,
+        "creator": 0,
+        "thanks": 0,
+        "goodbye": 0,
+        "out-of-scope": 0,
+        "read_balances": 0,
+        "read_expenses": 0,
+        "read_wishlist": 0,
+        "read_record_logs": 0,
+        "read_profile": 0,
+        "read_reminders": 0,
+        "update_base_salary": 0,
+        "manage_account_entry": 0,
+        "manage_entry_record": 0,
+        "manage_expense": 0,
+        "manage_wishlist": 0,
+        "swap_wishlist_priority": 0,
+        "manage_reminder": 0,
+        "manage_memory": 0,
+        "check_affordability": 0,
+        "check_spending_range": 0,
+        "estimate_when_available": 0,
+        "spending_review": 0,
+        "what_if_analysis": 0
+      },
+      "source": "jev"
+    },
+    "slots": null,
+    "readResult": null,
+    "pending_action": null,
+    "awaiting_clarification": null,
+    "context": {
+      "userId": "6adf58efb1a87dfd54b8d3a3",
+      "locale": "en",
+      "timeZone": "Asia/Manila",
+      "today": "2026-11-06",
+      "nowIso": "2026-11-06T12:05:12.438Z",
+      "dueReminderCount": 0
+    },
+    "clarification_turns": 0
+  },
+  {
+    "node_name": "classifyIntentNode",
+    "timestamp": "2026-11-06T12:05:12.450Z",
+    "messages": [
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      },
+      {
+        "type": "human",
+        "content": "hello",
+        "additionalKwargs": {},
+        "response_metadata": {}
+      }
+    ],
+    "intentResult": null,
+    "slots": null,
+    "readResult": null,
+    "pending_action": null,
+    "awaiting_clarification": null,
+    "context": {
+      "userId": "6adf58efb1a87dfd54b8d3a3",
+      "locale": "en",
+      "timeZone": "Asia/Manila",
+      "today": "2026-11-06",
+      "nowIso": "2026-11-06T12:05:12.438Z",
+      "dueReminderCount": 0
+    },
+    "clarification_turns": 0
+  }
+]
