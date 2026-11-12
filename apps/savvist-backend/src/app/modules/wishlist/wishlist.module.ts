@@ -5,6 +5,7 @@ import { UsersModule } from '../users/users.module';
 import { RecordLogsModule } from '../record-logs/record-logs.module';
 import { WishlistController } from './wishlist.controller';
 import { WishlistService } from './wishlist.service';
+import { WishlistSeederService } from './seed/wishlist-seeder.service';
 import { WishlistItem, WishlistSchema } from './schemas/wishlist.schema';
 
 @Module({
@@ -14,7 +15,7 @@ import { WishlistItem, WishlistSchema } from './schemas/wishlist.schema';
     RecordLogsModule,
   ],
   controllers: [WishlistController],
-  providers: [WishlistService, CurrentUserGuard],
+  providers: [WishlistService, WishlistSeederService, CurrentUserGuard],
   exports: [WishlistService, MongooseModule],
 })
 export class WishlistModule {}

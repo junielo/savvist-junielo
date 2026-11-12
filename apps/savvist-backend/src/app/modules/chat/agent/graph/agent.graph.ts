@@ -8,6 +8,7 @@ import {
   routeAfterCapability,
   routeAfterResolve,
   routeAfterExec,
+  routeAfterToolAgent,
 } from './agent.routers';
 import { LoadContextDeps, loadContextNode } from './nodes/load-context.node';
 import { stateGuardNode, StateGuardOptions } from './nodes/state-guard.node';
@@ -23,6 +24,12 @@ import { confirmFirstNode } from './nodes/confirm-first.node';
 import { resolveConfirmationNode } from './nodes/resolve-confirmation.node';
 import { executeWriteNode } from './nodes/execute-write.node';
 import { respondNodeFactory } from './nodes/respond.node';
+import {
+  toolLoopInitNode,
+  toolAgentNodeFactory,
+  toolsNodeFactory,
+  type ToolLoopDeps,
+} from './nodes/tool-loop.nodes';
 import { SlotExtractor } from '../llm/slot-extractor';
 import { ReadTool } from '../tools/read.tool';
 import { ReplyWriter } from '../llm/reply-writer';
@@ -35,9 +42,12 @@ export interface AgentDeps extends ClassifyIntentDeps {
   readTool?: ReadTool;
   replyWriter?: ReplyWriter;
   observability?: ObservabilityService;
+  toolLoop?: ToolLoopDeps; // { model, dataSource } for the data_question tool loop
 }
 
 export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) {
+  const toolLoopDeps = deps.toolLoop ?? {};
+
   const graph = new StateGraph(AgentState)
     .addNode('load-context', loadContextNode(deps.loadContext))
     .addNode('state-guard', stateGuardNode(deps.stateGuard))
@@ -48,6 +58,9 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('blocked', blockedNode)
     .addNode('read-data', readDataNodeFactory({ readTool: deps.readTool, observability: deps.observability }))
     .addNode('analyze', analyzeNode)
+    .addNode('tool-loop-init', toolLoopInitNode)
+    .addNode('tool-agent', toolAgentNodeFactory(toolLoopDeps))
+    .addNode('tool-loop-tools', toolsNodeFactory(toolLoopDeps))
     .addNode('prepare-action', prepareActionNode)
     .addNode('confirm-first', confirmFirstNode)
     .addNode('resolve-confirmation', resolveConfirmationNode)
@@ -64,6 +77,7 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
       respond: 'respond',
       clarify: 'clarify',
       'extract-slots': 'extract-slots',
+      'tool-loop-init': 'tool-loop-init',
     })
     .addConditionalEdges('extract-slots', routeAfterSlots, {
       clarify: 'clarify',
@@ -75,6 +89,13 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
       analyze: 'analyze',
       'prepare-action': 'prepare-action',
     })
+    // Tool loop: model decides -> tools run -> model decides again, until it answers
+    .addEdge('tool-loop-init', 'tool-agent')
+    .addConditionalEdges('tool-agent', routeAfterToolAgent, {
+      'tool-loop-tools': 'tool-loop-tools',
+      respond: 'respond',
+    })
+    .addEdge('tool-loop-tools', 'tool-agent')
     .addEdge('prepare-action', 'confirm-first')
     .addEdge('confirm-first', 'resolve-confirmation')
     .addConditionalEdges('resolve-confirmation', routeAfterResolve, {

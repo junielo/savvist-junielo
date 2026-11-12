@@ -24,7 +24,10 @@ export class ObservabilityService {
   SetLLMCall(name: string, value: any): void {
     const targetKey = this.lastNodeKey || 'default';
     if (!this.nodes[targetKey] || Array.isArray(this.nodes[targetKey])) {
-      this.nodes[targetKey] = { toolCalls: [], llmCalls: [] };
+      this.nodes[targetKey] = { toolCalls: [], llmCalls: [], llmToolCalls: [] };
+    }
+    if (!this.nodes[targetKey].llmCalls) {
+      this.nodes[targetKey].llmCalls = [];
     }
     this.nodes[targetKey].llmCalls.push({ name, value });
   }
@@ -32,9 +35,23 @@ export class ObservabilityService {
   SetToolCall(name: string, value: any): void {
     const targetKey = this.lastNodeKey || 'default';
     if (!this.nodes[targetKey] || Array.isArray(this.nodes[targetKey])) {
-      this.nodes[targetKey] = { toolCalls: [], llmCalls: [] };
+      this.nodes[targetKey] = { toolCalls: [], llmCalls: [], llmToolCalls: [] };
+    }
+    if (!this.nodes[targetKey].toolCalls) {
+      this.nodes[targetKey].toolCalls = [];
     }
     this.nodes[targetKey].toolCalls.push({ name, value });
+  }
+
+  SetLLMToolCall(name: string, value: any): void {
+    const targetKey = this.lastNodeKey || 'default';
+    if (!this.nodes[targetKey] || Array.isArray(this.nodes[targetKey])) {
+      this.nodes[targetKey] = { toolCalls: [], llmCalls: [], llmToolCalls: [] };
+    }
+    if (!this.nodes[targetKey].llmToolCalls) {
+      this.nodes[targetKey].llmToolCalls = [];
+    }
+    this.nodes[targetKey].llmToolCalls.push({ name, value });
   }
 
   SetResponse(response: string): void {
@@ -88,8 +105,24 @@ export class ObservabilityService {
     this.SetLLMCall(name, value);
   }
 
+  llmCall(name: string, value: any): void {
+    this.SetLLMCall(name, value);
+  }
+
   setToolCall(name: string, value: any): void {
     this.SetToolCall(name, value);
+  }
+
+  toolCall(name: string, value: any): void {
+    this.SetToolCall(name, value);
+  }
+
+  setLLMToolCall(name: string, value: any): void {
+    this.SetLLMToolCall(name, value);
+  }
+
+  llmToolCall(name: string, value: any): void {
+    this.SetLLMToolCall(name, value);
   }
 
   setResponse(response: string): void {

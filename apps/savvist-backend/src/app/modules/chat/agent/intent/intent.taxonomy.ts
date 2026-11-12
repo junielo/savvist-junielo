@@ -50,7 +50,7 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   read_expenses: {
     group: 'read',
-    description: 'Asks for expenses, monthly total, or expenses due before next payday.',
+    description: 'Asks to see expenses or bills the user pays out, including amounts, totals, and due or scheduled dates, e.g. "what are my expenses", "how much is [bill]", "when is [bill] due", "what is due before payday". Only viewing. Not money owed to the user (read_reminders), not adding or changing an expense (manage_expense).',
   },
   read_wishlist: {
     group: 'read',
@@ -66,7 +66,7 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   read_reminders: {
     group: 'read',
-    description: 'Asks to view reminders, debts owed, or expected payments.',
+    description: 'Asks to see reminders, money other people owe the user, or payments the user expects to receive, e.g. "what reminders do I have", "who owes me money", "when is [person] paying me back". Not bills or expenses the user has to pay (read_expenses).',
   },
   update_base_salary: {
     group: 'write',

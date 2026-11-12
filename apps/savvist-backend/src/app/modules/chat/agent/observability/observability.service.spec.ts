@@ -29,16 +29,12 @@ describe('ObservabilityService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should store nodes with nested llmCalls and toolCalls and write to logs.json', () => {
-    service.SetUserMessage('Hello AI');
-    service.SetExecutedNode('classify-intent');
-    service.SetLLMCall('jev-classifier', { intent: 'greeting', confidence: 0.95 });
-    service.SetLLMCall('jev-classifier-2', { intent: 'greeting' });
-    
+  it('should store nodes with nested llmCalls, toolCalls, and llmToolCalls and write to logs.json', () => {
+    service.SetUserMessage('Check expenses');
     service.SetExecutedNode('read-data');
-    service.SetToolCall('read-tool', { query: 'users' });
-
-    service.SetResponse('Hello! How can I help you?');
+    service.SetLLMToolCall('getCurrentDate', { args: {}, result: { today: '2026-11-09' } });
+    service.setLLMToolCall('getUpcomingExpenses', { args: { limit: 5 }, result: { count: 1 } });
+    service.SetResponse('You have 1 upcoming expense.');
 
     expect(fs.existsSync(logFilePath)).toBe(true);
     const content = fs.readFileSync(logFilePath, 'utf-8');
@@ -48,22 +44,17 @@ describe('ObservabilityService', () => {
     expect(logs.length).toBe(1);
 
     const log = logs[0];
-    expect(log.userMessage).toBe('Hello AI');
+    expect(log.userMessage).toBe('Check expenses');
     expect(log.nodes).toEqual({
-      'classify-intent': {
-        toolCalls: [],
-        llmCalls: [
-          { name: 'jev-classifier', value: { intent: 'greeting', confidence: 0.95 } },
-          { name: 'jev-classifier-2', value: { intent: 'greeting' } }
-        ]
-      },
       'read-data': {
-        toolCalls: [
-          { name: 'read-tool', value: { query: 'users' } }
-        ],
-        llmCalls: []
+        toolCalls: [],
+        llmCalls: [],
+        llmToolCalls: [
+          { name: 'getCurrentDate', value: { args: {}, result: { today: '2026-11-09' } } },
+          { name: 'getUpcomingExpenses', value: { args: { limit: 5 }, result: { count: 1 } } }
+        ]
       }
     });
-    expect(log.response).toBe('Hello! How can I help you?');
+    expect(log.response).toBe('You have 1 upcoming expense.');
   });
 });
