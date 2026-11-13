@@ -6,6 +6,7 @@ import { buildGraph } from './graph/agent.graph';
 import type { IntentClassifierPort } from './graph/nodes/classify-intent.node';
 import { INTENT_CLASSIFIER } from './intent/intent-classifier.token';
 import { CHECKPOINTER } from './persistence/mongo-checkpointer.provider';
+import { QueryRewriter } from './llm/query-rewriter';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReadTool } from './tools/read.tool';
 import { ReplyWriter } from './llm/reply-writer';
@@ -26,6 +27,7 @@ export class AgentService {
     private readonly observeService: ObservabilityService,
     @Inject(INTENT_CLASSIFIER) classifier: IntentClassifierPort,
     @Inject(CHECKPOINTER) checkpointer: BaseCheckpointSaver,
+    queryRewriter: QueryRewriter,
     slotExtractor: SlotExtractor,
     readTool: ReadTool,
     replyWriter: ReplyWriter,
@@ -35,6 +37,7 @@ export class AgentService {
     this.graph = buildGraph(
       {
         classifier,
+        queryRewriter,
         slotExtractor,
         readTool,
         replyWriter,

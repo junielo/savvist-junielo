@@ -6,6 +6,7 @@ import { JevClient } from './intent/classifiers/jev.client';
 import { JevIntentClassifier } from './intent/classifiers/jev.classifier';
 import { mongoCheckpointerProvider } from './persistence/mongo-checkpointer.provider';
 import { GeminiService } from './llm/gemini.service';
+import { QueryRewriter } from './llm/query-rewriter';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReplyWriter } from './llm/reply-writer';
 import { ReadTool } from './tools/read.tool';
@@ -62,6 +63,7 @@ import { ObservabilityService } from './observability/observability.service';
     // 3. Capabilities, LLM & Tools
     CapabilityCheckService,
     GeminiService,
+    QueryRewriter,
     SlotExtractor,
     ReplyWriter,
     ReadTool,

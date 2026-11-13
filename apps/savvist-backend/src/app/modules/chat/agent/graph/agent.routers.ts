@@ -24,6 +24,9 @@ export function routeAfterClassify(state: AgentStateType): string {
   if ((intent as { intent?: string }).intent === 'data_question') {
     return 'tool-loop-init';
   }
+  if (intent.isFollowUp) {
+    return 'rewrite-query';
+  }
   // Groups C (Read), D (Write), E (Analysis)
   return 'extract-slots';
 }

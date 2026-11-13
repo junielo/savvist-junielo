@@ -2,7 +2,7 @@
 import { TypeSafeClassifier, type ChoiceAnswer } from '@langchain/typesafe';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import type { ClassifierInput } from '../intent.types';
-import { buildIntentQuestions, INTENT_QUESTION_ID, POLICY_QUESTION_ID } from './jev.questions';
+import { buildIntentQuestions, INTENT_QUESTION_ID, POLICY_QUESTION_ID, FOLLOW_UP_QUESTION_ID } from './jev.questions';
 import { ObservabilityService } from '../../observability/observability.service';
 
 export interface JevClientOptions {
@@ -10,6 +10,11 @@ export interface JevClientOptions {
   timeoutMs?: number;
   maxRetries?: number;
   observability?: ObservabilityService;
+}
+
+export interface JevIntentClassification {
+  answer: ChoiceAnswer;
+  isFollowUp: boolean;
 }
 
 export class JevClient {
@@ -25,7 +30,7 @@ export class JevClient {
     });
   }
 
-  async classifyIntent(input: ClassifierInput): Promise<ChoiceAnswer> {
+  async classifyIntent(input: ClassifierInput): Promise<JevIntentClassification> {
     // State = previous assistant message + current user message
     const state = [
       ...(input.previousAssistantMessage ? [new AIMessage(input.previousAssistantMessage)] : []),
@@ -34,8 +39,17 @@ export class JevClient {
     const res = await this.classifier.invoke(state);
     const answer = res.choices[INTENT_QUESTION_ID];
     if (!answer) throw new Error('Jev returned no intent answer');
-    this.opts.observability?.setLLMCall('jev-classifier', { input, answer });
-    return answer;
+
+    const followUpNoul = res.nouls?.[FOLLOW_UP_QUESTION_ID];
+    const isFollowUp = Boolean(input.previousAssistantMessage) && (followUpNoul?.noul ?? 0) >= 0.7;
+
+    this.opts.observability?.setLLMCall('jev-classifier', {
+      input,
+      answer,
+      isFollowUp,
+      followUpNoul,
+    });
+    return { answer, isFollowUp };
   }
 
   /**
@@ -52,6 +66,28 @@ export class JevClient {
       return { isProhibited: probability >= 0.7, probability };
     } catch {
       return { isProhibited: false, probability: 0 };
+    }
+  }
+
+  /**
+   * Evaluates specifically if the user input depends on earlier conversation history.
+   */
+  async checkIsFollowUp(input: ClassifierInput): Promise<{ isFollowUp: boolean; probability: number }> {
+    if (!input.previousAssistantMessage) {
+      return { isFollowUp: false, probability: 0 };
+    }
+    try {
+      const state = [
+        new AIMessage(input.previousAssistantMessage),
+        new HumanMessage(input.message),
+      ];
+      const res = await this.classifier.invoke(state);
+      const followUpNoul = res.nouls?.[FOLLOW_UP_QUESTION_ID];
+      const probability = followUpNoul ? followUpNoul.noul : 0;
+      this.opts.observability?.setLLMCall('jev-follow-up-check', { input, followUpNoul });
+      return { isFollowUp: probability >= 0.7, probability };
+    } catch {
+      return { isFollowUp: false, probability: 0 };
     }
   }
 }

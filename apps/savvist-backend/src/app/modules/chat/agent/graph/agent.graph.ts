@@ -13,6 +13,7 @@ import {
 import { LoadContextDeps, loadContextNode } from './nodes/load-context.node';
 import { stateGuardNode, StateGuardOptions } from './nodes/state-guard.node';
 import { classifyIntentNode, type ClassifyIntentDeps } from './nodes/classify-intent.node';
+import { rewriteQueryNodeFactory } from './nodes/rewrite-query.node';
 import { extractSlotsNodeFactory } from './nodes/extract-slots.node';
 import { clarifyNode } from './nodes/clarify.node';
 import { capabilityCheckNodeFactory } from './nodes/capability-check.node';
@@ -30,6 +31,7 @@ import {
   toolsNodeFactory,
   type ToolLoopDeps,
 } from './nodes/tool-loop.nodes';
+import { QueryRewriter } from '../llm/query-rewriter';
 import { SlotExtractor } from '../llm/slot-extractor';
 import { ReadTool } from '../tools/read.tool';
 import { ReplyWriter } from '../llm/reply-writer';
@@ -39,6 +41,7 @@ import { ObservabilityService } from '../observability/observability.service';
 export interface AgentDeps extends ClassifyIntentDeps {
   loadContext?: LoadContextDeps;
   stateGuard?: StateGuardOptions;
+  queryRewriter?: QueryRewriter;
   slotExtractor?: SlotExtractor;
   readTool?: ReadTool;
   replyWriter?: ReplyWriter;
@@ -54,6 +57,7 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('load-context', loadContextNode(deps.loadContext))
     .addNode('state-guard', stateGuardNode(deps.stateGuard))
     .addNode('classify-intent', classifyIntentNode(deps))
+    .addNode('rewrite-query', rewriteQueryNodeFactory({ queryRewriter: deps.queryRewriter, observability: deps.observability }))
     .addNode('extract-slots', extractSlotsNodeFactory({ slotExtractor: deps.slotExtractor, observability: deps.observability }))
     .addNode('clarify', clarifyNode)
     .addNode('capability-check', capabilityCheckNodeFactory({ capabilityService: deps.capabilityService, observability: deps.observability }))
@@ -78,9 +82,11 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addConditionalEdges('classify-intent', routeAfterClassify, {
       respond: 'respond',
       clarify: 'clarify',
+      'rewrite-query': 'rewrite-query',
       'extract-slots': 'extract-slots',
       'tool-loop-init': 'tool-loop-init',
     })
+    .addEdge('rewrite-query', 'extract-slots')
     .addConditionalEdges('extract-slots', routeAfterSlots, {
       clarify: 'clarify',
       'capability-check': 'capability-check',

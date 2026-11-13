@@ -15,6 +15,7 @@ export const AgentState = Annotation.Root({
   awaiting_clarification: lastWrite<string | null>(null),
   context: lastWrite<TurnContext | null>(null),
   clarification_turns: lastWrite<number>(0),
+  rewrittenQuery: lastWrite<string | null>(null),
   toolMessages: Annotation<BaseMessage[], BaseMessage[] | 'reset'>({
     reducer: (left, right) => (right === 'reset' ? [] : left.concat(right)),
     default: () => [],

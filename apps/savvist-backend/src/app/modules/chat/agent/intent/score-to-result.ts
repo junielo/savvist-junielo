@@ -24,9 +24,18 @@ export function scoreToResult(
   answer: ChoiceAnswer | null,
   t: Thresholds,
   source: IntentSource,
+  isFollowUp = false,
 ): IntentResult {
   if (!answer) {
-    return { intent: 'unknown', group: 'unknown', confidence: 0, runnerUp: null, probabilities: {}, source };
+    return {
+      intent: 'unknown',
+      group: 'unknown',
+      confidence: 0,
+      runnerUp: null,
+      probabilities: {},
+      source,
+      isFollowUp,
+    };
   }
   const ranked: [string, number][] = Object.entries(answer.probabilities).sort((a, b) => b[1] - a[1]);
   const [topName, topP] = ranked[0] ?? ['', 0];
@@ -61,5 +70,6 @@ export function scoreToResult(
     runnerUp: second ? { intent: second[0], probability: second[1] } : null,
     probabilities: answer.probabilities,
     source,
+    isFollowUp,
   };
 }

@@ -58,6 +58,7 @@ export interface IntentResult {
   runnerUp: { intent: string; probability: number } | null;
   probabilities: Record<string, number>;
   source: IntentSource;
+  isFollowUp?: boolean;
   // Filled by capability-check, read by routeAfterCapability
   capabilityCheck?: { blocked?: boolean; invalid?: boolean; reason?: string };
 }
