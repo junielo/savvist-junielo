@@ -119,6 +119,30 @@ describe('SlotExtractor & SlotSchema', () => {
       );
     });
 
+    it('accepts multi-turn HistoryMessage array and includes it in prompt', async () => {
+      const mockInvoke = jest.fn().mockResolvedValue({
+        content: JSON.stringify({
+          searchName: null,
+          month: null,
+          limit: 1,
+          accountName: null,
+          standaloneQuery: 'What is my most expensive expense?',
+        }),
+      });
+      mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+      const history = [
+        { role: 'user' as const, text: 'What is my most expensive wishlist item?' },
+        { role: 'assistant' as const, text: 'Your most expensive pending wishlist item is Qatar Budget.' },
+      ];
+
+      const slots = await extractor.extract('what about my expenses?', history, 'read_expenses');
+
+      expect(slots.standaloneQuery).toBe('What is my most expensive expense?');
+      expect(mockInvoke).toHaveBeenCalledWith(expect.stringContaining('What is my most expensive wishlist item?'));
+      expect(mockInvoke).toHaveBeenCalledWith(expect.stringContaining('Qatar Budget'));
+    });
+
     it('falls back gracefully on parse error without throwing and logs error', async () => {
       const mockInvoke = jest.fn().mockResolvedValue({
         content: 'Not valid JSON at all',
