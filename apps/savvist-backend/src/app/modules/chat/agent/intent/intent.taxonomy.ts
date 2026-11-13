@@ -54,7 +54,8 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   read_wishlist: {
     group: 'read',
-    description: 'Asks for wishlist items, pending total, or next items by priority.',
+    description:
+      'Asks to view, list, or count wishlist items, including pending items, already purchased or bought items, totals, or items by priority, e.g. "what is on my wishlist", "how many items did I already purchase", "show purchased items", "what should I buy next". Only viewing and querying records. Not adding, deleting, editing, or marking an item as purchased (manage_wishlist).',
   },
   read_record_logs: {
     group: 'read',
@@ -86,7 +87,8 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   manage_wishlist: {
     group: 'write',
-    description: 'Requests to create, edit, delete, or mark purchased a wishlist item.',
+    description:
+      'Requests to create, edit, delete, or change the status of a wishlist item, such as marking an item as bought or purchased, e.g. "add shoes to wishlist", "I bought the watch, mark it purchased", "delete item". An action that changes data. Not asking about, viewing, or counting already purchased items (read_wishlist).',
   },
   swap_wishlist_priority: {
     group: 'write',

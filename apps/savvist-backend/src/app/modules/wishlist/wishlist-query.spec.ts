@@ -121,4 +121,30 @@ describe('WishlistQuery', () => {
     const result = WishlistQueryArgs.safeParse(invalid);
     expect(result.success).toBe(false);
   });
+
+  it('accepts null fields from LLMs and normalizes them cleanly', () => {
+    const llmPayload = {
+      filters: [
+        {
+          field: 'status',
+          op: 'eq',
+          value: 'purchased',
+          valueTo: null,
+          values: null,
+        },
+      ],
+      period: null,
+      sort: null,
+      limit: null,
+    };
+    const result = WishlistQueryArgs.safeParse(llmPayload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.filters[0].value).toBe('purchased');
+      expect(result.data.filters[0].valueTo).toBeFalsy();
+      expect(result.data.period).toBeFalsy();
+      expect(result.data.sort).toBeFalsy();
+      expect(result.data.limit).toBeFalsy();
+    }
+  });
 });

@@ -10,6 +10,8 @@ import { AccountEntriesService } from '../../../account-entries/account-entries.
 import { ObservabilityService } from '../observability/observability.service';
 import { WishlistQueryArgs, applyQuery, Row } from '../../../wishlist/wishlist-query';
 import { todayIn, isValidTimeZone } from '../graph/turn-context';
+import { computeExpenseDueDateInfo, computeNextDueDate } from './date-utils';
+import { ToolDataSource, ExpenseRow, ExpenseDueQuery, filterAndSortExpensesByDueDate } from './data-tools';
 
 const MAX_ITEMS = 10;
 const TREND_DAYS = 30;
@@ -19,7 +21,7 @@ const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const sum = (items: { amount: number }[]) => items.reduce((total, item) => total + item.amount, 0);
 
 @Injectable()
-export class ReadTool {
+export class ReadTool implements ToolDataSource {
   private readonly logger = new Logger(ReadTool.name);
 
   constructor(
@@ -55,7 +57,13 @@ export class ReadTool {
   }
 
   async getExpenses(userId: Types.ObjectId, searchName?: string, options?: { month?: number }) {
-    const all = await this.expensesService.findAll(userId);
+    const [all, user] = await Promise.all([
+      this.expensesService.findAll(userId),
+      this.usersService.findById(userId).catch(() => null),
+    ]);
+
+    const tz = user?.timeZone && isValidTimeZone(user.timeZone) ? user.timeZone : 'Asia/Manila';
+    const today = todayIn(tz, new Date());
 
     const month = options?.month;
     const forMonth = month
@@ -70,16 +78,75 @@ export class ReadTool {
       searchName: searchName ?? null,
       month: month ?? null,
       matchedCount: matched.length,
-      matched: matched.slice(0, MAX_ITEMS).map((exp) => ({
-        name: exp.name,
-        amount: exp.amount,
-        dayOfMonth: exp.dayOfMonth,
-        months: exp.months,
-      })),
+      matched: matched.slice(0, MAX_ITEMS).map((exp) => {
+        const { nextDueDate, daysUntilDue } = computeExpenseDueDateInfo(
+          { dayOfMonth: exp.dayOfMonth, months: exp.months },
+          today,
+        );
+        return {
+          id: (exp as any)._id ? String((exp as any)._id) : undefined,
+          name: exp.name,
+          amount: exp.amount,
+          dayOfMonth: exp.dayOfMonth,
+          months: exp.months,
+          nextDueDate,
+          daysUntilDue,
+        };
+      }),
       monthlyTotal: sum(forMonth),
     });
     this.observability?.setToolCall('read-tool', { method: 'getExpenses', userId: String(userId), searchName, month, result });
     return result;
+  }
+
+  async listExpensesByDueDate(query: ExpenseDueQuery): Promise<ExpenseRow[]> {
+    const userObjectId = new Types.ObjectId(query.userId);
+    const [all, user] = await Promise.all([
+      this.expensesService.findAll(userObjectId),
+      this.usersService.findById(userObjectId).catch(() => null),
+    ]);
+
+    const tz = user?.timeZone && isValidTimeZone(user.timeZone) ? user.timeZone : 'Asia/Manila';
+    const today = todayIn(tz, new Date());
+
+    const rows: ExpenseRow[] = all.map((exp: any) => ({
+      id: String(exp._id),
+      name: exp.name,
+      amount: exp.amount,
+      dueDate: computeNextDueDate(exp.dayOfMonth, exp.months, today),
+    }));
+
+    return filterAndSortExpensesByDueDate(rows, {
+      order: query.order,
+      limit: query.limit,
+      from: query.from,
+      to: query.to,
+      today,
+    });
+  }
+
+  async getExpenseById(userId: string, id: string): Promise<ExpenseRow | null> {
+    try {
+      const userObjectId = new Types.ObjectId(userId);
+      const expenseObjectId = new Types.ObjectId(id);
+      const [exp, user] = await Promise.all([
+        this.expensesService.findOne(userObjectId, expenseObjectId),
+        this.usersService.findById(userObjectId).catch(() => null),
+      ]);
+      if (!exp) return null;
+
+      const tz = user?.timeZone && isValidTimeZone(user.timeZone) ? user.timeZone : 'Asia/Manila';
+      const today = todayIn(tz, new Date());
+
+      return {
+        id: String((exp as any)._id ?? id),
+        name: exp.name,
+        amount: exp.amount,
+        dueDate: computeNextDueDate(exp.dayOfMonth, exp.months, today),
+      };
+    } catch {
+      return null;
+    }
   }
 
   async queryWishlist(userId: Types.ObjectId, args: WishlistQueryArgs) {

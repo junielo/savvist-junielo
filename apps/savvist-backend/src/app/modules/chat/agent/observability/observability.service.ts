@@ -8,6 +8,11 @@ export class ObservabilityService {
   private userMessage = '';
   private nodes: Record<string, any> = {};
   private lastNodeKey: string | null = null;
+  private customLogFilePath: string | null = null;
+
+  setLogFilePath(filePath: string | null): void {
+    this.customLogFilePath = filePath;
+  }
 
   // PascalCase methods as requested
   SetUserMessage(message: string): void {
@@ -67,7 +72,7 @@ export class ObservabilityService {
     if (fs.existsSync(path.dirname(srcDirPath))) {
       dirPath = srcDirPath;
     }
-    const filePath = path.join(dirPath, 'logs.json');
+    const filePath = this.customLogFilePath ?? path.join(dirPath, 'logs.json');
 
     try {
       if (!fs.existsSync(dirPath)) {

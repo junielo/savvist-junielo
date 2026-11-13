@@ -33,19 +33,19 @@ export const WishlistQueryArgs = z.object({
   filters: z.array(z.object({
     field: FieldName,
     op: z.enum(['eq', 'lt', 'lte', 'gt', 'gte', 'between', 'contains', 'in']),
-    value: z.union([z.string(), z.number()]).optional(),
-    valueTo: z.union([z.string(), z.number()]).optional(),
-    values: z.array(z.string()).optional(),
-  })).max(5).default([]),
+    value: z.union([z.string(), z.number()]).nullable().optional(),
+    valueTo: z.union([z.string(), z.number()]).nullable().optional(),
+    values: z.array(z.string()).nullable().optional(),
+  })).max(5).nullish().transform((v) => v ?? []).default([]),
   period: z.object({
     field: z.enum(['createdAt', 'purchasedAt']),
     token: z.enum(PERIOD_TOKENS),
-  }).optional(),
+  }).nullable().optional(),
   sort: z.object({
     field: z.enum(['amount', 'priority', 'name', 'createdAt', 'purchasedAt']),
     direction: z.enum(['asc', 'desc']),
-  }).optional(),
-  limit: z.number().int().min(1).max(50).optional(),
+  }).nullable().optional(),
+  limit: z.number().int().min(1).max(50).nullable().optional(),
 }).superRefine((args, ctx) => {
   for (const [index, f] of (args.filters ?? []).entries()) {
     const fieldConfig = WISHLIST_FIELDS[f.field];
@@ -131,7 +131,7 @@ export const WishlistQueryArgs = z.object({
 
 export type WishlistQueryArgs = z.infer<typeof WishlistQueryArgs>;
 
-export type Filter = WishlistQueryArgs['filters'][number];
+export type Filter = NonNullable<WishlistQueryArgs['filters']>[number];
 
 export type Row = {
   id: string;

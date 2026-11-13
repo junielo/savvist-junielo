@@ -33,6 +33,65 @@ export function addDays(date: string, n: number): string {
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }
 
+/** Returns the number of calendar days in a given year and month (1 = Jan ... 12 = Dec). */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * Computes the next calendar date (YYYY-MM-DD) for a recurring expense on or after `today`.
+ * Handles month-end clamping (e.g. day 31 in April clamps to 30; in Feb clamps to 28/29).
+ * If `months` is provided and non-empty, only those month numbers (1-12) are eligible.
+ */
+export function computeNextDueDate(
+  dayOfMonth: number,
+  months: number[] = [],
+  today: string = todayIn('UTC'),
+): string | null {
+  if (dayOfMonth < 1 || dayOfMonth > 31) return null;
+
+  const [currYear, currMonth] = today.split('-').map(Number);
+  if (!currYear || !currMonth) return null;
+
+  // Search forward up to 24 months (two complete annual cycles)
+  for (let offset = 0; offset <= 24; offset++) {
+    const totalMonthIndex = currMonth - 1 + offset;
+    const year = currYear + Math.floor(totalMonthIndex / 12);
+    const month = (totalMonthIndex % 12) + 1;
+
+    if (months && months.length > 0 && !months.includes(month)) {
+      continue;
+    }
+
+    const maxDay = daysInMonth(year, month);
+    const day = Math.min(dayOfMonth, maxDay);
+    const iso = toIso(year, month, day);
+
+    if (iso && iso >= today) {
+      return iso;
+    }
+  }
+
+  return null;
+}
+
+export interface DueDateInfo {
+  nextDueDate: string | null;
+  daysUntilDue: number | null;
+}
+
+/**
+ * Returns nextDueDate and daysUntilDue computed relative to `today`.
+ */
+export function computeExpenseDueDateInfo(
+  expense: { dayOfMonth: number; months?: number[] },
+  today: string,
+): DueDateInfo {
+  const nextDueDate = computeNextDueDate(expense.dayOfMonth, expense.months, today);
+  const daysUntilDue = nextDueDate ? daysBetween(today, nextDueDate) : null;
+  return { nextDueDate, daysUntilDue };
+}
+
 const MONTHS = [
   'january', 'february', 'march', 'april', 'may', 'june',
   'july', 'august', 'september', 'october', 'november', 'december',

@@ -5,7 +5,7 @@ import * as path from 'path';
 
 describe('ObservabilityService', () => {
   let service: ObservabilityService;
-  const logFilePath = path.join(__dirname, 'logs.json');
+  const logFilePath = path.join(__dirname, 'logs.test.json');
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -13,6 +13,7 @@ describe('ObservabilityService', () => {
     }).compile();
 
     service = module.get<ObservabilityService>(ObservabilityService);
+    service.setLogFilePath(logFilePath);
 
     if (fs.existsSync(logFilePath)) {
       fs.unlinkSync(logFilePath);

@@ -15,8 +15,8 @@ import { stateGuardNode, StateGuardOptions } from './nodes/state-guard.node';
 import { classifyIntentNode, type ClassifyIntentDeps } from './nodes/classify-intent.node';
 import { extractSlotsNodeFactory } from './nodes/extract-slots.node';
 import { clarifyNode } from './nodes/clarify.node';
-import { capabilityCheckNode } from './nodes/capability-check.node';
-import { blockedNode } from './nodes/blocked.node';
+import { capabilityCheckNodeFactory } from './nodes/capability-check.node';
+import { blockedNodeFactory } from './nodes/blocked.node';
 import { readDataNodeFactory } from './nodes/read-data.node';
 import { analyzeNode } from './nodes/analyze.node';
 import { prepareActionNode } from './nodes/prepare-action.node';
@@ -33,6 +33,7 @@ import {
 import { SlotExtractor } from '../llm/slot-extractor';
 import { ReadTool } from '../tools/read.tool';
 import { ReplyWriter } from '../llm/reply-writer';
+import { CapabilityCheckService } from '../capabilities/capability-check.service';
 import { ObservabilityService } from '../observability/observability.service';
 
 export interface AgentDeps extends ClassifyIntentDeps {
@@ -43,6 +44,7 @@ export interface AgentDeps extends ClassifyIntentDeps {
   replyWriter?: ReplyWriter;
   observability?: ObservabilityService;
   toolLoop?: ToolLoopDeps; // { model, dataSource } for the data_question tool loop
+  capabilityService?: CapabilityCheckService;
 }
 
 export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) {
@@ -54,8 +56,8 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('classify-intent', classifyIntentNode(deps))
     .addNode('extract-slots', extractSlotsNodeFactory({ slotExtractor: deps.slotExtractor, observability: deps.observability }))
     .addNode('clarify', clarifyNode)
-    .addNode('capability-check', capabilityCheckNode)
-    .addNode('blocked', blockedNode)
+    .addNode('capability-check', capabilityCheckNodeFactory({ capabilityService: deps.capabilityService, observability: deps.observability }))
+    .addNode('blocked', blockedNodeFactory({ observability: deps.observability }))
     .addNode('read-data', readDataNodeFactory({ readTool: deps.readTool, observability: deps.observability }))
     .addNode('analyze', analyzeNode)
     .addNode('tool-loop-init', toolLoopInitNode)

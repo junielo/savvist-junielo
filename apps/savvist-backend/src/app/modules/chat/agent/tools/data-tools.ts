@@ -44,6 +44,76 @@ const isoDate = z
   .refine((d) => new Date(`${d}T00:00:00Z`).toISOString().startsWith(d), 'Not a real calendar date');
 
 /* ------------------------------------------------------------------ */
+/* Standalone Core Functions (usable by other modules/services)       */
+/* ------------------------------------------------------------------ */
+
+export interface ExpenseRowWithDays extends ExpenseRow {
+  dueDate: string;
+  daysUntilDue: number;
+}
+
+export function filterAndSortExpensesByDueDate(
+  rows: ExpenseRow[],
+  options: {
+    order?: 'asc' | 'desc';
+    limit?: number;
+    from?: string;
+    to?: string;
+    today: string;
+  },
+): ExpenseRowWithDays[] {
+  const order = options.order ?? 'asc';
+  const limit = options.limit ?? 5;
+  return rows
+    .filter((r): r is ExpenseRow & { dueDate: string } => {
+      if (!r.dueDate) return false;
+      if (options.from && r.dueDate < options.from) return false;
+      if (options.to && r.dueDate > options.to) return false;
+      return true;
+    })
+    .sort((a, b) =>
+      order === 'asc'
+        ? a.dueDate.localeCompare(b.dueDate)
+        : b.dueDate.localeCompare(a.dueDate),
+    )
+    .slice(0, limit)
+    .map((r) => ({
+      ...r,
+      daysUntilDue: daysBetween(options.today, r.dueDate),
+    }));
+}
+
+export function countDaysUntilExpenseDueCore(
+  expense: ExpenseRow | null,
+  today: string,
+  requestedId?: string,
+): { error?: string; id?: string; name?: string; dueDate?: string; daysUntilDue?: number } {
+  if (!expense) {
+    return {
+      error: `No expense with id "${requestedId ?? 'unknown'}". Use an id from getUpcomingExpenses or getAllExpenseDateSorted.`,
+    };
+  }
+  if (!expense.dueDate) {
+    return { error: `Expense "${expense.name}" has no due date.` };
+  }
+  return {
+    id: expense.id,
+    name: expense.name,
+    dueDate: expense.dueDate,
+    daysUntilDue: daysBetween(today, expense.dueDate),
+  };
+}
+
+export function countDaysBetweenDatesCore(
+  from: string | undefined,
+  to: string,
+  today: string,
+): { from: string; to: string; days: number } {
+  const start = from ?? today;
+  return { from: start, to, days: daysBetween(start, to) };
+}
+
+/* ------------------------------------------------------------------ */
 /* Tools. Built per turn because they close over the user and time zone */
 /* Every tool is read-only; writes never go through this loop.          */
 /* ------------------------------------------------------------------ */
@@ -60,12 +130,13 @@ export function createDataTools(ctx: ToolContext, source: ToolDataSource) {
   /** Fetch, defensively sort/trim, and attach daysUntilDue computed in code. */
   const fetchByDueDate = async (q: Omit<ExpenseDueQuery, 'userId'>) => {
     const rows = await source.listExpensesByDueDate({ userId: ctx.userId, ...q });
-    const t = today();
-    return rows
-      .filter((r): r is ExpenseRow & { dueDate: string } => !!r.dueDate)
-      .sort((a, b) => (q.order === 'asc' ? a.dueDate.localeCompare(b.dueDate) : b.dueDate.localeCompare(a.dueDate)))
-      .slice(0, q.limit)
-      .map((r) => ({ ...r, daysUntilDue: daysBetween(t, r.dueDate) }));
+    return filterAndSortExpensesByDueDate(rows, {
+      order: q.order,
+      limit: q.limit,
+      from: q.from,
+      to: q.to,
+      today: today(),
+    });
   };
 
   const getCurrentDate = tool(async () => {
@@ -141,10 +212,7 @@ export function createDataTools(ctx: ToolContext, source: ToolDataSource) {
   const countDaysUntilExpenseDue = tool(
     async ({ expenseId }) => {
       const e = await source.getExpenseById(ctx.userId, expenseId);
-      let res: any;
-      if (!e) res = { error: `No expense with id "${expenseId}". Use an id from getUpcomingExpenses or getAllExpenseDateSorted.` };
-      else if (!e.dueDate) res = { error: `Expense "${e.name}" has no due date.` };
-      else res = { id: e.id, name: e.name, dueDate: e.dueDate, daysUntilDue: daysBetween(today(), e.dueDate) };
+      const res = countDaysUntilExpenseDueCore(e, today(), expenseId);
       recordCall('countDaysUntilExpenseDue', { expenseId }, res);
       return json(res);
     },
@@ -159,8 +227,7 @@ export function createDataTools(ctx: ToolContext, source: ToolDataSource) {
 
   const countDaysBetweenDates = tool(
     async ({ from, to }) => {
-      const start = from ?? today();
-      const res = { from: start, to, days: daysBetween(start, to) };
+      const res = countDaysBetweenDatesCore(from, to, today());
       recordCall('countDaysBetweenDates', { from, to }, res);
       return json(res);
     },

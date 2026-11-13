@@ -9,6 +9,7 @@ import { CHECKPOINTER } from './persistence/mongo-checkpointer.provider';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReadTool } from './tools/read.tool';
 import { ReplyWriter } from './llm/reply-writer';
+import { CapabilityCheckService } from './capabilities/capability-check.service';
 import { ObservabilityService } from './observability/observability.service';
 
 export interface AgentReply {
@@ -28,6 +29,7 @@ export class AgentService {
     slotExtractor: SlotExtractor,
     readTool: ReadTool,
     replyWriter: ReplyWriter,
+    capabilityCheck: CapabilityCheckService,
     config: ConfigService,
   ) {
     this.graph = buildGraph(
@@ -36,6 +38,7 @@ export class AgentService {
         slotExtractor,
         readTool,
         replyWriter,
+        capabilityService: capabilityCheck,
         observability: this.observeService,
         loadContext: {
           defaultTimeZone: config.get<string>('AGENT_DEFAULT_TIMEZONE', 'Asia/Manila'),

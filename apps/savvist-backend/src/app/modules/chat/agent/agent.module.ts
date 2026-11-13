@@ -9,6 +9,7 @@ import { GeminiService } from './llm/gemini.service';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReplyWriter } from './llm/reply-writer';
 import { ReadTool } from './tools/read.tool';
+import { CapabilityCheckService } from './capabilities/capability-check.service';
 import { DashboardModule } from '../../dashboard/dashboard.module';
 import { ExpensesModule } from '../../expenses/expenses.module';
 import { WishlistModule } from '../../wishlist/wishlist.module';
@@ -35,16 +36,22 @@ import { ObservabilityService } from './observability/observability.service';
     // 1. Provides CHECKPOINTER
     mongoCheckpointerProvider,
 
-    // 2. Provides INTENT_CLASSIFIER
+    // 2. Provides JevClient and INTENT_CLASSIFIER
     {
-      provide: INTENT_CLASSIFIER,
+      provide: JevClient,
       inject: [ConfigService, ObservabilityService],
       useFactory: (config: ConfigService, observability: ObservabilityService) => {
-        const jev = new JevClient({
+        return new JevClient({
           model: config.get<string>('JEV_MODEL', 'jev-latest'),
           timeoutMs: config.get<number>('JEV_TIMEOUT_MS', 5000),
           observability,
         });
+      },
+    },
+    {
+      provide: INTENT_CLASSIFIER,
+      inject: [JevClient, ConfigService],
+      useFactory: (jev: JevClient, config: ConfigService) => {
         return new JevIntentClassifier(jev, {
           minConfidence: config.get<number>('INTENT_MIN_CONFIDENCE', 0.6),
           minMargin: config.get<number>('INTENT_MIN_MARGIN', 0.15),
@@ -52,7 +59,8 @@ import { ObservabilityService } from './observability/observability.service';
       },
     },
 
-    // 3. LLM & Tools
+    // 3. Capabilities, LLM & Tools
+    CapabilityCheckService,
     GeminiService,
     SlotExtractor,
     ReplyWriter,
