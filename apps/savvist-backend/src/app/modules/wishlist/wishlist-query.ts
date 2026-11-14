@@ -29,6 +29,37 @@ export const PERIOD_TOKENS = [
 
 const FieldName = z.enum(['amount', 'name', 'status', 'priority', 'createdAt', 'purchasedAt']);
 
+export const AggregateGroupBy = z.enum(['month', 'year', 'priority', 'status']);
+export type AggregateGroupBy = z.infer<typeof AggregateGroupBy>;
+
+export const AggregateMetric = z.enum(['sum', 'count', 'avg', 'min', 'max']);
+export type AggregateMetric = z.infer<typeof AggregateMetric>;
+
+export const AggregateArgs = z.object({
+  groupBy: AggregateGroupBy.nullish().transform((v) => v ?? null),
+  dateField: z.enum(['purchasedAt', 'createdAt']).nullish().transform((v) => v ?? null),
+  metric: AggregateMetric.nullish().transform((v) => v ?? 'sum').default('sum'),
+  field: z.enum(['amount']).nullish().transform((v) => v ?? 'amount').default('amount'),
+});
+export type AggregateArgs = z.infer<typeof AggregateArgs>;
+
+export interface AggregateGroupResult {
+  key: string;
+  value: number;
+  count: number;
+  totalAmount: number;
+  items: string[];
+}
+
+export interface AggregateResult {
+  groupBy: AggregateGroupBy | null;
+  metric: AggregateMetric;
+  field: string;
+  totalMatched: number;
+  overallTotal: number;
+  groups: AggregateGroupResult[];
+}
+
 export const WishlistQueryArgs = z.object({
   filters: z.array(z.object({
     field: FieldName,
@@ -46,6 +77,7 @@ export const WishlistQueryArgs = z.object({
     direction: z.enum(['asc', 'desc']),
   }).nullable().optional(),
   limit: z.number().int().min(1).max(50).nullable().optional(),
+  aggregate: AggregateArgs.nullish().transform((v) => v ?? null),
 }).superRefine((args, ctx) => {
   for (const [index, f] of (args.filters ?? []).entries()) {
     const fieldConfig = WISHLIST_FIELDS[f.field];
@@ -220,6 +252,103 @@ export function resolvePeriod(token: typeof PERIOD_TOKENS[number], today: string
   }
 }
 
+export function applyWishlistAggregation(matchedRows: Row[], agg: AggregateArgs): AggregateResult {
+  const isPurchasedFilter = matchedRows.some((r) => r.status === 'purchased') || !matchedRows.some((r) => r.status === 'pending');
+  const dateField = agg.dateField ?? (isPurchasedFilter ? 'purchasedAt' : 'createdAt');
+
+  const resolveKey = (r: Row): string => {
+    if (!agg.groupBy) return 'all';
+    switch (agg.groupBy) {
+      case 'status':
+        return r.status ?? 'pending';
+      case 'priority':
+        return r.priority ?? 'normal';
+      case 'month': {
+        const d = dateField === 'purchasedAt' ? (r.purchasedAt ?? r.createdAt) : (r.createdAt ?? r.purchasedAt);
+        return d ? d.substring(0, 7) : 'undated';
+      }
+      case 'year': {
+        const d = dateField === 'purchasedAt' ? (r.purchasedAt ?? r.createdAt) : (r.createdAt ?? r.purchasedAt);
+        return d ? d.substring(0, 4) : 'undated';
+      }
+      default:
+        return 'all';
+    }
+  };
+
+  const calcMetric = (amounts: number[], metric: AggregateMetric): number => {
+    if (amounts.length === 0) return 0;
+    const sum = amounts.reduce((a, b) => a + b, 0);
+    switch (metric) {
+      case 'sum':
+        return sum;
+      case 'count':
+        return amounts.length;
+      case 'avg':
+        return Math.round((sum / amounts.length) * 100) / 100;
+      case 'min':
+        return Math.min(...amounts);
+      case 'max':
+        return Math.max(...amounts);
+      default:
+        return sum;
+    }
+  };
+
+  const groupMap = new Map<string, { rows: Row[]; amounts: number[] }>();
+
+  for (const row of matchedRows) {
+    const key = resolveKey(row);
+    let group = groupMap.get(key);
+    if (!group) {
+      group = { rows: [], amounts: [] };
+      groupMap.set(key, group);
+    }
+    group.rows.push(row);
+    group.amounts.push(row.amount);
+  }
+
+  let sortedKeys = Array.from(groupMap.keys());
+  if (agg.groupBy === 'month' || agg.groupBy === 'year') {
+    sortedKeys = sortedKeys.sort((a, b) => {
+      if (a === 'undated') return 1;
+      if (b === 'undated') return -1;
+      return a.localeCompare(b);
+    });
+  } else if (agg.groupBy === 'priority') {
+    sortedKeys = sortedKeys.sort((a, b) => {
+      const rankA = PRIORITY_RANK[a as Priority] ?? 99;
+      const rankB = PRIORITY_RANK[b as Priority] ?? 99;
+      return rankA - rankB;
+    });
+  } else if (agg.groupBy === 'status') {
+    sortedKeys = sortedKeys.sort((a, b) => a.localeCompare(b));
+  }
+
+  const groups: AggregateGroupResult[] = sortedKeys.map((k) => {
+    const g = groupMap.get(k)!;
+    const totalAmount = g.amounts.reduce((a, b) => a + b, 0);
+    return {
+      key: k,
+      value: calcMetric(g.amounts, agg.metric),
+      count: g.rows.length,
+      totalAmount,
+      items: g.rows.map((r) => r.name),
+    };
+  });
+
+  const allAmounts = matchedRows.map((r) => r.amount);
+
+  return {
+    groupBy: agg.groupBy ?? null,
+    metric: agg.metric,
+    field: agg.field,
+    totalMatched: matchedRows.length,
+    overallTotal: calcMetric(allAmounts, agg.metric),
+    groups,
+  };
+}
+
 export function applyQuery(rows: Row[], args: WishlistQueryArgs, ctx: { today: string; tz: string }) {
   const filters: Filter[] = [...(args.filters ?? [])];
 
@@ -232,7 +361,13 @@ export function applyQuery(rows: Row[], args: WishlistQueryArgs, ctx: { today: s
     filters.push({ field: 'status', op: 'eq', value: 'pending' });
   }
 
-  let out = rows.filter(r => filters.every(f => testRow(r, f)));
+  const matched = rows.filter(r => filters.every(f => testRow(r, f)));
+
+  const aggregateResult = args.aggregate
+    ? applyWishlistAggregation(matched, args.aggregate)
+    : null;
+
+  let out = [...matched];
 
   if (args.sort) {
     const { field, direction } = args.sort;
@@ -246,5 +381,5 @@ export function applyQuery(rows: Row[], args: WishlistQueryArgs, ctx: { today: s
     out = out.slice(0, args.limit);
   }
 
-  return { rows: out, appliedFilters: filters };
+  return { rows: out, appliedFilters: filters, aggregateResult };
 }

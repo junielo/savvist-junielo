@@ -136,6 +136,7 @@ describe('WishlistQuery', () => {
       period: null,
       sort: null,
       limit: null,
+      aggregate: null,
     };
     const result = WishlistQueryArgs.safeParse(llmPayload);
     expect(result.success).toBe(true);
@@ -145,6 +146,126 @@ describe('WishlistQuery', () => {
       expect(result.data.period).toBeFalsy();
       expect(result.data.sort).toBeFalsy();
       expect(result.data.limit).toBeFalsy();
+      expect(result.data.aggregate).toBeNull();
     }
+  });
+
+  describe('dynamic aggregation', () => {
+    const purchasedRows: Row[] = [
+      {
+        id: '1',
+        name: 'Keyboard',
+        amount: 3000,
+        priority: 'priority',
+        status: 'purchased',
+        createdAt: '2026-08-01',
+        purchasedAt: '2026-08-15',
+      },
+      {
+        id: '2',
+        name: 'Monitor',
+        amount: 12000,
+        priority: 'asap',
+        status: 'purchased',
+        createdAt: '2026-09-01',
+        purchasedAt: '2026-09-10',
+      },
+      {
+        id: '3',
+        name: 'Mouse',
+        amount: 2500,
+        priority: 'normal',
+        status: 'purchased',
+        createdAt: '2026-09-05',
+        purchasedAt: '2026-09-22',
+      },
+      {
+        id: '4',
+        name: 'Desk Pad',
+        amount: 800,
+        priority: 'peripheral',
+        status: 'purchased',
+        createdAt: '2026-10-01',
+        purchasedAt: '2026-10-05',
+      },
+    ];
+
+    it('aggregates total purchased amount grouped by month', () => {
+      const args = WishlistQueryArgs.parse({
+        filters: [{ field: 'status', op: 'eq', value: 'purchased' }],
+        aggregate: {
+          groupBy: 'month',
+          dateField: 'purchasedAt',
+          metric: 'sum',
+        },
+      });
+
+      const res = applyQuery(purchasedRows, args, ctx);
+      expect(res.aggregateResult).toBeDefined();
+      expect(res.aggregateResult?.groupBy).toBe('month');
+      expect(res.aggregateResult?.metric).toBe('sum');
+      expect(res.aggregateResult?.totalMatched).toBe(4);
+      expect(res.aggregateResult?.overallTotal).toBe(18300);
+
+      const groups = res.aggregateResult!.groups;
+      expect(groups).toHaveLength(3);
+
+      // 2026-08: Keyboard (3000)
+      expect(groups[0].key).toBe('2026-08');
+      expect(groups[0].value).toBe(3000);
+      expect(groups[0].count).toBe(1);
+      expect(groups[0].items).toEqual(['Keyboard']);
+
+      // 2026-09: Monitor (12000) + Mouse (2500) = 14500
+      expect(groups[1].key).toBe('2026-09');
+      expect(groups[1].value).toBe(14500);
+      expect(groups[1].count).toBe(2);
+      expect(groups[1].items).toEqual(['Monitor', 'Mouse']);
+
+      // 2026-10: Desk Pad (800)
+      expect(groups[2].key).toBe('2026-10');
+      expect(groups[2].value).toBe(800);
+      expect(groups[2].count).toBe(1);
+      expect(groups[2].items).toEqual(['Desk Pad']);
+    });
+
+    it('aggregates count grouped by priority', () => {
+      const args = WishlistQueryArgs.parse({
+        filters: [{ field: 'status', op: 'eq', value: 'purchased' }],
+        aggregate: {
+          groupBy: 'priority',
+          metric: 'count',
+        },
+      });
+
+      const res = applyQuery(purchasedRows, args, ctx);
+      expect(res.aggregateResult).toBeDefined();
+      expect(res.aggregateResult?.metric).toBe('count');
+      expect(res.aggregateResult?.overallTotal).toBe(4);
+
+      const groups = res.aggregateResult!.groups;
+      // asap, priority, normal, peripheral
+      expect(groups.map((g) => g.key)).toEqual(['asap', 'priority', 'normal', 'peripheral']);
+      expect(groups.find((g) => g.key === 'asap')?.value).toBe(1);
+      expect(groups.find((g) => g.key === 'normal')?.value).toBe(1);
+    });
+
+    it('aggregates average amount with no groupBy (overall average)', () => {
+      const args = WishlistQueryArgs.parse({
+        filters: [{ field: 'status', op: 'eq', value: 'purchased' }],
+        aggregate: {
+          groupBy: null,
+          metric: 'avg',
+        },
+      });
+
+      const res = applyQuery(purchasedRows, args, ctx);
+      expect(res.aggregateResult).toBeDefined();
+      expect(res.aggregateResult?.groupBy).toBeNull();
+      expect(res.aggregateResult?.metric).toBe('avg');
+      // (3000 + 12000 + 2500 + 800) / 4 = 18300 / 4 = 4575
+      expect(res.aggregateResult?.overallTotal).toBe(4575);
+      expect(res.aggregateResult?.groups[0].value).toBe(4575);
+    });
   });
 });

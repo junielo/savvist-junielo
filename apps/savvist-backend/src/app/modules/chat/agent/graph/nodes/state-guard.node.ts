@@ -20,6 +20,8 @@ export function stateGuardNode(opts: StateGuardOptions = {}) {
           clarification_turns: 0,
           intentResult: null,
           slots: null,
+          readResult: null,
+          rewrittenQuery: null,
         };
       }
       // Normal case: the user is answering our question.
@@ -33,6 +35,8 @@ export function stateGuardNode(opts: StateGuardOptions = {}) {
     return {
       intentResult: null,
       slots: null,
+      readResult: null,
+      rewrittenQuery: null,
       clarification_turns: 0,
     };
   };

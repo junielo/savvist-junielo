@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { SlotExtractor, SlotSchema } from './slot-extractor';
 
 describe('SlotExtractor & SlotSchema', () => {
@@ -57,6 +58,12 @@ describe('SlotExtractor & SlotSchema', () => {
           period: null,
           sort: null,
           limit: null,
+          aggregate: {
+            groupBy: 'month',
+            dateField: 'purchasedAt',
+            metric: 'sum',
+            field: 'amount',
+          },
         },
       };
 
@@ -66,6 +73,8 @@ describe('SlotExtractor & SlotSchema', () => {
         expect(result.data.readArgs?.filters[0].field).toBe('status');
         expect(result.data.readArgs?.filters[0].value).toBe('purchased');
         expect(result.data.readArgs?.period).toBeFalsy();
+        expect(result.data.readArgs?.aggregate?.groupBy).toBe('month');
+        expect(result.data.readArgs?.aggregate?.metric).toBe('sum');
       }
     });
 

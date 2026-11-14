@@ -168,7 +168,7 @@ export class ReadTool implements ToolDataSource {
       purchasedAt: i.purchasedAt ? new Date(i.purchasedAt).toISOString().split('T')[0] : null,
     }));
 
-    const { rows: matched, appliedFilters } = applyQuery(rows, args, { today, tz });
+    const { rows: matched, appliedFilters, aggregateResult } = applyQuery(rows, args, { today, tz });
     const limit = args.limit ?? MAX_ITEMS;
 
     const result = plain({
@@ -181,6 +181,7 @@ export class ReadTool implements ToolDataSource {
       sum: sum(matched),
       pendingTotal: sum(rows.filter((r) => r.status === 'pending')),
       items: matched.slice(0, limit),
+      aggregate: aggregateResult ?? null,
     });
 
     this.observability?.setToolCall('read-tool', { method: 'queryWishlist', userId: String(userId), args, result });

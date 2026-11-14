@@ -37,14 +37,15 @@ export const extractSlotsNodeFactory = (deps: ExtractSlotsDeps | SlotExtractor =
       .filter((h) => h.text.trim().length > 0);
 
     const intent = state.intentResult?.intent;
-    const effectiveMessage = state.rewrittenQuery || lastUserMessage;
+    const isFollowUp = Boolean(state.intentResult?.isFollowUp);
+    const effectiveMessage = (isFollowUp && state.rewrittenQuery) ? state.rewrittenQuery : lastUserMessage;
 
     if (!slotExtractor) {
       return { slots: { searchName: null, month: null, limit: null, accountName: null, standaloneQuery: effectiveMessage } };
     }
 
     const slots = await slotExtractor.extract(effectiveMessage, recentHistory, intent);
-    if (state.rewrittenQuery && (!slots.standaloneQuery || slots.standaloneQuery === lastUserMessage)) {
+    if (isFollowUp && state.rewrittenQuery && (!slots.standaloneQuery || slots.standaloneQuery === lastUserMessage)) {
       slots.standaloneQuery = state.rewrittenQuery;
     }
 

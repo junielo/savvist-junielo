@@ -55,7 +55,7 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   read_wishlist: {
     group: 'read',
     description:
-      'Asks to view, list, or count wishlist items, including pending items, already purchased or bought items, totals, or items by priority, e.g. "what is on my wishlist", "how many items did I already purchase", "show purchased items", "what should I buy next". Only viewing and querying records. Not adding, deleting, editing, or marking an item as purchased (manage_wishlist).',
+      'Asks to view, list, or count wishlist items, including pending items, already purchased or bought items, totals, breakdown by month, or items by priority, e.g. "what is on my wishlist", "how many items did I already purchase", "show purchased items", "what is the total purchased wishlist item that I purchased each month", "what should I buy next". Only viewing and querying records. Not adding, deleting, editing, or marking an item as purchased (manage_wishlist).',
   },
   read_record_logs: {
     group: 'read',

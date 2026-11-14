@@ -35,7 +35,13 @@ Return ONLY a JSON object, with no markdown and no extra text, in exactly this s
       "field": "amount" | "priority" | "name" | "createdAt" | "purchasedAt",
       "direction": "asc" | "desc"
     } | null,
-    "limit": number | null
+    "limit": number | null,
+    "aggregate": {
+      "groupBy": "month" | "year" | "priority" | "status" | null,
+      "dateField": "purchasedAt" | "createdAt" | null,
+      "metric": "sum" | "count" | "avg" | "min" | "max",
+      "field": "amount"
+    } | null
   } | null
 }
 Rules:
@@ -46,6 +52,11 @@ Rules:
 - "highest priority", "most important" → sort priority asc (asap is rank 0).
 - Do not set status unless user mentions purchased, bought or all items.
 - For relative dates ("last month", "this week") use period.
+- Aggregation: If user asks for totals, counts, averages, breakdowns, or summaries across categories or time intervals (e.g. "each month", "per month", "by priority", "average cost"):
+  - Set "aggregate" with "groupBy" ("month", "year", "priority", "status", or null for overall).
+  - Set "dateField" to "purchasedAt" for purchased/bought items, or "createdAt" otherwise.
+  - Set "metric" to "sum" (default for total amounts), "count" (for item counts), "avg", "min", or "max".
+  - If grouping by month or year, do not set limit on items so full aggregation is computed.
 - Standalone Query: If the current message is an elliptical follow-up, continuation, or pronoun reference that relies on prior context, use the conversation history to resolve all elided predicates, superlatives, constraints, filters, and subject matters into a complete, self-contained question. If already self-contained, use the user message directly.
 - If resolving an elliptical follow-up that inherits a ranking or filter from earlier turns, apply the corresponding sort and limit.
 

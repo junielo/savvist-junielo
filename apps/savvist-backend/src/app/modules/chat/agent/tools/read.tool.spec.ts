@@ -135,4 +135,48 @@ describe('ReadTool - Expenses with Due Dates', () => {
       expect(row).toBeNull();
     });
   });
+
+  describe('queryWishlist', () => {
+    it('executes dynamic aggregation and returns aggregate in result payload', async () => {
+      mockWishlistService.findAll.mockResolvedValue([
+        {
+          _id: new Types.ObjectId('6adf58efb1a87dfd54b8d3c1'),
+          name: 'Noise Cancelling Headphones',
+          amount: 8000,
+          priority: 'asap',
+          status: 'purchased',
+          createdAt: new Date('2026-09-01'),
+          purchasedAt: new Date('2026-09-15'),
+        },
+        {
+          _id: new Types.ObjectId('6adf58efb1a87dfd54b8d3c2'),
+          name: 'Mechanical Keyboard',
+          amount: 4500,
+          priority: 'priority',
+          status: 'purchased',
+          createdAt: new Date('2026-10-01'),
+          purchasedAt: new Date('2026-10-12'),
+        },
+      ]);
+
+      const result = await readTool.queryWishlist(userId, {
+        filters: [{ field: 'status', op: 'eq', value: 'purchased' }],
+        aggregate: {
+          groupBy: 'month',
+          dateField: 'purchasedAt',
+          metric: 'sum',
+        },
+      });
+
+      expect(result.found).toBe(true);
+      expect(result.aggregate).toBeDefined();
+      expect(result.aggregate.groupBy).toBe('month');
+      expect(result.aggregate.overallTotal).toBe(12500);
+      expect(result.aggregate.groups).toHaveLength(2);
+      expect(result.aggregate.groups[0].key).toBe('2026-09');
+      expect(result.aggregate.groups[0].value).toBe(8000);
+      expect(result.aggregate.groups[1].key).toBe('2026-10');
+      expect(result.aggregate.groups[1].value).toBe(4500);
+    });
+  });
 });
