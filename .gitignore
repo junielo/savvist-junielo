@@ -65,3 +65,4 @@ skills-lock.json
 # Observability logs
 **/observability/logs.json
 logs.json
+apps/savvist-backend/src/app/modules/chat/agent/observability/prev-logs.json
