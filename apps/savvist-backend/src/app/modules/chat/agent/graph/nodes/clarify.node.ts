@@ -33,6 +33,12 @@ export const clarifyNodeFactory = (deps: ClarifyNodeDeps = {}) => {
             'Which account and balance would you like to record? (For example: BDO 45,000, GCredit 11,000)',
         };
       }
+      if (ir?.intent === 'update_base_salary') {
+        return {
+          awaiting_clarification:
+            'What is your new base salary amount, or would you like to set your status to unemployed?',
+        };
+      }
       return {
         awaiting_clarification:
           'Could you provide more details so I can find what you are looking for?',

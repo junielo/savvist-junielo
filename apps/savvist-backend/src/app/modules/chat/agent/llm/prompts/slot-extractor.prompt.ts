@@ -77,6 +77,8 @@ Return ONLY a JSON object, with no markdown and no extra text, in exactly this s
   "limit": number | null,
   "accountName": string | null,
   "amount": number | null,
+  "baseSalary": number | null,
+  "isUnemployed": boolean | null,
   "entries": [
     { "accountName": string, "amount": number }
   ] | null,
@@ -91,6 +93,9 @@ Rules:
 - If a specific name or entity is searched, extract searchName.
 - If a specific financial account is referenced, extract accountName.
 - If a monetary amount is mentioned (e.g. to record, update, deposit, or spend), normalize it to a number ("35k" → 35000, "1,500" → 1500) and extract into amount.
+- If updating base salary or employment status:
+  - If the user states they are unemployed, lost their job, or are without work, set isUnemployed: true and baseSalary: 0.
+  - If the user provides a new base salary (e.g. "change base salary to 50k", "my salary is now 60,000", "employed with 75k salary"), extract the numeric salary into baseSalary and set isUnemployed: false.
 - If one or multiple account balances are stated for recording or updating (e.g. "Today, my BDO amount is 45,000 and for GCredit is 11,000"), extract every account-amount pair into "entries" as an array of objects: [{"accountName": "BDO", "amount": 45000}, {"accountName": "GCredit", "amount": 11000}]. Also set "accountName" and "amount" to the first entry.
 - If a specific date, relative day ("today", "yesterday", "tomorrow"), or calendar date is mentioned or asked about, extract it into date. If user says "today", extract "today" (or ${today}).
 

@@ -6,6 +6,7 @@ describe('WriteTool', () => {
   let writeTool: WriteTool;
   let mockAccountEntriesService: any;
   let mockEntryRecordsService: any;
+  let mockUsersService: any;
   let mockObservability: any;
 
   const userId = new Types.ObjectId('6adf58efb1a87dfd54b8d3a3');
@@ -31,6 +32,20 @@ describe('WriteTool', () => {
         }),
       ),
     };
+    mockUsersService = {
+      findById: jest.fn().mockResolvedValue({
+        _id: userId,
+        baseSalary: 30000,
+        isUnemployed: false,
+      }),
+      updateUser: jest.fn().mockImplementation((_uid, dto) =>
+        Promise.resolve({
+          _id: userId,
+          baseSalary: dto.baseSalary,
+          isUnemployed: dto.isUnemployed,
+        }),
+      ),
+    };
     mockObservability = {
       setToolCall: jest.fn(),
     };
@@ -38,6 +53,7 @@ describe('WriteTool', () => {
     writeTool = new WriteTool(
       mockAccountEntriesService,
       mockEntryRecordsService,
+      mockUsersService,
       mockObservability,
     );
   });
@@ -159,5 +175,54 @@ describe('WriteTool', () => {
       expect(result.error).toContain('not found');
     }
     expect(mockEntryRecordsService.updateBalance).not.toHaveBeenCalled();
+  });
+
+  describe('updateSalary', () => {
+    it('successfully updates base salary to a new amount', async () => {
+      const result = await writeTool.updateSalary(userId, { baseSalary: 50000 });
+
+      expect(result.success).toBe(true);
+      if ('success' in result) {
+        expect(result.message).toContain('₱50,000.00');
+      }
+      expect(mockUsersService.updateUser).toHaveBeenCalledWith(userId, {
+        baseSalary: 50000,
+        isUnemployed: false,
+      });
+      expect(mockObservability.setToolCall).toHaveBeenCalledWith(
+        'write-tool',
+        expect.objectContaining({ method: 'updateSalary' }),
+      );
+    });
+
+    it('sets base salary to 0 when updating status to unemployed', async () => {
+      const result = await writeTool.updateSalary(userId, { isUnemployed: true });
+
+      expect(result.success).toBe(true);
+      if ('success' in result) {
+        expect(result.message).toContain('unemployed');
+        expect(result.message).toContain('₱0.00');
+      }
+      expect(mockUsersService.updateUser).toHaveBeenCalledWith(userId, {
+        baseSalary: 0,
+        isUnemployed: true,
+      });
+    });
+
+    it('updates employment to employed with new base salary', async () => {
+      const result = await writeTool.updateSalary(userId, {
+        baseSalary: 75000,
+        isUnemployed: false,
+      });
+
+      expect(result.success).toBe(true);
+      if ('success' in result) {
+        expect(result.message).toContain('₱75,000.00');
+      }
+      expect(mockUsersService.updateUser).toHaveBeenCalledWith(userId, {
+        baseSalary: 75000,
+        isUnemployed: false,
+      });
+    });
   });
 });

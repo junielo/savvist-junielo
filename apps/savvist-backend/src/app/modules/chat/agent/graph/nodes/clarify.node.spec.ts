@@ -66,6 +66,20 @@ describe('clarifyNode', () => {
     );
   });
 
+  it('formulates salary clarification when slots are incomplete for update_base_salary', async () => {
+    const node = clarifyNodeFactory({ observability: mockObservability });
+    const state = {
+      intentResult: { intent: 'update_base_salary' },
+      slots: { incomplete: true },
+    } as any;
+
+    const result = await node(state);
+
+    expect(result.awaiting_clarification).toBe(
+      'What is your new base salary amount, or would you like to set your status to unemployed?',
+    );
+  });
+
   it('falls back to default clarification prompt when no specific ambiguity is detected', async () => {
     const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {

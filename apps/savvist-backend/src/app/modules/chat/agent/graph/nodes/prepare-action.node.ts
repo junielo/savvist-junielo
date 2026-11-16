@@ -60,6 +60,47 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
 
     // Fresh action preparation
     const slots = state.slots;
+
+    if (intent === 'update_base_salary') {
+      let description: string;
+      let args: Record<string, unknown>;
+
+      if (slots?.isUnemployed === true) {
+        description = `Would you like to update your employment status to unemployed (this will set your base salary to ₱0.00)? Reply "yes" to confirm or "no" to cancel.`;
+        args = { isUnemployed: true, baseSalary: 0 };
+      } else if (slots?.baseSalary !== null && slots?.baseSalary !== undefined) {
+        const formatted = `₱${Number(slots.baseSalary).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (slots?.isUnemployed === false) {
+          description = `Would you like to update your status to employed and set your base salary to ${formatted}? Reply "yes" to confirm or "no" to cancel.`;
+          args = { isUnemployed: false, baseSalary: Number(slots.baseSalary) };
+        } else {
+          description = `Would you like to update your base salary to ${formatted}? Reply "yes" to confirm or "no" to cancel.`;
+          args = { baseSalary: Number(slots.baseSalary) };
+        }
+      } else {
+        description = `What is your new base salary amount or employment status?`;
+        args = {};
+      }
+
+      const pendingAction: PendingAction = {
+        tool: 'update_salary',
+        intent,
+        risk,
+        args,
+        description,
+        confirmedReplace: false,
+        conflict: null,
+        resolution: null,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+      };
+
+      return {
+        pending_action: pendingAction,
+        messages: [new AIMessage(description)],
+      };
+    }
+
     const today = state.context?.today ?? new Date().toISOString().slice(0, 10);
     let targetDay = today;
 

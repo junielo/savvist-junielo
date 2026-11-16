@@ -78,4 +78,31 @@ describe('executeWriteNode', () => {
     });
     expect(result.writeResult).toBeUndefined();
   });
+
+  it('calls writeTool.updateSalary for update_salary tool action', async () => {
+    mockWriteTool.updateSalary = jest.fn().mockResolvedValue({
+      success: true,
+      message: 'Successfully updated your base salary to ₱50,000.00.',
+    });
+
+    const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
+    const state = {
+      context: { userId },
+      pending_action: {
+        tool: 'update_salary',
+        intent: 'update_base_salary',
+        args: { baseSalary: 50000 },
+      },
+    } as any;
+
+    const result = await node(state);
+
+    expect(mockWriteTool.updateSalary).toHaveBeenCalledWith(
+      new Types.ObjectId(userId),
+      { baseSalary: 50000, isUnemployed: undefined },
+    );
+    expect(result.writeResult?.success).toBe(true);
+    expect(result.writeResult?.message).toContain('₱50,000.00');
+    expect(result.pending_action).toBeNull();
+  });
 });

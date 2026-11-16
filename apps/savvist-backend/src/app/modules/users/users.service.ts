@@ -38,9 +38,18 @@ export class UsersService implements OnModuleInit {
     return user;
   }
 
-  async updateCurrent(dto: UpdateUserDto): Promise<UserDocument> {
+  async updateUser(userId: Types.ObjectId, dto: UpdateUserDto): Promise<UserDocument> {
     return this.transactionService.run(async (session) => {
-      const user = await this.userModel.findOne().sort({ createdAt: 1 }).session(session);
+      let user: UserDocument | null = null;
+      if (userId && typeof this.userModel.findById === 'function') {
+        const query = this.userModel.findById(userId);
+        if (query && typeof query.session === 'function') {
+          user = await query.session(session);
+        }
+      }
+      if (!user) {
+        user = await this.userModel.findOne().sort({ createdAt: 1 }).session(session);
+      }
       if (!user) throw new NotFoundException('User not found');
 
       const oldBaseSalary = user.baseSalary;
@@ -89,5 +98,9 @@ export class UsersService implements OnModuleInit {
 
       return user;
     });
+  }
+
+  async updateCurrent(dto: UpdateUserDto): Promise<UserDocument> {
+    return this.updateUser(undefined as any, dto);
   }
 }

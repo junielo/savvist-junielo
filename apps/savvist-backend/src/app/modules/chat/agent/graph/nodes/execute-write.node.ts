@@ -34,6 +34,34 @@ export function executeWriteNodeFactory(deps: ExecuteWriteDeps = {}) {
       };
     }
 
+    if (pending.tool === 'update_salary' || pending.intent === 'update_base_salary') {
+      const args = pending.args as {
+        baseSalary?: number;
+        isUnemployed?: boolean;
+      };
+
+      const result = await deps.writeTool.updateSalary(userId, {
+        baseSalary: args.baseSalary !== undefined ? Number(args.baseSalary) : undefined,
+        isUnemployed: args.isUnemployed,
+      });
+
+      if ('error' in result && result.error) {
+        return {
+          writeResult: { success: false, error: result.error },
+          pending_action: null,
+        };
+      }
+
+      return {
+        writeResult: {
+          success: true,
+          message: 'message' in result ? result.message : 'Salary / employment status updated successfully.',
+          record: 'records' in result ? result.records : null,
+        },
+        pending_action: null,
+      };
+    }
+
     const args = pending.args as {
       accountName?: string;
       amount?: number;

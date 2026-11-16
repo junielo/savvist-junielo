@@ -19,6 +19,7 @@ describe('UsersService', () => {
     mockUserModel = {
       estimatedDocumentCount: jest.fn().mockResolvedValue(1),
       findOne: jest.fn(),
+      findById: jest.fn(),
       create: jest.fn(),
     };
 

@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { AccountEntriesService } from '../../../account-entries/account-entries.service';
 import { EntryRecordsService } from '../../../entry-records/entry-records.service';
+import { UsersService } from '../../../users/users.service';
 import { ObservabilityService } from '../observability/observability.service';
 
 export interface BalanceUpdateItem {
@@ -16,6 +17,11 @@ export interface UpdateBalanceParams {
   entries?: BalanceUpdateItem[];
   date?: string;
   confirmedReplace?: boolean;
+}
+
+export interface UpdateSalaryParams {
+  baseSalary?: number;
+  isUnemployed?: boolean;
 }
 
 export interface ConflictItem {
@@ -44,6 +50,7 @@ export class WriteTool {
   constructor(
     private readonly accountEntriesService: AccountEntriesService,
     private readonly entryRecordsService: EntryRecordsService,
+    private readonly usersService: UsersService,
     private readonly observability?: ObservabilityService,
   ) {}
 
@@ -161,6 +168,42 @@ export class WriteTool {
       this.logger.error('Failed to update balance', msg);
       const errorResult: WriteResult = { error: msg };
       this.observability?.setToolCall('write-tool', { method: 'updateBalance', userId: String(userId), params, error: msg });
+      return errorResult;
+    }
+  }
+
+  async updateSalary(userId: Types.ObjectId, params: UpdateSalaryParams): Promise<WriteResult> {
+    const user = await this.usersService.findById(userId).catch(() => null);
+    const isUnemployed = params.isUnemployed ?? user?.isUnemployed ?? false;
+    const baseSalary = isUnemployed ? 0 : (params.baseSalary ?? user?.baseSalary ?? 0);
+
+    try {
+      const updated = await this.usersService.updateUser(userId, {
+        baseSalary,
+        isUnemployed,
+      });
+
+      let message: string;
+      if (isUnemployed) {
+        message = 'Successfully updated your status to unemployed (base salary set to ₱0.00).';
+      } else {
+        const formatted = `₱${baseSalary.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        message = `Successfully updated your base salary to ${formatted}.`;
+      }
+
+      const result: WriteResult = {
+        success: true,
+        message,
+        records: [updated],
+        action: 'updated',
+      };
+      this.observability?.setToolCall('write-tool', { method: 'updateSalary', userId: String(userId), params, result });
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error('Failed to update base salary / employment status', msg);
+      const errorResult: WriteResult = { error: msg };
+      this.observability?.setToolCall('write-tool', { method: 'updateSalary', userId: String(userId), params, error: msg });
       return errorResult;
     }
   }

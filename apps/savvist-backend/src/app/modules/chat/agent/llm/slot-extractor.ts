@@ -20,6 +20,8 @@ export const SlotSchema = z.object({
   limit: z.number().int().min(1).nullish().transform((v) => v ?? null),
   accountName: z.string().nullish().transform((v) => v ?? null),
   amount: z.number().positive().nullish().transform((v) => v ?? null),
+  baseSalary: z.number().min(0).nullish().transform((v) => v ?? null),
+  isUnemployed: z.boolean().nullish().transform((v) => v ?? null),
   entries: z.array(BalanceEntrySchema).nullish().transform((v) => v ?? null),
   date: z.string().nullish().transform((v) => v ?? null),
   standaloneQuery: z.string().nullish().transform((v) => v ?? ''),
@@ -91,6 +93,8 @@ export class SlotExtractor {
           limit: null,
           accountName: null,
           amount: null,
+          baseSalary: null,
+          isUnemployed: null,
           entries: null,
           date: null,
           standaloneQuery: message,
@@ -136,6 +140,19 @@ export class SlotExtractor {
         }
       }
 
+      // If updating base salary or employment status
+      if (intent === 'update_base_salary') {
+        if (slots.amount !== null && slots.baseSalary === null) {
+          slots.baseSalary = slots.amount;
+        }
+        if (slots.isUnemployed === true) {
+          slots.baseSalary = 0;
+        }
+        if (slots.baseSalary === null && slots.isUnemployed === null) {
+          slots.incomplete = true;
+        }
+      }
+
       this.observability?.setLLMCall('slot-extractor', { message, history, intent, result: slots });
       return slots;
     } catch (err) {
@@ -146,6 +163,8 @@ export class SlotExtractor {
         limit: null,
         accountName: null,
         amount: null,
+        baseSalary: null,
+        isUnemployed: null,
         entries: null,
         date: null,
         standaloneQuery: message,

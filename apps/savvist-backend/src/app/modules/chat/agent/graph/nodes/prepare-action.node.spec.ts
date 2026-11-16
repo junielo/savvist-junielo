@@ -101,4 +101,38 @@ describe('prepareActionNode', () => {
     expect(result.messages?.[0].content).toContain('BDO: currently ₱35,000.00 (proposed: ₱45,000.00)');
     expect(result.messages?.[0].content).toContain('GCredit: currently ₱5,000.00 (proposed: ₱11,000.00)');
   });
+
+  describe('update_base_salary actions', () => {
+    it('prepares confirmation for base salary update with medium risk', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-16' },
+        intentResult: { intent: 'update_base_salary' },
+        slots: { baseSalary: 50000, isUnemployed: null },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('update_salary');
+      expect(result.pending_action?.risk).toBe('medium');
+      expect(result.pending_action?.args).toEqual({ baseSalary: 50000 });
+      expect(result.messages?.[0].content).toContain('update your base salary to ₱50,000.00?');
+    });
+
+    it('prepares confirmation for setting status to unemployed', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-16' },
+        intentResult: { intent: 'update_base_salary' },
+        slots: { isUnemployed: true, baseSalary: 0 },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('update_salary');
+      expect(result.pending_action?.risk).toBe('medium');
+      expect(result.pending_action?.args).toEqual({ isUnemployed: true, baseSalary: 0 });
+      expect(result.messages?.[0].content).toContain('update your employment status to unemployed (this will set your base salary to ₱0.00)?');
+    });
+  });
 });
