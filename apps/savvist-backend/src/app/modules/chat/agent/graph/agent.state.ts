@@ -11,6 +11,7 @@ export const AgentState = Annotation.Root({
   intentResult: lastWrite<any | null>(null),
   slots: lastWrite<any | null>(null),
   readResult: lastWrite<any | null>(null),
+  writeResult: lastWrite<any | null>(null),
   pending_action: lastWrite<any | null>(null),
   awaiting_clarification: lastWrite<string | null>(null),
   context: lastWrite<TurnContext | null>(null),

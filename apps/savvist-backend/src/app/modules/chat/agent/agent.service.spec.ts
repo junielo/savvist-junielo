@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { SlotExtractor } from './llm/slot-extractor';
 import { QueryRewriter } from './llm/query-rewriter';
 import { ReadTool } from './tools/read.tool';
+import { WriteTool } from './tools/write.tool';
 import { ReplyWriter } from './llm/reply-writer';
 import { CapabilityCheckService } from './capabilities/capability-check.service';
 import { ObservabilityService } from './observability/observability.service';
@@ -23,6 +24,7 @@ describe('AgentService', () => {
         { provide: QueryRewriter, useValue: { rewrite: jest.fn() } },
         { provide: SlotExtractor, useValue: { extract: jest.fn() } },
         { provide: ReadTool, useValue: { getBalances: jest.fn() } },
+        { provide: WriteTool, useValue: { updateBalance: jest.fn() } },
         { provide: ReplyWriter, useValue: { writeReply: jest.fn() } },
         { provide: CapabilityCheckService, useValue: { check: jest.fn().mockResolvedValue({ blocked: false, invalid: false }) } },
         ObservabilityService,

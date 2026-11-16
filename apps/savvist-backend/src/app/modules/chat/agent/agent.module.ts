@@ -10,6 +10,7 @@ import { QueryRewriter } from './llm/query-rewriter';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReplyWriter } from './llm/reply-writer';
 import { ReadTool } from './tools/read.tool';
+import { WriteTool } from './tools/write.tool';
 import { CapabilityCheckService } from './capabilities/capability-check.service';
 import { DashboardModule } from '../../dashboard/dashboard.module';
 import { ExpensesModule } from '../../expenses/expenses.module';
@@ -69,6 +70,7 @@ import { ObservabilityService } from './observability/observability.service';
     SlotExtractor,
     ReplyWriter,
     ReadTool,
+    WriteTool,
 
     // 4. The main agent service
     AgentService,

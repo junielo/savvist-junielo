@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import { Command } from '@langchain/langgraph';
 import type { BaseCheckpointSaver } from '@langchain/langgraph';
 import { buildGraph } from './graph/agent.graph';
 import type { IntentClassifierPort } from './graph/nodes/classify-intent.node';
@@ -9,6 +10,7 @@ import { CHECKPOINTER } from './persistence/mongo-checkpointer.provider';
 import { QueryRewriter } from './llm/query-rewriter';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReadTool } from './tools/read.tool';
+import { WriteTool } from './tools/write.tool';
 import { ReplyWriter } from './llm/reply-writer';
 import { CapabilityCheckService } from './capabilities/capability-check.service';
 import { ObservabilityService } from './observability/observability.service';
@@ -30,6 +32,7 @@ export class AgentService {
     queryRewriter: QueryRewriter,
     slotExtractor: SlotExtractor,
     readTool: ReadTool,
+    writeTool: WriteTool,
     replyWriter: ReplyWriter,
     capabilityCheck: CapabilityCheckService,
     config: ConfigService,
@@ -40,6 +43,7 @@ export class AgentService {
         queryRewriter,
         slotExtractor,
         readTool,
+        writeTool,
         replyWriter,
         capabilityService: capabilityCheck,
         observability: this.observeService,
@@ -61,10 +65,25 @@ export class AgentService {
     this.observeService.reset();
     this.observeService.setUserMessage(p.text);
     return this.serialize(p.conversationId, async () => {
-      const result = await this.graph.invoke(
-        { messages: [new HumanMessage(p.text)] },
-        { configurable: { thread_id: p.conversationId, userId: p.userId } },
-      );
+      const config = { configurable: { thread_id: p.conversationId, userId: p.userId } };
+      let input: unknown = { messages: [new HumanMessage(p.text)] };
+
+      try {
+        const snapshot = await this.graph.getState(config);
+        const tasks = (snapshot as any)?.tasks ?? [];
+        const next = (snapshot as any)?.next ?? [];
+        const isPaused =
+          tasks.some((t: any) => t.interrupts && t.interrupts.length > 0) ||
+          next.includes('confirm-first');
+
+        if (isPaused) {
+          input = new Command({ resume: p.text });
+        }
+      } catch {
+        // If getState fails (e.g. no prior checkpoints or in-memory runner), proceed with fresh HumanMessage
+      }
+
+      const result = await this.graph.invoke(input as any, config);
       const reply = this.replyFrom(result.messages);
       this.observeService.setResponse(reply);
       return {

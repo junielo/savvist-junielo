@@ -57,6 +57,31 @@ describe('SlotExtractor & SlotSchema', () => {
       }
     });
 
+    it('parses entries array for batch balance recording', () => {
+      const batchPayload = {
+        searchName: null,
+        month: null,
+        limit: null,
+        accountName: null,
+        entries: [
+          { accountName: 'BDO', amount: 45000 },
+          { accountName: 'GCredit', amount: 11000 },
+        ],
+        date: 'today',
+        standaloneQuery: 'Today, my BDO amount is 45,000 and for GCredit is 11,000',
+      };
+
+      const result = SlotSchema.safeParse(batchPayload);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.entries).toHaveLength(2);
+        expect(result.data.entries?.[0].accountName).toBe('BDO');
+        expect(result.data.entries?.[0].amount).toBe(45000);
+        expect(result.data.entries?.[1].accountName).toBe('GCredit');
+        expect(result.data.entries?.[1].amount).toBe(11000);
+      }
+    });
+
     it('parses null fields for wishlist without errors', () => {
       const wishlistPayload = {
         searchName: null,

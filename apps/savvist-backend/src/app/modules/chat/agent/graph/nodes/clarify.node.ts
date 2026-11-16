@@ -27,6 +27,12 @@ export const clarifyNodeFactory = (deps: ClarifyNodeDeps = {}) => {
     }
 
     if (state.slots?.incomplete) {
+      if (ir?.intent === 'manage_entry_record') {
+        return {
+          awaiting_clarification:
+            'Which account and balance would you like to record? (For example: BDO 45,000, GCredit 11,000)',
+        };
+      }
       return {
         awaiting_clarification:
           'Could you provide more details so I can find what you are looking for?',

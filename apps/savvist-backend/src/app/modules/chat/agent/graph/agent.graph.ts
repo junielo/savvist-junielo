@@ -20,10 +20,10 @@ import { capabilityCheckNodeFactory } from './nodes/capability-check.node';
 import { blockedNodeFactory } from './nodes/blocked.node';
 import { readDataNodeFactory } from './nodes/read-data.node';
 import { analyzeNode } from './nodes/analyze.node';
-import { prepareActionNode } from './nodes/prepare-action.node';
-import { confirmFirstNode } from './nodes/confirm-first.node';
-import { resolveConfirmationNode } from './nodes/resolve-confirmation.node';
-import { executeWriteNode } from './nodes/execute-write.node';
+import { prepareActionNodeFactory } from './nodes/prepare-action.node';
+import { confirmFirstNodeFactory } from './nodes/confirm-first.node';
+import { resolveConfirmationNodeFactory } from './nodes/resolve-confirmation.node';
+import { executeWriteNodeFactory } from './nodes/execute-write.node';
 import { respondNodeFactory } from './nodes/respond.node';
 import {
   toolLoopInitNode,
@@ -34,6 +34,7 @@ import {
 import { QueryRewriter } from '../llm/query-rewriter';
 import { SlotExtractor } from '../llm/slot-extractor';
 import { ReadTool } from '../tools/read.tool';
+import { WriteTool } from '../tools/write.tool';
 import { ReplyWriter } from '../llm/reply-writer';
 import { CapabilityCheckService } from '../capabilities/capability-check.service';
 import { ObservabilityService } from '../observability/observability.service';
@@ -44,6 +45,7 @@ export interface AgentDeps extends ClassifyIntentDeps {
   queryRewriter?: QueryRewriter;
   slotExtractor?: SlotExtractor;
   readTool?: ReadTool;
+  writeTool?: WriteTool;
   replyWriter?: ReplyWriter;
   observability?: ObservabilityService;
   toolLoop?: ToolLoopDeps; // { model, dataSource } for the data_question tool loop
@@ -67,10 +69,10 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('tool-loop-init', toolLoopInitNode)
     .addNode('tool-agent', toolAgentNodeFactory(toolLoopDeps))
     .addNode('tool-loop-tools', toolsNodeFactory(toolLoopDeps))
-    .addNode('prepare-action', prepareActionNode)
-    .addNode('confirm-first', confirmFirstNode)
-    .addNode('resolve-confirmation', resolveConfirmationNode)
-    .addNode('execute-write', executeWriteNode)
+    .addNode('prepare-action', prepareActionNodeFactory({ observability: deps.observability }))
+    .addNode('confirm-first', confirmFirstNodeFactory({ observability: deps.observability }))
+    .addNode('resolve-confirmation', resolveConfirmationNodeFactory({ observability: deps.observability }))
+    .addNode('execute-write', executeWriteNodeFactory({ writeTool: deps.writeTool, observability: deps.observability }))
     .addNode('respond', respondNodeFactory({ replyWriter: deps.replyWriter, observability: deps.observability }))
 
     .addEdge(START, 'load-context')

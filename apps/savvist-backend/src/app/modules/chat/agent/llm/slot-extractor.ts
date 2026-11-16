@@ -6,12 +6,21 @@ import { ObservabilityService } from '../observability/observability.service';
 import { WishlistQueryArgs } from '../../../wishlist/wishlist-query';
 import { buildSlotExtractorPrompt } from './prompts/slot-extractor.prompt';
 
+export const BalanceEntrySchema = z.object({
+  accountName: z.string().trim().min(1),
+  amount: z.number().positive(),
+});
+
+export type BalanceEntry = z.infer<typeof BalanceEntrySchema>;
+
 // Used only to validate the model's JSON. It is NOT sent to Gemini.
 export const SlotSchema = z.object({
   searchName: z.string().nullish().transform((v) => v ?? null),
   month: z.number().int().min(1).max(12).nullish().transform((v) => v ?? null),
   limit: z.number().int().min(1).nullish().transform((v) => v ?? null),
   accountName: z.string().nullish().transform((v) => v ?? null),
+  amount: z.number().positive().nullish().transform((v) => v ?? null),
+  entries: z.array(BalanceEntrySchema).nullish().transform((v) => v ?? null),
   date: z.string().nullish().transform((v) => v ?? null),
   standaloneQuery: z.string().nullish().transform((v) => v ?? ''),
   readArgs: WishlistQueryArgs.nullish().transform((v) => v ?? null),
@@ -43,6 +52,7 @@ export class SlotExtractor {
     message: string,
     history?: string | HistoryMessage[],
     intent?: string,
+    today?: string,
   ): Promise<ExtractedSlots> {
     const model = this.gemini.getModel();
     const isWishlist = intent === 'read_wishlist';
@@ -64,6 +74,7 @@ export class SlotExtractor {
       message,
       historyText,
       intent,
+      today,
     });
 
     let text = '';
@@ -79,6 +90,8 @@ export class SlotExtractor {
           month: null,
           limit: null,
           accountName: null,
+          amount: null,
+          entries: null,
           date: null,
           standaloneQuery: message,
           readArgs: null,
@@ -107,6 +120,22 @@ export class SlotExtractor {
           slots = { ...slots, readArgs: validateArgs.data };
         }
       }
+
+      // Normalize entries: if multiple entries present, set primary accountName/amount
+      if (slots.entries && slots.entries.length > 0) {
+        if (!slots.accountName) slots.accountName = slots.entries[0].accountName;
+        if (!slots.amount) slots.amount = slots.entries[0].amount;
+      } else if (slots.accountName && slots.amount) {
+        slots.entries = [{ accountName: slots.accountName, amount: slots.amount }];
+      }
+
+      // If managing balance entry, mark incomplete if no entries found
+      if (intent === 'manage_entry_record') {
+        if (!slots.entries || slots.entries.length === 0) {
+          slots.incomplete = true;
+        }
+      }
+
       this.observability?.setLLMCall('slot-extractor', { message, history, intent, result: slots });
       return slots;
     } catch (err) {
@@ -116,6 +145,8 @@ export class SlotExtractor {
         month: null,
         limit: null,
         accountName: null,
+        amount: null,
+        entries: null,
         date: null,
         standaloneQuery: message,
         readArgs: null,

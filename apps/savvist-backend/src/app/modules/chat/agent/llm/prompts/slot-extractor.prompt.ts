@@ -2,10 +2,11 @@ export interface SlotExtractorPromptParams {
   message: string;
   historyText: string;
   intent?: string;
+  today?: string;
 }
 
 export function buildSlotExtractorPrompt(params: SlotExtractorPromptParams): string {
-  const { message, historyText, intent } = params;
+  const { message, historyText, intent, today } = params;
   const isWishlist = intent === 'read_wishlist';
 
   if (isWishlist) {
@@ -67,12 +68,18 @@ Current user message: ${JSON.stringify(message)}`;
   }
 
   return `Extract slots and a standalone query from the user message.
+Reference Date (Today): ${today ?? 'unknown'}. (Use this reference when interpreting "today", "yesterday", or other relative dates. Never choose past dates from chat history when the user says "today" or refers to current time).
+
 Return ONLY a JSON object, with no markdown and no extra text, in exactly this shape:
 {
   "searchName": string | null,
   "month": number | null,
   "limit": number | null,
   "accountName": string | null,
+  "amount": number | null,
+  "entries": [
+    { "accountName": string, "amount": number }
+  ] | null,
   "date": string | null,
   "standaloneQuery": string
 }
@@ -83,7 +90,9 @@ Rules:
 - If a specific month is mentioned or requested, extract month as a number (1-12).
 - If a specific name or entity is searched, extract searchName.
 - If a specific financial account is referenced, extract accountName.
-- If a specific date, relative day ("today", "yesterday", "tomorrow"), or calendar date is mentioned or asked about, extract it into date.
+- If a monetary amount is mentioned (e.g. to record, update, deposit, or spend), normalize it to a number ("35k" → 35000, "1,500" → 1500) and extract into amount.
+- If one or multiple account balances are stated for recording or updating (e.g. "Today, my BDO amount is 45,000 and for GCredit is 11,000"), extract every account-amount pair into "entries" as an array of objects: [{"accountName": "BDO", "amount": 45000}, {"accountName": "GCredit", "amount": 11000}]. Also set "accountName" and "amount" to the first entry.
+- If a specific date, relative day ("today", "yesterday", "tomorrow"), or calendar date is mentioned or asked about, extract it into date. If user says "today", extract "today" (or ${today}).
 
 Recent conversation history (last 3 turns):
 ${historyText}

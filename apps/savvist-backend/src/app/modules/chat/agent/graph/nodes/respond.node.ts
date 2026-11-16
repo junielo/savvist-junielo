@@ -70,6 +70,15 @@ export const respondNodeFactory = (options?: RespondNodeOptions) => {
       } else {
         text = prefix + 'Here is the information you requested based on your records.';
       }
+    } else if (ir?.group === 'write') {
+      const writeResult = (state as any).writeResult;
+      if (writeResult?.message) {
+        text = writeResult.message;
+      } else if (writeResult?.error) {
+        text = writeResult.error;
+      } else {
+        text = 'Operation completed successfully.';
+      }
     } else {
       console.warn(`[respond] no reply path for intent=${ir.intent} group=${ir.group}`);
       text = "I couldn't complete that request yet. Please try again or rephrase it.";
@@ -78,6 +87,7 @@ export const respondNodeFactory = (options?: RespondNodeOptions) => {
     return {
       messages: [new AIMessage(text)],
       readResult: null, // keep it out of later checkpoints
+      writeResult: null,
       ...(clarifying ? {} : { awaiting_clarification: null }),
     };
   };

@@ -52,6 +52,20 @@ describe('clarifyNode', () => {
     );
   });
 
+  it('formulates balance entry clarification when slots are incomplete for manage_entry_record', async () => {
+    const node = clarifyNodeFactory({ observability: mockObservability });
+    const state = {
+      intentResult: { intent: 'manage_entry_record' },
+      slots: { incomplete: true },
+    } as any;
+
+    const result = await node(state);
+
+    expect(result.awaiting_clarification).toBe(
+      'Which account and balance would you like to record? (For example: BDO 45,000, GCredit 11,000)',
+    );
+  });
+
   it('falls back to default clarification prompt when no specific ambiguity is detected', async () => {
     const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {
