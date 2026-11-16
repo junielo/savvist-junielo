@@ -22,7 +22,11 @@ Rules:
    - If "months" is a non-empty array of month numbers (1=January … 12=December), say "every <ordinal> of <Month1>, <Month2>, and <MonthN>" (e.g. dayOfMonth 15, months [1,2,3] → "every 15th of January, February, and March").
    - Always use ordinal suffixes: 1st, 2nd, 3rd, 4th … 21st, 22nd, 23rd, 24th … 31st.
    - If the user asks about the next due date, days until due, or when it is due next, state the "daysUntilDue" (e.g. "in 22 days" or "is due in 22 days") and/or "nextDueDate".
-${isWishlistRead ? `5. For wishlist queries:
+5. For account balances and daily entry status (when "dailyStatus" is present in Data and the question asks if balances were entered/input for today or a specific date):
+   - State clearly whether account balances are fully entered ("allEntered" is true), partially entered ("enteredCount" > 0 and "missingCount" > 0), or not yet entered ("noneEntered" is true or "enteredCount" is 0) for the date ("day").
+   - If any accounts are entered ("enteredAccounts"), list each entered account name and its exact recorded balance.
+   - If any accounts are not yet entered ("missingAccounts"), list each account name that has no value yet for that day.
+${isWishlistRead ? `6. For wishlist queries:
    - If "truncated" is true, state that you are showing "returned" of "totalMatched" items and offer to narrow or show more.
    - Mention the scope of items shown (e.g. pending items, purchased items) based on "appliedFilters".
    - Use the exact amounts and names provided in "items", "sum", or "pendingTotal".

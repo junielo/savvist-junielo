@@ -1,0 +1,80 @@
+import { readDataNodeFactory } from './read-data.node';
+import { Types } from 'mongoose';
+import { AgentStateType } from '../agent.state';
+
+describe('readDataNode', () => {
+  let mockReadTool: any;
+  let mockObservability: any;
+  const userId = '6adf58efb1a87dfd54b8d3a3';
+
+  beforeEach(() => {
+    mockReadTool = {
+      getBalances: jest.fn().mockResolvedValue({ summary: {}, dailyStatus: {} }),
+      getExpenses: jest.fn().mockResolvedValue({ found: true }),
+      queryWishlist: jest.fn().mockResolvedValue({ found: true }),
+      getRecordLogs: jest.fn().mockResolvedValue({ count: 0, logs: [] }),
+      getProfile: jest.fn().mockResolvedValue({ displayName: 'Test User' }),
+    };
+    mockObservability = {
+      SetExecutedNode: jest.fn(),
+    };
+  });
+
+  it('records read-data node execution via observability', async () => {
+    const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
+    const state = {
+      context: { userId, today: '2026-10-31' },
+      intentResult: { intent: 'read_balances' },
+      slots: {},
+    } as any;
+
+    await node(state);
+
+    expect(mockObservability.SetExecutedNode).toHaveBeenCalledWith('read-data');
+  });
+
+  it('resolves date slot and passes to readTool.getBalances for read_balances intent', async () => {
+    const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
+    const state = {
+      context: { userId, today: '2026-10-31' },
+      intentResult: { intent: 'read_balances' },
+      slots: { accountName: null, date: 'today' },
+    } as any;
+
+    const result = await node(state);
+
+    expect(mockReadTool.getBalances).toHaveBeenCalledWith(
+      new Types.ObjectId(userId),
+      undefined,
+      '2026-10-31',
+    );
+    expect(result.readResult).toBeDefined();
+  });
+
+  it('normalizes free-text date slot before passing to readTool.getBalances', async () => {
+    const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
+    const state = {
+      context: { userId, today: '2026-10-31' },
+      intentResult: { intent: 'read_balances' },
+      slots: { accountName: 'BDO', date: 'yesterday' },
+    } as any;
+
+    await node(state);
+
+    expect(mockReadTool.getBalances).toHaveBeenCalledWith(
+      new Types.ObjectId(userId),
+      'BDO',
+      '2026-10-30',
+    );
+  });
+
+  it('throws an error if userId is missing from state context', async () => {
+    const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
+    const state = {
+      context: { userId: null },
+      intentResult: { intent: 'read_balances' },
+    } as any;
+
+    await expect(node(state)).rejects.toThrow('User ID missing in state context');
+  });
+});

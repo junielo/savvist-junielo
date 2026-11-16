@@ -7,6 +7,7 @@ import { WishlistService } from '../../../wishlist/wishlist.service';
 import { RecordLogsService } from '../../../record-logs/record-logs.service';
 import { UsersService } from '../../../users/users.service';
 import { AccountEntriesService } from '../../../account-entries/account-entries.service';
+import { EntryRecordsService } from '../../../entry-records/entry-records.service';
 import { ObservabilityService } from '../observability/observability.service';
 import { WishlistQueryArgs, applyQuery, Row } from '../../../wishlist/wishlist-query';
 import { todayIn, isValidTimeZone } from '../graph/turn-context';
@@ -31,15 +32,59 @@ export class ReadTool implements ToolDataSource {
     private readonly recordLogsService: RecordLogsService,
     private readonly usersService: UsersService,
     private readonly accountEntriesService: AccountEntriesService,
+    private readonly entryRecordsService: EntryRecordsService,
     private readonly observability?: ObservabilityService,
   ) {}
 
-  async getBalances(userId: Types.ObjectId, accountName?: string) {
-    const [summary, trend, accounts] = await Promise.all([
+  async getBalances(userId: Types.ObjectId, accountName?: string, date?: string) {
+    const [summary, trend, accounts, user] = await Promise.all([
       this.dashboardService.getSummary(userId),
       this.dashboardService.getTrend(userId, TREND_DAYS),
       this.accountEntriesService.findAll(userId),
+      this.usersService.findById(userId).catch(() => null),
     ]);
+
+    const tz = user?.timeZone && isValidTimeZone(user.timeZone) ? user.timeZone : 'Asia/Manila';
+    const targetDay = date ?? todayIn(tz, new Date());
+
+    const records = await this.entryRecordsService.findByDate(userId, targetDay);
+    const recordsByAccountId = new Map<string, (typeof records)[0]>();
+    for (const rec of records) {
+      recordsByAccountId.set(String(rec.accountEntryId), rec);
+    }
+
+    const enteredAccounts: { id: string; name: string; type: string; balance: number }[] = [];
+    const missingAccounts: { id: string; name: string; type: string }[] = [];
+
+    for (const acc of accounts) {
+      const accId = (acc as any)._id ? String((acc as any)._id) : '';
+      const rec = recordsByAccountId.get(accId);
+      if (rec) {
+        enteredAccounts.push({
+          id: accId,
+          name: acc.name,
+          type: acc.type,
+          balance: rec.balance,
+        });
+      } else {
+        missingAccounts.push({
+          id: accId,
+          name: acc.name,
+          type: acc.type,
+        });
+      }
+    }
+
+    const dailyStatus = {
+      day: targetDay,
+      totalAccounts: accounts.length,
+      enteredCount: enteredAccounts.length,
+      missingCount: missingAccounts.length,
+      allEntered: accounts.length > 0 && missingAccounts.length === 0,
+      noneEntered: accounts.length > 0 && enteredAccounts.length === 0,
+      enteredAccounts,
+      missingAccounts,
+    };
 
     const query = accountName?.toLowerCase();
     const matchingAccount = query
@@ -51,8 +96,9 @@ export class ReadTool implements ToolDataSource {
       trend,
       matchingAccount,
       accountCount: accounts.length,
+      dailyStatus,
     });
-    this.observability?.setToolCall('read-tool', { method: 'getBalances', userId: String(userId), accountName, result });
+    this.observability?.setToolCall('read-tool', { method: 'getBalances', userId: String(userId), accountName, date: targetDay, result });
     return result;
   }
 

@@ -9,6 +9,7 @@ describe('ReadTool - Expenses with Due Dates', () => {
   let mockRecordLogsService: any;
   let mockUsersService: any;
   let mockAccountEntriesService: any;
+  let mockEntryRecordsService: any;
 
   const userId = new Types.ObjectId('6adf58efb1a87dfd54b8d3a3');
 
@@ -36,6 +37,9 @@ describe('ReadTool - Expenses with Due Dates', () => {
     mockAccountEntriesService = {
       findAll: jest.fn().mockResolvedValue([]),
     };
+    mockEntryRecordsService = {
+      findByDate: jest.fn().mockResolvedValue([]),
+    };
 
     readTool = new ReadTool(
       mockDashboardService,
@@ -44,6 +48,7 @@ describe('ReadTool - Expenses with Due Dates', () => {
       mockRecordLogsService,
       mockUsersService,
       mockAccountEntriesService,
+      mockEntryRecordsService,
     );
   });
 
@@ -177,6 +182,78 @@ describe('ReadTool - Expenses with Due Dates', () => {
       expect(result.aggregate.groups[0].value).toBe(8000);
       expect(result.aggregate.groups[1].key).toBe('2026-10');
       expect(result.aggregate.groups[1].value).toBe(4500);
+    });
+  });
+
+  describe('getBalances', () => {
+    it('partitions accounts into enteredAccounts and missingAccounts for target day', async () => {
+      const bdoId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d1');
+      const gcashId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d2');
+      const bpiId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d3');
+
+      mockAccountEntriesService.findAll.mockResolvedValue([
+        { _id: bdoId, name: 'BDO Debit', type: 'cash' },
+        { _id: gcashId, name: 'GCash', type: 'cash' },
+        { _id: bpiId, name: 'BPI Savings', type: 'savings' },
+      ]);
+
+      mockEntryRecordsService.findByDate.mockResolvedValue([
+        { accountEntryId: bdoId, day: '2026-10-31', balance: 35000 },
+      ]);
+
+      const result = await readTool.getBalances(userId, undefined, '2026-10-31');
+
+      expect(result.dailyStatus).toBeDefined();
+      expect(result.dailyStatus.day).toBe('2026-10-31');
+      expect(result.dailyStatus.totalAccounts).toBe(3);
+      expect(result.dailyStatus.enteredCount).toBe(1);
+      expect(result.dailyStatus.missingCount).toBe(2);
+      expect(result.dailyStatus.allEntered).toBe(false);
+      expect(result.dailyStatus.noneEntered).toBe(false);
+
+      expect(result.dailyStatus.enteredAccounts).toEqual([
+        { id: String(bdoId), name: 'BDO Debit', type: 'cash', balance: 35000 },
+      ]);
+      expect(result.dailyStatus.missingAccounts).toEqual([
+        { id: String(gcashId), name: 'GCash', type: 'cash' },
+        { id: String(bpiId), name: 'BPI Savings', type: 'savings' },
+      ]);
+    });
+
+    it('flags allEntered as true when all active accounts have records', async () => {
+      const bdoId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d1');
+
+      mockAccountEntriesService.findAll.mockResolvedValue([
+        { _id: bdoId, name: 'BDO Debit', type: 'cash' },
+      ]);
+
+      mockEntryRecordsService.findByDate.mockResolvedValue([
+        { accountEntryId: bdoId, day: '2026-10-31', balance: 35000 },
+      ]);
+
+      const result = await readTool.getBalances(userId, undefined, '2026-10-31');
+
+      expect(result.dailyStatus.allEntered).toBe(true);
+      expect(result.dailyStatus.noneEntered).toBe(false);
+      expect(result.dailyStatus.enteredCount).toBe(1);
+      expect(result.dailyStatus.missingCount).toBe(0);
+    });
+
+    it('flags noneEntered as true when no accounts have records for the day', async () => {
+      const bdoId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d1');
+
+      mockAccountEntriesService.findAll.mockResolvedValue([
+        { _id: bdoId, name: 'BDO Debit', type: 'cash' },
+      ]);
+
+      mockEntryRecordsService.findByDate.mockResolvedValue([]);
+
+      const result = await readTool.getBalances(userId, undefined, '2026-10-31');
+
+      expect(result.dailyStatus.allEntered).toBe(false);
+      expect(result.dailyStatus.noneEntered).toBe(true);
+      expect(result.dailyStatus.enteredCount).toBe(0);
+      expect(result.dailyStatus.missingCount).toBe(1);
     });
   });
 });

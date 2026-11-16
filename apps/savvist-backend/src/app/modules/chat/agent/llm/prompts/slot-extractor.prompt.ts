@@ -73,6 +73,7 @@ Return ONLY a JSON object, with no markdown and no extra text, in exactly this s
   "month": number | null,
   "limit": number | null,
   "accountName": string | null,
+  "date": string | null,
   "standaloneQuery": string
 }
 Rules:
@@ -82,6 +83,7 @@ Rules:
 - If a specific month is mentioned or requested, extract month as a number (1-12).
 - If a specific name or entity is searched, extract searchName.
 - If a specific financial account is referenced, extract accountName.
+- If a specific date, relative day ("today", "yesterday", "tomorrow"), or calendar date is mentioned or asked about, extract it into date.
 
 Recent conversation history (last 3 turns):
 ${historyText}

@@ -46,7 +46,8 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   read_balances: {
     group: 'read',
-    description: 'Asks for account balances, total fund, actual cash, health, growth, allowance, or trend.',
+    description:
+      'Asks for account balances, total fund, actual cash, health, growth, allowance, trend, or whether account balances/entries have been input or recorded for today or a specific date. Only viewing or checking balance status. Not saving or recording a balance (manage_entry_record).',
   },
   read_expenses: {
     group: 'read',
@@ -79,7 +80,8 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   manage_entry_record: {
     group: 'write',
-    description: 'Requests to save, update, or delete daily balance records.',
+    description:
+      'Requests to save, update, or delete daily balance records. An action that changes data. Not asking or checking whether balances were already entered or input (read_balances).',
   },
   manage_expense: {
     group: 'write',

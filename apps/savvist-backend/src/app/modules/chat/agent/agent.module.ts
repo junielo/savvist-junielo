@@ -17,6 +17,7 @@ import { WishlistModule } from '../../wishlist/wishlist.module';
 import { RecordLogsModule } from '../../record-logs/record-logs.module';
 import { UsersModule } from '../../users/users.module';
 import { AccountEntriesModule } from '../../account-entries/account-entries.module';
+import { EntryRecordsModule } from '../../entry-records/entry-records.module';
 import { DailyMetricsModule } from '../../daily-metrics/daily-metrics.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { ObservabilityService } from './observability/observability.service';
@@ -30,6 +31,7 @@ import { ObservabilityService } from './observability/observability.service';
     RecordLogsModule,
     UsersModule,
     AccountEntriesModule,
+    EntryRecordsModule,
     DailyMetricsModule,
     ObservabilityModule,
   ],

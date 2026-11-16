@@ -50,6 +50,7 @@ export class AgentService {
         },
         stateGuard: {
           maxClarificationTurns: config.get<number>('AGENT_MAX_CLARIFY_TURNS', 2),
+          observability: this.observeService,
         },
       },
       checkpointer,

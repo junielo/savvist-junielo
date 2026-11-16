@@ -3,6 +3,7 @@ import { ReadTool } from '../../tools/read.tool';
 import { Types } from 'mongoose';
 import { Logger } from '@nestjs/common';
 import { ObservabilityService } from '../../observability/observability.service';
+import { normalizeDate } from '../../tools/date-utils';
 const logger = new Logger('ReadDataNode');
 
 export interface ReadDataDeps {
@@ -32,9 +33,19 @@ export const readDataNodeFactory = (deps: ReadDataDeps | ReadTool = {}) => {
 
     try {
       switch (intent) {
-        case 'read_balances':
-          readResult = await readTool.getBalances(userId, slots?.accountName ?? undefined);
+        case 'read_balances': {
+          const userDate = slots?.date;
+          const today = state.context?.today ?? new Date().toISOString().slice(0, 10);
+          let targetDay = today;
+          if (userDate) {
+            const normalized = normalizeDate(userDate, today);
+            if (normalized.ok) {
+              targetDay = normalized.date;
+            }
+          }
+          readResult = await readTool.getBalances(userId, slots?.accountName ?? undefined, targetDay);
           break;
+        }
         case 'read_expenses':
           readResult = await readTool.getExpenses(
             userId,

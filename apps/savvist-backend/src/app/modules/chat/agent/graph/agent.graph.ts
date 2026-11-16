@@ -15,7 +15,7 @@ import { stateGuardNode, StateGuardOptions } from './nodes/state-guard.node';
 import { classifyIntentNode, type ClassifyIntentDeps } from './nodes/classify-intent.node';
 import { rewriteQueryNodeFactory } from './nodes/rewrite-query.node';
 import { extractSlotsNodeFactory } from './nodes/extract-slots.node';
-import { clarifyNode } from './nodes/clarify.node';
+import { clarifyNodeFactory } from './nodes/clarify.node';
 import { capabilityCheckNodeFactory } from './nodes/capability-check.node';
 import { blockedNodeFactory } from './nodes/blocked.node';
 import { readDataNodeFactory } from './nodes/read-data.node';
@@ -59,7 +59,7 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('classify-intent', classifyIntentNode(deps))
     .addNode('rewrite-query', rewriteQueryNodeFactory({ queryRewriter: deps.queryRewriter, observability: deps.observability }))
     .addNode('extract-slots', extractSlotsNodeFactory({ slotExtractor: deps.slotExtractor, observability: deps.observability }))
-    .addNode('clarify', clarifyNode)
+    .addNode('clarify', clarifyNodeFactory({ observability: deps.observability }))
     .addNode('capability-check', capabilityCheckNodeFactory({ capabilityService: deps.capabilityService, observability: deps.observability }))
     .addNode('blocked', blockedNodeFactory({ observability: deps.observability }))
     .addNode('read-data', readDataNodeFactory({ readTool: deps.readTool, observability: deps.observability }))

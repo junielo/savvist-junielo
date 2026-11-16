@@ -35,6 +35,25 @@ describe('SlotExtractor & SlotSchema', () => {
       if (result.success) {
         expect(result.data.searchName).toBeNull();
         expect(result.data.limit).toBe(10);
+        expect(result.data.date).toBeNull();
+      }
+    });
+
+    it('parses date field for balance queries', () => {
+      const balancePayload = {
+        searchName: null,
+        month: null,
+        limit: null,
+        accountName: null,
+        date: 'today',
+        standaloneQuery: 'did I input my account balances for today?',
+      };
+
+      const result = SlotSchema.safeParse(balancePayload);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.date).toBe('today');
+        expect(result.data.standaloneQuery).toBe('did I input my account balances for today?');
       }
     });
 
