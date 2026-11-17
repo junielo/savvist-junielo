@@ -84,8 +84,8 @@ export class WriteTool {
     private readonly entryRecordsService: EntryRecordsService,
     private readonly usersService: UsersService,
     private readonly expensesService: ExpensesService,
-    @Optional() private readonly jevClient?: JevClient,
-    @Optional() private readonly observability?: ObservabilityService,
+    private readonly jevClient?: JevClient,
+    private readonly observability?: ObservabilityService,
   ) {}
 
   async updateBalance(userId: Types.ObjectId, params: UpdateBalanceParams): Promise<WriteResult> {

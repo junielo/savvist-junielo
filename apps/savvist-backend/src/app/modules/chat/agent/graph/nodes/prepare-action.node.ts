@@ -58,6 +58,7 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
       return {
         pending_action: updatedPending,
         awaiting_clarification: null,
+        ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
         messages: [new AIMessage(description)],
       };
     }
@@ -102,6 +103,7 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
       return {
         pending_action: pendingAction,
         awaiting_clarification: null,
+        ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
         messages: [new AIMessage(description)],
       };
     }
@@ -185,6 +187,7 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
         return {
           pending_action: pendingAction,
           awaiting_clarification: null,
+          ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
           messages: [new AIMessage(description)],
         };
       }
@@ -236,6 +239,7 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
       return {
         pending_action: pendingAction,
         awaiting_clarification: null,
+        ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
         messages: [new AIMessage(description)],
       };
     }
@@ -298,6 +302,7 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
     return {
       pending_action: pendingAction,
       awaiting_clarification: null,
+      ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
       messages: [new AIMessage(description)],
     };
   };

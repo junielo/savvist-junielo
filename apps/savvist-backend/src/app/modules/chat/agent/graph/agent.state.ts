@@ -23,6 +23,10 @@ export const AgentState = Annotation.Root({
   }),
   toolSteps: Annotation<number>({ reducer: (_l, r) => r, default: () => 0 }),
   toolAnswer: Annotation<string | null>({ reducer: (_l, r) => r, default: () => null }),
+  queued_queries: Annotation<string[]>({
+    reducer: (_prev, next) => next ?? [],
+    default: () => [],
+  }),
 });
 
 export type AgentStateType = typeof AgentState.State;

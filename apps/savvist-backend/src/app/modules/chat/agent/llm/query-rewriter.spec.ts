@@ -58,4 +58,70 @@ describe('QueryRewriter', () => {
       }),
     );
   });
+
+  describe('extractSecondaryQuery', () => {
+    it('extracts the secondary query using Gemini model', async () => {
+      const mockInvoke = jest.fn().mockResolvedValue({
+        content: 'show me all the list of my expense',
+      });
+      mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+      const result = await rewriter.extractSecondaryQuery(
+        'yes please and also, show me all the list of my expense',
+      );
+
+      expect(result).toBe('show me all the list of my expense');
+    });
+
+    it('falls back to string stripping if Gemini model fails', async () => {
+      mockGeminiService.getModel.mockReturnValue({
+        invoke: jest.fn().mockRejectedValue(new Error('Gemini offline')),
+      });
+
+      const result = await rewriter.extractSecondaryQuery(
+        'yes please and also, show me all the list of my expense',
+      );
+
+      expect(result).toBe('show me all the list of my expense');
+    });
+  });
+
+  describe('splitCompoundQueries', () => {
+    it('returns array directly if no conjunctions are present', async () => {
+      const result = await rewriter.splitCompoundQueries('how much is my rent?');
+      expect(result).toEqual(['how much is my rent?']);
+      expect(mockGeminiService.getModel).not.toHaveBeenCalled();
+    });
+
+    it('splits compound queries using Gemini model', async () => {
+      const mockInvoke = jest.fn().mockResolvedValue({
+        content: JSON.stringify([
+          'Update Meralco bill amount to 4500',
+          'display all expenses',
+        ]),
+      });
+      mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+      const result = await rewriter.splitCompoundQueries(
+        'Update Meralco bill amount to 4500 then display all expenses',
+      );
+
+      expect(result).toEqual([
+        'Update Meralco bill amount to 4500',
+        'display all expenses',
+      ]);
+    });
+
+    it('falls back to single array if Gemini model returns invalid JSON', async () => {
+      mockGeminiService.getModel.mockReturnValue({
+        invoke: jest.fn().mockResolvedValue({ content: 'Invalid json response' }),
+      });
+
+      const result = await rewriter.splitCompoundQueries(
+        'show my expenses and show my wishlist',
+      );
+
+      expect(result).toEqual(['show my expenses and show my wishlist']);
+    });
+  });
 });

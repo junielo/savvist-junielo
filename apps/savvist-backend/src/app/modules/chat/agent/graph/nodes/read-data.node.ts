@@ -22,17 +22,19 @@ export const readDataNodeFactory = (deps: ReadDataDeps | ReadTool = {}) => {
       throw new Error('User ID missing in state context');
     }
     const userId = new Types.ObjectId(userIdStr);
-    const intent = state.intentResult?.intent;
     const slots = state.slots;
+    const primaryIntent = state.intentResult?.intent;
+    const secondaryIntents = (state.intentResult?.secondary ?? []).filter(
+      (s: string) => s !== primaryIntent && s.startsWith('read_'),
+    );
+    const allIntents = [primaryIntent, ...secondaryIntents].filter(Boolean);
 
     if (!readTool) {
       return { readResult: { error: 'ReadTool not available' } };
     }
 
-    let readResult: unknown;
-
-    try {
-      switch (intent) {
+    const executeSingleIntent = async (i: string) => {
+      switch (i) {
         case 'read_balances': {
           const userDate = slots?.date;
           const today = state.context?.today ?? new Date().toISOString().slice(0, 10);
@@ -43,33 +45,50 @@ export const readDataNodeFactory = (deps: ReadDataDeps | ReadTool = {}) => {
               targetDay = normalized.date;
             }
           }
-          readResult = await readTool.getBalances(userId, slots?.accountName ?? undefined, targetDay);
-          break;
+          return readTool.getBalances(userId, slots?.accountName ?? undefined, targetDay);
         }
         case 'read_expenses':
-          readResult = await readTool.getExpenses(
+          return readTool.getExpenses(
             userId,
             slots?.searchName ?? undefined,
             slots?.month ? { month: slots.month } : undefined,
           );
-          break;
         case 'read_wishlist':
-          readResult = await readTool.queryWishlist(userId, slots?.readArgs ?? {});
-          break;
+          return readTool.queryWishlist(userId, slots?.readArgs ?? {});
         case 'read_record_logs':
-          readResult = await readTool.getRecordLogs(userId, {
+          return readTool.getRecordLogs(userId, {
             search: slots?.searchName ?? undefined,
             limit: slots?.limit ?? undefined,
           });
-          break;
         case 'read_profile':
-          readResult = await readTool.getProfile(userId);
-          break;
+          return readTool.getProfile(userId);
         default:
-          readResult = { error: `Unsupported read intent: ${intent}` };
+          return { error: `Unsupported read intent: ${i}` };
+      }
+    };
+
+    let readResult: unknown;
+
+    try {
+      if (allIntents.length > 1) {
+        // Parallel execution of multiple read intents
+        const results = await Promise.all(
+          allIntents.map(async (i) => ({ intent: i, data: await executeSingleIntent(i) })),
+        );
+        const combined: Record<string, unknown> = {};
+        for (const r of results) {
+          combined[r.intent] = r.data;
+        }
+        readResult = {
+          multiIntent: true,
+          intents: allIntents,
+          results: combined,
+        };
+      } else {
+        readResult = await executeSingleIntent(primaryIntent);
       }
     } catch (err) {
-      logger.error(`Read failed for intent=${intent}`, err instanceof Error ? err.stack : String(err));
+      logger.error(`Read failed for intent=${allIntents.join(',')}`, err instanceof Error ? err.stack : String(err));
       readResult = { error: 'lookup_failed' };
     }
 

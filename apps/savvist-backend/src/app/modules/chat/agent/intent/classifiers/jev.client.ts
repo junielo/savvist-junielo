@@ -27,6 +27,12 @@ export interface EntityMatchResult {
   confidence: number;
 }
 
+export interface ConfirmationResolutionResult {
+  resolution: 'confirm' | 'deny' | 'correction' | 'new_request';
+  confidence: number;
+  hasSecondaryRequest: boolean;
+}
+
 export class JevClient {
   private readonly classifier: TypeSafeClassifier;
 
@@ -99,6 +105,119 @@ export class JevClient {
     } catch {
       return { isFollowUp: false, probability: 0 };
     }
+  }
+
+  /**
+   * Evaluates how the user responded to a pending action confirmation prompt using Jev Choice + companion Noul.
+   * Returns whether they confirmed, denied, gave a correction, or asked a new request,
+   * along with whether an additional question/command was asked.
+   */
+  async resolveConfirmationResponse(
+    message: string,
+    actionDescription?: string,
+  ): Promise<ConfirmationResolutionResult> {
+    try {
+      const confirmationClassifier = new TypeSafeClassifier({
+        questions: {
+          confirmation_intent: {
+            type: 'choice',
+            instructions: actionDescription
+              ? `Given the assistant's proposed action: "${actionDescription}", how is the user responding?`
+              : 'How is the user responding to the proposed action confirmation?',
+            criteria: {
+              confirm:
+                'The user agrees, approves, confirms, or wants to proceed with the action (e.g. yes, sure, looks good, proceed, go ahead, yes please, sounds good, do it, approved), even if they also append an additional question or command.',
+              deny:
+                'The user explicitly cancels, rejects, stops, or says no to the action (e.g. no, cancel, stop, nevermind, don\'t do that, abort, disagree), even if they also append an additional question or command.',
+              correction:
+                'The user wants to modify or correct details of the proposed action (e.g. change amount, different name, different day, instead of X make it Y).',
+              new_request:
+                'The user does not agree or disagree, but completely ignores or bypasses the confirmation prompt to talk about something else without answering.',
+            },
+          },
+          has_secondary_request: {
+            type: 'noul',
+            instructions:
+              'Does the user message ask an additional question or command beyond just confirming, denying, or correcting the action?',
+            criteria: {
+              true: 'The user message asks an additional question, command, or request to view or do something else (e.g. and also show my expenses, and what is my balance).',
+              false: 'The user message only responds to the confirmation without asking any additional questions or actions.',
+            },
+          },
+        },
+        model: this.opts.model ?? 'jev-latest',
+        timeout: this.opts.timeoutMs ?? 5000,
+        maxRetries: this.opts.maxRetries ?? 1,
+      });
+
+      const res = await confirmationClassifier.invoke([new HumanMessage(message)]);
+      const choice = res.choices?.['confirmation_intent']?.choice as
+        | 'confirm'
+        | 'deny'
+        | 'correction'
+        | 'new_request'
+        | undefined;
+      const confidence = res.choices?.['confirmation_intent']?.confidence ?? 0;
+      const noulAnswer = res.nouls?.['has_secondary_request'];
+      const probability = noulAnswer ? noulAnswer.noul : 0;
+      const hasSecondaryRequest = probability >= 0.7;
+
+      let resolution = choice ?? 'new_request';
+
+      // Truth-table: If user provided an explicit affirmation or denial alongside a secondary request,
+      // ensure it is categorized as confirm or deny rather than being misclassified as an unrelated new_request.
+      const trimmed = message.trim();
+      const isAffirmative =
+        /^(yes|yep|yeah|sure|confirm|proceed|ok|okay|do it|go ahead|correct|approved|agree)\b/i.test(trimmed);
+      const isNegative =
+        /^(no|nope|cancel|stop|don't|dont|nevermind|deny|disagree|reject)\b/i.test(trimmed);
+
+      if (hasSecondaryRequest && resolution === 'new_request') {
+        if (isAffirmative) {
+          resolution = 'confirm';
+        } else if (isNegative) {
+          resolution = 'deny';
+        }
+      } else if (resolution === 'new_request' && isAffirmative) {
+        resolution = 'confirm';
+      }
+
+      this.opts.observability?.setLLMCall('jev-confirmation-resolution', {
+        message,
+        actionDescription,
+        resolution,
+        confidence,
+        hasSecondaryRequest,
+        probability,
+      });
+
+      return {
+        resolution,
+        confidence,
+        hasSecondaryRequest,
+      };
+    } catch {
+      return {
+        resolution: 'new_request',
+        confidence: 0,
+        hasSecondaryRequest: false,
+      };
+    }
+  }
+
+  /**
+   * Helper for checking if a confirmation contains a secondary request.
+   */
+  async checkCompoundConfirmation(
+    message: string,
+  ): Promise<{ isConfirmationOrDenial: boolean; hasSecondaryRequest: boolean; probability: number }> {
+    const res = await this.resolveConfirmationResponse(message);
+    const isConfirmationOrDenial = res.resolution === 'confirm' || res.resolution === 'deny';
+    return {
+      isConfirmationOrDenial,
+      hasSecondaryRequest: res.hasSecondaryRequest,
+      probability: res.confidence,
+    };
   }
 
   /**

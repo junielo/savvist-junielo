@@ -2,9 +2,11 @@ import { HumanMessage, type BaseMessage } from '@langchain/core/messages';
 import { AgentStateType } from '../agent.state';
 import { ObservabilityService } from '../../observability/observability.service';
 import { PendingActionSchema, type PendingAction } from '../pending-action.schema';
+import { JevClient } from '../../intent/classifiers/jev.client';
 
 export interface ResolveConfirmationDeps {
   observability?: ObservabilityService;
+  jevClient?: JevClient;
 }
 
 function textOf(msg: BaseMessage): string {
@@ -55,46 +57,45 @@ export function resolveConfirmationNodeFactory(deps: ResolveConfirmationDeps = {
       };
     }
 
-    const userText = lastHumanText(state.messages).toLowerCase().trim();
+    const userText = lastHumanText(state.messages).trim();
 
-    // Check affirmation
+    let resolution: 'confirm' | 'deny' | 'correction' | 'new_request' | null = null;
+
+    if (deps.jevClient) {
+      try {
+        const jevRes = await deps.jevClient.resolveConfirmationResponse(userText, action.description);
+        resolution = jevRes.resolution;
+      } catch {
+        // Fall back to lightweight code heuristics if Jev throws
+      }
+    }
+
+    const lower = userText.toLowerCase();
     const affirmativeRegex = /^(yes|yep|yeah|sure|confirm|proceed|ok|okay|do it|go ahead|correct|approved|agree)\b/i;
-    if (affirmativeRegex.test(userText)) {
-      return {
-        pending_action: {
-          ...action,
-          resolution: 'confirm',
-        },
-      };
-    }
-
-    // Check denial / cancellation
     const denialRegex = /^(no|nope|cancel|stop|don't|dont|nevermind|deny|disagree|reject)\b/i;
-    if (denialRegex.test(userText)) {
-      return {
-        pending_action: {
-          ...action,
-          resolution: 'deny',
-        },
-      };
+
+    if (resolution === 'new_request') {
+      if (affirmativeRegex.test(lower)) {
+        resolution = 'confirm';
+      } else if (denialRegex.test(lower)) {
+        resolution = 'deny';
+      }
+    } else if (!resolution) {
+      if (affirmativeRegex.test(lower)) {
+        resolution = 'confirm';
+      } else if (denialRegex.test(lower)) {
+        resolution = 'deny';
+      } else if (/\b(change|make it|correction|actually|instead|update to)\b|\d+/i.test(lower)) {
+        resolution = 'correction';
+      } else {
+        resolution = 'new_request';
+      }
     }
 
-    // Check correction (e.g. "make it 40000", "change to 50000", "no wait 30k")
-    const correctionRegex = /\b(change|make it|correction|actually|instead|update to)\b|\d+/i;
-    if (correctionRegex.test(userText)) {
-      return {
-        pending_action: {
-          ...action,
-          resolution: 'correction',
-        },
-      };
-    }
-
-    // If unrelated request
     return {
       pending_action: {
         ...action,
-        resolution: 'new_request',
+        resolution,
       },
     };
   };

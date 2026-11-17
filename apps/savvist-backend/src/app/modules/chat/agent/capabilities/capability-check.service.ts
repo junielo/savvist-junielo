@@ -38,8 +38,8 @@ export interface CapabilityCheckOutcome {
 @Injectable()
 export class CapabilityCheckService {
   constructor(
-    @Optional() private readonly config?: ConfigService,
-    @Optional() private readonly jevClient?: JevClient,
+    private readonly config?: ConfigService,
+    private readonly jevClient?: JevClient,
   ) {}
 
   async check(context: CapabilityRuleContext): Promise<CapabilityCheckOutcome> {

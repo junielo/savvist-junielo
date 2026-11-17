@@ -15,9 +15,17 @@ function isKnown(name: string): name is JevIntentName {
   return name in INTENTS;
 }
 
-/** Extras are non-domain only, and never 'out-of-scope'. */
-function isExtra(name: string): name is JevIntentName {
-  return isKnown(name) && name !== 'out-of-scope' && INTENTS[name].group === 'non-domain';
+/** Extras are non-domain intents (for greeting/smalltalk) or read intents (for multi-intent read queries). */
+function isExtra(topGroup: string, name: string): name is JevIntentName {
+  if (!isKnown(name) || name === 'out-of-scope') return false;
+  const group = INTENTS[name].group;
+  if (topGroup === 'non-domain') {
+    return group === 'non-domain';
+  }
+  if (topGroup === 'read') {
+    return group === 'read';
+  }
+  return false;
 }
 
 export function scoreToResult(
@@ -42,14 +50,15 @@ export function scoreToResult(
   const second = ranked[1];
 
   const known = isKnown(topName);
+  const topGroup = known ? INTENTS[topName].group : 'unknown';
   const minSecondary = t.minSecondary ?? DEFAULT_MIN_SECONDARY;
 
-  // Extra intents only when the top intent is itself non-domain
+  // Extra intents when top intent is non-domain or read
   const extras: [JevIntentName, number][] =
-    known && isExtra(topName)
+    known && (topGroup === 'non-domain' || topGroup === 'read')
       ? ranked
           .slice(1)
-          .filter((e): e is [JevIntentName, number] => isExtra(e[0]) && e[1] >= minSecondary)
+          .filter((e): e is [JevIntentName, number] => isExtra(topGroup, e[0]) && e[1] >= minSecondary)
           .slice(0, MAX_SECONDARY)
       : [];
 

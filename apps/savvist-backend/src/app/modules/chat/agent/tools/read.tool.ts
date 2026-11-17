@@ -34,8 +34,8 @@ export class ReadTool implements ToolDataSource {
     private readonly usersService: UsersService,
     private readonly accountEntriesService: AccountEntriesService,
     private readonly entryRecordsService: EntryRecordsService,
-    @Optional() private readonly jevClient?: JevClient,
-    @Optional() private readonly observability?: ObservabilityService,
+    private readonly jevClient?: JevClient,
+    private readonly observability?: ObservabilityService,
   ) {}
 
   async getBalances(userId: Types.ObjectId, accountName?: string, date?: string) {

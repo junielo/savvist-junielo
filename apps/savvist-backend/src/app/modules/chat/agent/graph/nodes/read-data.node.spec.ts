@@ -68,6 +68,26 @@ describe('readDataNode', () => {
     );
   });
 
+  it('executes multiple read intents in parallel when secondary read intents are present', async () => {
+    const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
+    const state = {
+      context: { userId, today: '2026-10-31' },
+      intentResult: {
+        intent: 'read_expenses',
+        secondary: ['read_wishlist'],
+      },
+      slots: {},
+    } as any;
+
+    const result = await node(state);
+
+    expect(mockReadTool.getExpenses).toHaveBeenCalled();
+    expect(mockReadTool.queryWishlist).toHaveBeenCalled();
+    expect((result.readResult as any).multiIntent).toBe(true);
+    expect((result.readResult as any).results.read_expenses).toBeDefined();
+    expect((result.readResult as any).results.read_wishlist).toBeDefined();
+  });
+
   it('throws an error if userId is missing from state context', async () => {
     const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
     const state = {

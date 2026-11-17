@@ -72,4 +72,54 @@ describe('resolveConfirmationNode', () => {
 
     expect(result.pending_action?.resolution).toBe('cancel');
   });
+
+  describe('with JevClient', () => {
+    it('uses Jev to resolve natural phrasing like "Looks good, go for it" to confirm', async () => {
+      const mockJevClient = {
+        resolveConfirmationResponse: jest.fn().mockResolvedValue({
+          resolution: 'confirm',
+          confidence: 0.98,
+          hasSecondaryRequest: false,
+        }),
+      };
+      const node = resolveConfirmationNodeFactory({
+        observability: mockObservability,
+        jevClient: mockJevClient as any,
+      });
+      const state = {
+        pending_action: basePending,
+        messages: [new HumanMessage('Looks good, go for it')],
+      } as any;
+
+      const result = await node(state);
+
+      expect(mockJevClient.resolveConfirmationResponse).toHaveBeenCalledWith(
+        'Looks good, go for it',
+        basePending.description,
+      );
+      expect(result.pending_action?.resolution).toBe('confirm');
+    });
+
+    it('uses Jev to resolve natural phrasing like "Abort that" to deny', async () => {
+      const mockJevClient = {
+        resolveConfirmationResponse: jest.fn().mockResolvedValue({
+          resolution: 'deny',
+          confidence: 0.95,
+          hasSecondaryRequest: false,
+        }),
+      };
+      const node = resolveConfirmationNodeFactory({
+        observability: mockObservability,
+        jevClient: mockJevClient as any,
+      });
+      const state = {
+        pending_action: basePending,
+        messages: [new HumanMessage('Abort that')],
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.resolution).toBe('deny');
+    });
+  });
 });

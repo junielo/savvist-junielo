@@ -38,6 +38,7 @@ import { WriteTool } from '../tools/write.tool';
 import { ReplyWriter } from '../llm/reply-writer';
 import { CapabilityCheckService } from '../capabilities/capability-check.service';
 import { ObservabilityService } from '../observability/observability.service';
+import { JevClient } from '../intent/classifiers/jev.client';
 
 export interface AgentDeps extends ClassifyIntentDeps {
   loadContext?: LoadContextDeps;
@@ -50,6 +51,7 @@ export interface AgentDeps extends ClassifyIntentDeps {
   observability?: ObservabilityService;
   toolLoop?: ToolLoopDeps; // { model, dataSource } for the data_question tool loop
   capabilityService?: CapabilityCheckService;
+  jevClient?: JevClient;
 }
 
 export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) {
@@ -71,7 +73,7 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('tool-loop-tools', toolsNodeFactory(toolLoopDeps))
     .addNode('prepare-action', prepareActionNodeFactory({ observability: deps.observability, writeTool: deps.writeTool }))
     .addNode('confirm-first', confirmFirstNodeFactory({ observability: deps.observability }))
-    .addNode('resolve-confirmation', resolveConfirmationNodeFactory({ observability: deps.observability }))
+    .addNode('resolve-confirmation', resolveConfirmationNodeFactory({ observability: deps.observability, jevClient: deps.jevClient }))
     .addNode('execute-write', executeWriteNodeFactory({ writeTool: deps.writeTool, observability: deps.observability }))
     .addNode('respond', respondNodeFactory({ replyWriter: deps.replyWriter, observability: deps.observability }))
 
