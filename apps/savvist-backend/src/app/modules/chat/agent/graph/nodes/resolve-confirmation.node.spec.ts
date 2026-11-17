@@ -1,13 +1,16 @@
 import { resolveConfirmationNodeFactory } from './resolve-confirmation.node';
 import { HumanMessage } from '@langchain/core/messages';
-import { AgentStateType } from '../agent.state';
 
 describe('resolveConfirmationNode', () => {
   let mockObservability: any;
+  let mockJevClient: any;
 
   beforeEach(() => {
     mockObservability = {
       SetExecutedNode: jest.fn(),
+    };
+    mockJevClient = {
+      resolveConfirmationResponse: jest.fn(),
     };
   });
 
@@ -21,8 +24,16 @@ describe('resolveConfirmationNode', () => {
     expiresAt: new Date(Date.now() + 600000).toISOString(),
   };
 
-  it('resolves affirmative answer to confirm', async () => {
-    const node = resolveConfirmationNodeFactory({ observability: mockObservability });
+  it('resolves affirmative answer to confirm using Jev', async () => {
+    mockJevClient.resolveConfirmationResponse.mockResolvedValueOnce({
+      resolution: 'confirm',
+      confidence: 0.98,
+      hasSecondaryRequest: false,
+    });
+    const node = resolveConfirmationNodeFactory({
+      observability: mockObservability,
+      jevClient: mockJevClient,
+    });
     const state = {
       pending_action: basePending,
       messages: [new HumanMessage('yes, please proceed')],
@@ -31,11 +42,23 @@ describe('resolveConfirmationNode', () => {
     const result = await node(state);
 
     expect(mockObservability.SetExecutedNode).toHaveBeenCalledWith('resolve-confirmation');
+    expect(mockJevClient.resolveConfirmationResponse).toHaveBeenCalledWith(
+      'yes, please proceed',
+      basePending.description,
+    );
     expect(result.pending_action?.resolution).toBe('confirm');
   });
 
-  it('resolves negative answer to deny', async () => {
-    const node = resolveConfirmationNodeFactory({ observability: mockObservability });
+  it('resolves negative answer to deny using Jev', async () => {
+    mockJevClient.resolveConfirmationResponse.mockResolvedValueOnce({
+      resolution: 'deny',
+      confidence: 0.95,
+      hasSecondaryRequest: false,
+    });
+    const node = resolveConfirmationNodeFactory({
+      observability: mockObservability,
+      jevClient: mockJevClient,
+    });
     const state = {
       pending_action: basePending,
       messages: [new HumanMessage('no, cancel it')],
@@ -46,8 +69,16 @@ describe('resolveConfirmationNode', () => {
     expect(result.pending_action?.resolution).toBe('deny');
   });
 
-  it('resolves correction statement to correction', async () => {
-    const node = resolveConfirmationNodeFactory({ observability: mockObservability });
+  it('resolves correction statement to correction using Jev', async () => {
+    mockJevClient.resolveConfirmationResponse.mockResolvedValueOnce({
+      resolution: 'correction',
+      confidence: 0.92,
+      hasSecondaryRequest: false,
+    });
+    const node = resolveConfirmationNodeFactory({
+      observability: mockObservability,
+      jevClient: mockJevClient,
+    });
     const state = {
       pending_action: basePending,
       messages: [new HumanMessage('actually make it 40000')],
@@ -58,8 +89,11 @@ describe('resolveConfirmationNode', () => {
     expect(result.pending_action?.resolution).toBe('correction');
   });
 
-  it('cancels action when expiresAt is in the past', async () => {
-    const node = resolveConfirmationNodeFactory({ observability: mockObservability });
+  it('cancels action when expiresAt is in the past without calling Jev', async () => {
+    const node = resolveConfirmationNodeFactory({
+      observability: mockObservability,
+      jevClient: mockJevClient,
+    });
     const state = {
       pending_action: {
         ...basePending,
@@ -71,20 +105,19 @@ describe('resolveConfirmationNode', () => {
     const result = await node(state);
 
     expect(result.pending_action?.resolution).toBe('cancel');
+    expect(mockJevClient.resolveConfirmationResponse).not.toHaveBeenCalled();
   });
 
-  describe('with JevClient', () => {
+  describe('with JevClient natural phrasing', () => {
     it('uses Jev to resolve natural phrasing like "Looks good, go for it" to confirm', async () => {
-      const mockJevClient = {
-        resolveConfirmationResponse: jest.fn().mockResolvedValue({
-          resolution: 'confirm',
-          confidence: 0.98,
-          hasSecondaryRequest: false,
-        }),
-      };
+      mockJevClient.resolveConfirmationResponse.mockResolvedValueOnce({
+        resolution: 'confirm',
+        confidence: 0.98,
+        hasSecondaryRequest: false,
+      });
       const node = resolveConfirmationNodeFactory({
         observability: mockObservability,
-        jevClient: mockJevClient as any,
+        jevClient: mockJevClient,
       });
       const state = {
         pending_action: basePending,
@@ -101,16 +134,14 @@ describe('resolveConfirmationNode', () => {
     });
 
     it('uses Jev to resolve natural phrasing like "Abort that" to deny', async () => {
-      const mockJevClient = {
-        resolveConfirmationResponse: jest.fn().mockResolvedValue({
-          resolution: 'deny',
-          confidence: 0.95,
-          hasSecondaryRequest: false,
-        }),
-      };
+      mockJevClient.resolveConfirmationResponse.mockResolvedValueOnce({
+        resolution: 'deny',
+        confidence: 0.95,
+        hasSecondaryRequest: false,
+      });
       const node = resolveConfirmationNodeFactory({
         observability: mockObservability,
-        jevClient: mockJevClient as any,
+        jevClient: mockJevClient,
       });
       const state = {
         pending_action: basePending,

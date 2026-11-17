@@ -51,12 +51,13 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   read_expenses: {
     group: 'read',
-    description: 'Asks to see expenses or bills the user pays out, including amounts, totals, and due or scheduled dates, e.g. "what are my expenses", "how much is [bill]", "when is [bill] due", "what is due before payday". Only viewing. Not money owed to the user (read_reminders), not adding or changing an expense (manage_expense).',
+    description:
+      'Asks to see recurring expenses or scheduled bills the user pays out (such as rent, electricity, utilities, subscriptions), including amounts, totals, and due or scheduled dates, e.g. "what are my expenses", "how much is [bill]", "when is [bill] due", "what is due before payday". Only viewing recurring expenses and bills. Not purchases, bought items, or pending items (read_wishlist). Not money owed to the user (read_reminders), not adding or changing an expense (manage_expense).',
   },
   read_wishlist: {
     group: 'read',
     description:
-      'Asks to view, list, or count wishlist items, including pending items, already purchased or bought items, totals, breakdown by month, or items by priority, e.g. "what is on my wishlist", "how many items did I already purchase", "show purchased items", "what is the total purchased wishlist item that I purchased each month", "what should I buy next". Only viewing and querying records. Not adding, deleting, editing, or marking an item as purchased (manage_wishlist).',
+      'Asks to view, list, query, or count wishlist items, purchases, bought items, or pending items, including pending items, already purchased or bought items, purchase history, most expensive or cheapest purchase, totals, breakdown by month, or items by priority, e.g. "what is on my wishlist", "what is my most expensive purchase", "show bought items", "how many items did I already purchase", "show purchased items", "pending items", "what should I buy next". Not recurring bills or scheduled expenses (read_expenses). Only viewing and querying records. Not adding, deleting, editing, or marking an item as purchased (manage_wishlist).',
   },
   read_record_logs: {
     group: 'read',
@@ -85,12 +86,13 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   },
   manage_expense: {
     group: 'write',
-    description: 'Requests to create, edit, or delete an expense.',
+    description:
+      'Requests to create, edit, or delete a recurring expense or bill. An action that changes recurring expense data. Not adding, buying, or purchasing wishlist items (manage_wishlist).',
   },
   manage_wishlist: {
     group: 'write',
     description:
-      'Requests to create, edit, delete, or change the status of a wishlist item, such as marking an item as bought or purchased, e.g. "add shoes to wishlist", "I bought the watch, mark it purchased", "delete item". An action that changes data. Not asking about, viewing, or counting already purchased items (read_wishlist).',
+      'Requests to create, edit, delete, or change the status of a wishlist item, purchase, bought item, or pending item, such as marking an item as bought or purchased, e.g. "add shoes to wishlist", "I bought the watch, mark it purchased", "delete pending item". An action that changes data. Not recurring expenses or bills (manage_expense). Not asking about, viewing, or counting already purchased or pending items (read_wishlist).',
   },
   swap_wishlist_priority: {
     group: 'write',

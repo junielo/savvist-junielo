@@ -33,6 +33,7 @@ export function scoreToResult(
   t: Thresholds,
   source: IntentSource,
   isFollowUp = false,
+  isWishlistDomain = false,
 ): IntentResult {
   if (!answer) {
     return {
@@ -45,7 +46,34 @@ export function scoreToResult(
       isFollowUp,
     };
   }
-  const ranked: [string, number][] = Object.entries(answer.probabilities).sort((a, b) => b[1] - a[1]);
+
+  const probabilities = { ...answer.probabilities };
+
+  // Jev System One Domain Gate:
+  // When Jev's parallel Noul question verifies the message is in the wishlist domain (probability >= 0.7)
+  // and the Choice probabilities leaned toward recurring expenses (or general review),
+  // reallocate the mass to the verified wishlist domain before sorting and computing margin.
+  if (isWishlistDomain) {
+    const isWrite = Object.entries(probabilities).some(
+      ([k, p]) => k.startsWith('manage_') && k !== 'manage_memory' && p > 0.3,
+    );
+    const targetWishlistIntent = isWrite ? 'manage_wishlist' : 'read_wishlist';
+
+    const expenseP = probabilities['read_expenses'] ?? 0;
+    const manageExpenseP = probabilities['manage_expense'] ?? 0;
+    const reviewP = probabilities['spending_review'] ?? 0;
+    const combinedP = Math.max(
+      (probabilities[targetWishlistIntent] ?? 0) + expenseP + manageExpenseP + reviewP,
+      0.95,
+    );
+
+    delete probabilities['read_expenses'];
+    delete probabilities['manage_expense'];
+    delete probabilities['spending_review'];
+    probabilities[targetWishlistIntent] = combinedP;
+  }
+
+  const ranked: [string, number][] = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
   const [topName, topP] = ranked[0] ?? ['', 0];
   const second = ranked[1];
 
@@ -68,16 +96,17 @@ export function scoreToResult(
   const next = ranked.find(([name]) => !accepted.has(name));
   const margin = mass - (next?.[1] ?? 0);
 
-  const score = extras.length > 0 ? Math.max(answer.confidence, mass) : answer.confidence;
+  const confidence = isWishlistDomain ? Math.max(answer.confidence, mass) : answer.confidence;
+  const score = extras.length > 0 ? Math.max(confidence, mass) : confidence;
   const ok = known && score >= t.minConfidence && margin >= t.minMargin;
 
   return {
     intent: ok ? (topName as JevIntentName) : 'unknown',
     secondary: ok ? extras.map(([name]) => name) : [],
     group: ok ? INTENTS[topName as JevIntentName].group : 'unknown',
-    confidence: answer.confidence,
+    confidence,
     runnerUp: second ? { intent: second[0], probability: second[1] } : null,
-    probabilities: answer.probabilities,
+    probabilities,
     source,
     isFollowUp,
   };

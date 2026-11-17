@@ -96,21 +96,8 @@ export class AgentService {
             }
           }
 
-          const trimmed = p.text.trim();
-          const isAffirmative =
-            /^(yes|yep|yeah|sure|confirm|proceed|ok|okay|do it|go ahead|correct|approved|agree)\b/i.test(trimmed);
-          const isNegative =
-            /^(no|nope|cancel|stop|don't|dont|nevermind|deny|disagree|reject)\b/i.test(trimmed);
-
-          const isConfirm =
-            confirmationRes?.resolution === 'confirm' ||
-            (Boolean(confirmationRes?.hasSecondaryRequest) && isAffirmative) ||
-            isAffirmative;
-          const isDeny =
-            !isConfirm &&
-            (confirmationRes?.resolution === 'deny' ||
-              (Boolean(confirmationRes?.hasSecondaryRequest) && isNegative) ||
-              isNegative);
+          const isConfirm = confirmationRes?.resolution === 'confirm';
+          const isDeny = !isConfirm && confirmationRes?.resolution === 'deny';
 
           // 2. If user confirmed or denied, process write + any deferred/secondary queries
           if (isConfirm || isDeny) {

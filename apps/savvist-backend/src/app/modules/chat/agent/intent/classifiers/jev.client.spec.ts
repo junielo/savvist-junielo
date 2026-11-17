@@ -159,6 +159,7 @@ describe('JevClient', () => {
         },
         nouls: {
           has_secondary_request: { noul: 0.98 },
+          is_confirming: { noul: 0.95 },
         },
       });
 

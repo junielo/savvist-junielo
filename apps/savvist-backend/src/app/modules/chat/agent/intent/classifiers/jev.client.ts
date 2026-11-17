@@ -2,7 +2,7 @@
 import { TypeSafeClassifier, type ChoiceAnswer } from '@langchain/typesafe';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import type { ClassifierInput } from '../intent.types';
-import { buildIntentQuestions, INTENT_QUESTION_ID, POLICY_QUESTION_ID, FOLLOW_UP_QUESTION_ID } from './jev.questions';
+import { buildIntentQuestions, INTENT_QUESTION_ID, POLICY_QUESTION_ID, FOLLOW_UP_QUESTION_ID, WISHLIST_DOMAIN_QUESTION_ID } from './jev.questions';
 import { ObservabilityService } from '../../observability/observability.service';
 
 export interface JevClientOptions {
@@ -15,6 +15,8 @@ export interface JevClientOptions {
 export interface JevIntentClassification {
   answer: ChoiceAnswer;
   isFollowUp: boolean;
+  isWishlistDomain: boolean;
+  wishlistProbability: number;
 }
 
 export interface EntityCandidate {
@@ -59,13 +61,19 @@ export class JevClient {
     const followUpNoul = res.nouls?.[FOLLOW_UP_QUESTION_ID];
     const isFollowUp = Boolean(input.previousAssistantMessage) && (followUpNoul?.noul ?? 0) >= 0.7;
 
+    const wishlistNoul = res.nouls?.[WISHLIST_DOMAIN_QUESTION_ID];
+    const wishlistProbability = wishlistNoul?.noul ?? 0;
+    const isWishlistDomain = wishlistProbability >= 0.7;
+
     this.opts.observability?.setLLMCall('jev-classifier', {
       input,
       answer,
       isFollowUp,
       followUpNoul,
+      wishlistNoul,
+      isWishlistDomain,
     });
-    return { answer, isFollowUp };
+    return { answer, isFollowUp, isWishlistDomain, wishlistProbability };
   }
 
   /**
@@ -135,6 +143,22 @@ export class JevClient {
                 'The user does not agree or disagree, but completely ignores or bypasses the confirmation prompt to talk about something else without answering.',
             },
           },
+          is_confirming: {
+            type: 'noul',
+            instructions: 'Does the user message indicate approval, agreement, or confirmation to proceed with the action?',
+            criteria: {
+              true: 'The user agrees, approves, confirms, or wants to proceed (e.g. yes, sure, proceed, yes please, sounds good, do it, go ahead, approved).',
+              false: 'The user does not confirm, or denies, cancels, corrects, or asks an unrelated question.',
+            },
+          },
+          is_denying: {
+            type: 'noul',
+            instructions: 'Does the user message explicitly cancel, reject, deny, or say no to the action?',
+            criteria: {
+              true: 'The user explicitly rejects, denies, stops, cancels, or says no to the action (e.g. no, cancel, stop, nevermind, don\'t do that, abort).',
+              false: 'The user does not reject or cancel.',
+            },
+          },
           has_secondary_request: {
             type: 'noul',
             instructions:
@@ -162,24 +186,17 @@ export class JevClient {
       const probability = noulAnswer ? noulAnswer.noul : 0;
       const hasSecondaryRequest = probability >= 0.7;
 
+      const isConfirming = (res.nouls?.['is_confirming']?.noul ?? 0) >= 0.7;
+      const isDenying = (res.nouls?.['is_denying']?.noul ?? 0) >= 0.7;
+
       let resolution = choice ?? 'new_request';
 
-      // Truth-table: If user provided an explicit affirmation or denial alongside a secondary request,
-      // ensure it is categorized as confirm or deny rather than being misclassified as an unrelated new_request.
-      const trimmed = message.trim();
-      const isAffirmative =
-        /^(yes|yep|yeah|sure|confirm|proceed|ok|okay|do it|go ahead|correct|approved|agree)\b/i.test(trimmed);
-      const isNegative =
-        /^(no|nope|cancel|stop|don't|dont|nevermind|deny|disagree|reject)\b/i.test(trimmed);
-
-      if (hasSecondaryRequest && resolution === 'new_request') {
-        if (isAffirmative) {
-          resolution = 'confirm';
-        } else if (isNegative) {
-          resolution = 'deny';
-        }
-      } else if (resolution === 'new_request' && isAffirmative) {
+      // TypeSafe truth-table: If Jev's companion Noul detects confirmation or denial,
+      // it takes precedence even when an additional secondary request is present.
+      if (isConfirming || choice === 'confirm') {
         resolution = 'confirm';
+      } else if (isDenying || choice === 'deny') {
+        resolution = 'deny';
       }
 
       this.opts.observability?.setLLMCall('jev-confirmation-resolution', {

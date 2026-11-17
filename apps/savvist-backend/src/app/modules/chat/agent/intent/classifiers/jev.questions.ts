@@ -4,6 +4,7 @@ import { INTENTS } from '../intent.taxonomy';
 export const INTENT_QUESTION_ID = 'intent';
 export const POLICY_QUESTION_ID = 'prohibited_advice_or_topic';
 export const FOLLOW_UP_QUESTION_ID = 'is_follow_up_or_elliptical';
+export const WISHLIST_DOMAIN_QUESTION_ID = 'is_wishlist_domain';
 
 export function buildIntentQuestions(): Record<string, Question> {
   const criteria = Object.fromEntries(
@@ -32,6 +33,15 @@ export function buildIntentQuestions(): Record<string, Question> {
       criteria: {
         true: 'The message depends on previous turns to be understood (for example, "what about my expenses?", "how about tomorrow?", "how much was that?", "and rent?").',
         false: 'The message is a self-contained question, greeting, or command that makes complete sense on its own without earlier context.',
+      },
+    },
+    [WISHLIST_DOMAIN_QUESTION_ID]: {
+      type: 'noul',
+      instructions:
+        'Does the user message ask about, view, list, count, or manage wishlist items, purchases, bought items, or pending items?',
+      criteria: {
+        true: 'The user message asks to view, list, query, count, or manage wishlist items, purchases made, items bought, or pending items (e.g. "what is my most expensive purchase", "show bought items", "what did I buy in October", "show pending items", "how many items did I buy", "what should I buy next", "add shoes to wishlist").',
+        false: 'The user message is about recurring bills, regular living expenses, rent, utilities, account balances, salary, reminders, or general talk.',
       },
     },
   };

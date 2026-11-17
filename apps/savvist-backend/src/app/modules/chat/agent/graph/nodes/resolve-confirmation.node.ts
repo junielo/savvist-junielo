@@ -66,28 +66,7 @@ export function resolveConfirmationNodeFactory(deps: ResolveConfirmationDeps = {
         const jevRes = await deps.jevClient.resolveConfirmationResponse(userText, action.description);
         resolution = jevRes.resolution;
       } catch {
-        // Fall back to lightweight code heuristics if Jev throws
-      }
-    }
-
-    const lower = userText.toLowerCase();
-    const affirmativeRegex = /^(yes|yep|yeah|sure|confirm|proceed|ok|okay|do it|go ahead|correct|approved|agree)\b/i;
-    const denialRegex = /^(no|nope|cancel|stop|don't|dont|nevermind|deny|disagree|reject)\b/i;
-
-    if (resolution === 'new_request') {
-      if (affirmativeRegex.test(lower)) {
-        resolution = 'confirm';
-      } else if (denialRegex.test(lower)) {
-        resolution = 'deny';
-      }
-    } else if (!resolution) {
-      if (affirmativeRegex.test(lower)) {
-        resolution = 'confirm';
-      } else if (denialRegex.test(lower)) {
-        resolution = 'deny';
-      } else if (/\b(change|make it|correction|actually|instead|update to)\b|\d+/i.test(lower)) {
-        resolution = 'correction';
-      } else {
+        // Fall back to default new_request if Jev throws
         resolution = 'new_request';
       }
     }
@@ -95,7 +74,7 @@ export function resolveConfirmationNodeFactory(deps: ResolveConfirmationDeps = {
     return {
       pending_action: {
         ...action,
-        resolution,
+        resolution: resolution ?? 'new_request',
       },
     };
   };

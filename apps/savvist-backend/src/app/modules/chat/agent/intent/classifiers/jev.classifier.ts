@@ -12,8 +12,8 @@ export class JevIntentClassifier /* implements IntentClassifier */ {
 
   async classify(input: ClassifierInput): Promise<IntentResult> {
     try {
-      const { answer, isFollowUp } = await this.jev.classifyIntent(input);
-      return scoreToResult(answer, this.thresholds, 'jev', isFollowUp);
+      const { answer, isFollowUp, isWishlistDomain } = await this.jev.classifyIntent(input);
+      return scoreToResult(answer, this.thresholds, 'jev', isFollowUp, isWishlistDomain);
     } catch {
       // Don't log the error body: TypeSafe errors can echo the user's message
       if (this.fallback) return this.fallback.classify(input);

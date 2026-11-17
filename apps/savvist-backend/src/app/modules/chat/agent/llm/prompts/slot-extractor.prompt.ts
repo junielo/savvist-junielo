@@ -51,8 +51,8 @@ Rules:
 - Normalize amounts to plain numbers ("1k" → 1000, "1,000" → 1000).
 - "cheapest", "least expensive" → sort amount asc, limit 1. "most expensive", "priciest" → sort amount desc, limit 1.
 - "highest priority", "most important" → sort priority asc (asap is rank 0).
-- Do not set status unless user mentions purchased, bought or all items.
-- For relative dates ("last month", "this week") use period.
+- Status: If the user mentions purchase, purchases, purchased, or bought items (e.g. "my purchases", "most expensive purchase", "what did I buy"), filter status "purchased". If the user asks for pending items or wishlist items to buy, filter status "pending". Do not set status unless user mentions purchase/purchased, bought, pending, or all items.
+- Dates/Months: If a specific month or year is requested (e.g. "in October", "on October"), filter date ("purchasedAt" for purchases/bought items, or "createdAt") with op "between" for that month (e.g. 2026-10-01 to 2026-10-31), or use period for relative dates ("last month", "this week").
 - Aggregation: If user asks for totals, counts, averages, breakdowns, or summaries across categories or time intervals (e.g. "each month", "per month", "by priority", "average cost"):
   - Set "aggregate" with "groupBy" ("month", "year", "priority", "status", or null for overall).
   - Set "dateField" to "purchasedAt" for purchased/bought items, or "createdAt" otherwise.

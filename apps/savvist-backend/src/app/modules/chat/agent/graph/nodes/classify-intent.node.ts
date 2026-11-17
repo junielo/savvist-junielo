@@ -69,7 +69,7 @@ export function classifyIntentNode(deps: ClassifyIntentDeps) {
 
     // Code decides after Jev: thresholds already applied in scoreToResult,
     // state guards applied here.
-    const intentResult = applyStateGuards(raw, state);
+    const intentResult = applyStateGuards(raw, state, input.message);
 
     return { intentResult };
   };
