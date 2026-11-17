@@ -55,6 +55,15 @@ export const respondNodeFactory = (options?: RespondNodeOptions) => {
     } else if (ir?.group === 'non-domain') {
       const intents = [ir.intent, ...(ir.secondary ?? [])];
       text = prefix + intents.map(smalltalk).join(' ');
+    } else if (state.writeResult) {
+      const writeResult = state.writeResult as any;
+      if (writeResult?.message) {
+        text = writeResult.message;
+      } else if (writeResult?.error) {
+        text = writeResult.error;
+      } else {
+        text = 'Operation completed successfully.';
+      }
     } else if (!ir || ir.group === 'unknown' || state.awaiting_clarification) {
       text = state.awaiting_clarification ?? ASK_REPHRASE;
       clarifying = true;

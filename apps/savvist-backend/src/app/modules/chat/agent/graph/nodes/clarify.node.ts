@@ -1,5 +1,6 @@
 import { AgentStateType } from '../agent.state';
 import { ObservabilityService } from '../../observability/observability.service';
+import { formatOrdinal } from '../../tools/date-utils';
 
 export interface ClarifyNodeDeps {
   observability?: ObservabilityService;
@@ -38,6 +39,43 @@ export const clarifyNodeFactory = (deps: ClarifyNodeDeps = {}) => {
           awaiting_clarification:
             'What is your new base salary amount, or would you like to set your status to unemployed?',
         };
+      }
+      if (ir?.intent === 'manage_expense') {
+        const update = state.slots?.updateExpense;
+        if (update) {
+          if (!update.targetName) {
+            return {
+              awaiting_clarification: 'Which expense would you like to update, and what would you like to change?',
+            };
+          }
+          return {
+            awaiting_clarification: `What would you like to update for "${update.targetName}"? You can change its name, amount, or recurring due day.`,
+          };
+        }
+
+        const expenses = state.slots?.expenses;
+        if (!expenses || expenses.length === 0) {
+          return {
+            awaiting_clarification:
+              'You can list one or several expenses with their name, amount, and monthly due day.\n\nFor example:\nRent 15000 on the 5th, PLDT 1899 on the 20th\n\nWhat expense(s) would you like to add?',
+          };
+        }
+
+        const missingDays = expenses.filter((e: any) => !e.dayOfMonth || e.dayOfMonth < 1 || e.dayOfMonth > 31);
+        if (missingDays.length > 0) {
+          const list = expenses
+            .map((e: any) => {
+              const amt = `₱${Number(e.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              return e.dayOfMonth
+                ? `- ${e.name}: ${amt} (due every ${formatOrdinal(e.dayOfMonth)})`
+                : `- ${e.name}: ${amt} — What day of the month is this due?`;
+            })
+            .join('\n');
+          return {
+            awaiting_clarification:
+              `I have the following expense details, but I just need the monthly due day(s):\n${list}\n\nWhat day of the month is each due? (e.g. 5th, 20th)`,
+          };
+        }
       }
       return {
         awaiting_clarification:

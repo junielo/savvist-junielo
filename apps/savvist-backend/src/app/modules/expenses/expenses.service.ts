@@ -86,34 +86,47 @@ export class ExpensesService {
   }
 
   async create(userId: Types.ObjectId, dto: CreateExpenseDto): Promise<Expense> {
-    const months = dto.months || [];
-    this.validateMonthsAndDay(dto.dayOfMonth, months);
+    const results = await this.createMany(userId, [dto]);
+    return results[0];
+  }
+
+  async createMany(userId: Types.ObjectId, dtos: CreateExpenseDto[]): Promise<Expense[]> {
+    for (const dto of dtos) {
+      const months = dto.months || [];
+      this.validateMonthsAndDay(dto.dayOfMonth, months);
+    }
 
     return this.transactionService.run(async (session) => {
-      const expense = new this.expenseModel({
-        userId,
-        name: dto.name,
-        amount: dto.amount,
-        dayOfMonth: dto.dayOfMonth,
-        months,
-      });
-      await expense.save({ session });
-
-      await this.recordLogsService.create(
-        {
+      const created: Expense[] = [];
+      for (const dto of dtos) {
+        const months = dto.months || [];
+        const expense = new this.expenseModel({
           userId,
-          name: expense.name,
-          amount: expense.amount,
-          recordType: 'expense',
-          action: 'created',
-          sourceCollection: 'expenses',
-          sourceId: expense._id,
-        },
-        session,
-      );
+          name: dto.name,
+          amount: dto.amount,
+          dayOfMonth: dto.dayOfMonth,
+          months,
+        });
+        await expense.save({ session });
 
-      this.logger.log(`Created expense "${dto.name}" for user ${userId}`);
-      return expense.toObject();
+        await this.recordLogsService.create(
+          {
+            userId,
+            name: expense.name,
+            amount: expense.amount,
+            recordType: 'expense',
+            action: 'created',
+            sourceCollection: 'expenses',
+            sourceId: expense._id,
+          },
+          session,
+        );
+
+        created.push(expense.toObject());
+      }
+
+      this.logger.log(`Created ${created.length} expense(s) for user ${userId}`);
+      return created;
     });
   }
 

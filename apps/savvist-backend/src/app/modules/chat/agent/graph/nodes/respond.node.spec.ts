@@ -78,4 +78,28 @@ describe('respondNode', () => {
     const result = await respondNode(blockedState);
     expect((result.messages?.[0] as AIMessage).content).toContain('falls outside my scope');
   });
+
+  it('should prioritize writeResult over awaiting_clarification and clear awaiting_clarification', async () => {
+    const writeState: AgentStateType = {
+      ...baseState,
+      intentResult: {
+        intent: 'manage_expense',
+        group: 'write',
+        confidence: 0.99,
+        runnerUp: null,
+        probabilities: {},
+        source: 'jev',
+      },
+      writeResult: {
+        success: true,
+        message: 'Successfully added expense "Meralco" for ₱4,000.00 (due every 5th).',
+      },
+      awaiting_clarification: 'You can list one or several expenses with their name, amount, and monthly due day.',
+    };
+    const result = await respondNode(writeState);
+    expect((result.messages?.[0] as AIMessage).content).toBe(
+      'Successfully added expense "Meralco" for ₱4,000.00 (due every 5th).',
+    );
+    expect(result.awaiting_clarification).toBeNull();
+  });
 });

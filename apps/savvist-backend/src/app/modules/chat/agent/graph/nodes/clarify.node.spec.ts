@@ -80,6 +80,75 @@ describe('clarifyNode', () => {
     );
   });
 
+  describe('manage_expense clarification', () => {
+    it('formulates template guide clarification when no expenses provided', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_expense' },
+        slots: { incomplete: true, expenses: [] },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toContain('You can list one or several expenses');
+      expect(result.awaiting_clarification).toContain('Rent 15000 on the 5th, PLDT 1899 on the 20th');
+    });
+
+    it('formulates delta clarification when expenses are missing dayOfMonth', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_expense' },
+        slots: {
+          incomplete: true,
+          expenses: [
+            { name: 'Water', amount: 500, dayOfMonth: null },
+            { name: 'Electricity', amount: 2800, dayOfMonth: 18 },
+          ],
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toContain('I have the following expense details, but I just need the monthly due day(s):');
+      expect(result.awaiting_clarification).toContain('- Water: ₱500.00 — What day of the month is this due?');
+      expect(result.awaiting_clarification).toContain('- Electricity: ₱2,800.00 (due every 18th)');
+    });
+
+    it('formulates update clarification when target expense is known but changes are missing', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_expense' },
+        slots: {
+          incomplete: true,
+          updateExpense: { targetName: 'water bill', newName: null, amount: null, dayOfMonth: null, months: [] },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toBe(
+        'What would you like to update for "water bill"? You can change its name, amount, or recurring due day.',
+      );
+    });
+
+    it('asks which expense to update when targetName is missing', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_expense' },
+        slots: {
+          incomplete: true,
+          updateExpense: { targetName: '', newName: 'Maynilad' },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toBe(
+        'Which expense would you like to update, and what would you like to change?',
+      );
+    });
+  });
+
   it('falls back to default clarification prompt when no specific ambiguity is detected', async () => {
     const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {

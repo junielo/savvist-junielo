@@ -13,6 +13,28 @@ export const BalanceEntrySchema = z.object({
 
 export type BalanceEntry = z.infer<typeof BalanceEntrySchema>;
 
+export const ExpenseEntrySchema = z.object({
+  name: z.string().trim().min(1),
+  amount: z.number().positive(),
+  dayOfMonth: z.number().int().min(1).max(31).nullish().transform((v) => v ?? null),
+  months: z.array(z.number().int().min(1).max(12)).optional().default([]),
+});
+
+export type ExpenseEntry = z.infer<typeof ExpenseEntrySchema>;
+
+export const ExpenseUpdateSchema = z.object({
+  targetName: z.string().trim().min(1),
+  newName: z.string().trim().min(1).nullish().transform((v) => v ?? null),
+  amount: z.number().positive().nullish().transform((v) => v ?? null),
+  dayOfMonth: z.number().int().min(1).max(31).nullish().transform((v) => v ?? null),
+  months: z
+    .array(z.number().int().min(1).max(12))
+    .nullish()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+});
+
+export type ExpenseUpdate = z.infer<typeof ExpenseUpdateSchema>;
+
 // Used only to validate the model's JSON. It is NOT sent to Gemini.
 export const SlotSchema = z.object({
   searchName: z.string().nullish().transform((v) => v ?? null),
@@ -23,6 +45,8 @@ export const SlotSchema = z.object({
   baseSalary: z.number().min(0).nullish().transform((v) => v ?? null),
   isUnemployed: z.boolean().nullish().transform((v) => v ?? null),
   entries: z.array(BalanceEntrySchema).nullish().transform((v) => v ?? null),
+  expenses: z.array(ExpenseEntrySchema).nullish().transform((v) => v ?? null),
+  updateExpense: ExpenseUpdateSchema.nullish().transform((v) => v ?? null),
   date: z.string().nullish().transform((v) => v ?? null),
   standaloneQuery: z.string().nullish().transform((v) => v ?? ''),
   readArgs: WishlistQueryArgs.nullish().transform((v) => v ?? null),
@@ -96,6 +120,8 @@ export class SlotExtractor {
           baseSalary: null,
           isUnemployed: null,
           entries: null,
+          expenses: null,
+          updateExpense: null,
           date: null,
           standaloneQuery: message,
           readArgs: null,
@@ -133,6 +159,62 @@ export class SlotExtractor {
         slots.entries = [{ accountName: slots.accountName, amount: slots.amount }];
       }
 
+      // Normalize expenses: if single searchName + amount given, or if expenses provided
+      if (slots.expenses && slots.expenses.length > 0) {
+        if (!slots.searchName) slots.searchName = slots.expenses[0].name;
+        if (!slots.amount) slots.amount = slots.expenses[0].amount;
+      } else if (intent === 'manage_expense') {
+        const candidateName = slots.searchName ?? slots.accountName;
+        if (candidateName && slots.amount) {
+          slots.expenses = [
+            {
+              name: candidateName,
+              amount: slots.amount,
+              dayOfMonth: null,
+              months: [],
+            },
+          ];
+        }
+      }
+
+      // If managing expenses, infer dayOfMonth from "today" if applicable, then check completeness
+      if (intent === 'manage_expense') {
+        if (slots.updateExpense) {
+          if (!slots.searchName) {
+            slots.searchName = slots.updateExpense.targetName;
+          }
+          const hasUpdateField =
+            Boolean(slots.updateExpense.newName) ||
+            slots.updateExpense.amount !== null ||
+            slots.updateExpense.dayOfMonth !== null ||
+            (slots.updateExpense.months && slots.updateExpense.months.length > 0);
+
+          if (!slots.updateExpense.targetName || !hasUpdateField) {
+            slots.incomplete = true;
+          } else {
+            slots.incomplete = false;
+          }
+        } else if (slots.expenses && slots.expenses.length > 0) {
+          if (today && (slots.date === 'today' || slots.date === today)) {
+            const todayDay = parseInt(today.split('-')[2], 10);
+            if (!isNaN(todayDay) && todayDay >= 1 && todayDay <= 31) {
+              slots.expenses = slots.expenses.map((e) =>
+                e.dayOfMonth === null ? { ...e, dayOfMonth: todayDay } : e,
+              );
+            }
+          }
+
+          const hasIncompleteExpense = slots.expenses.some(
+            (e) => !e.name || !e.amount || e.dayOfMonth === null || e.dayOfMonth < 1 || e.dayOfMonth > 31,
+          );
+          if (hasIncompleteExpense) {
+            slots.incomplete = true;
+          }
+        } else {
+          slots.incomplete = true;
+        }
+      }
+
       // If managing balance entry, mark incomplete if no entries found
       if (intent === 'manage_entry_record') {
         if (!slots.entries || slots.entries.length === 0) {
@@ -166,6 +248,8 @@ export class SlotExtractor {
         baseSalary: null,
         isUnemployed: null,
         entries: null,
+        expenses: null,
+        updateExpense: null,
         date: null,
         standaloneQuery: message,
         readArgs: null,

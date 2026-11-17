@@ -18,13 +18,17 @@ describe('ExpensesService', () => {
   const expenseId = new Types.ObjectId('665f1c2a9b1e8a0012a1d001');
 
   beforeEach(async () => {
-    mockExpenseModel = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-      create: jest.fn(),
-      findOneAndDelete: jest.fn(),
-      aggregate: jest.fn(),
-    };
+    mockExpenseModel = jest.fn().mockImplementation((dto) => ({
+      ...dto,
+      _id: expenseId,
+      save: jest.fn().mockResolvedValue({}),
+      toObject: jest.fn().mockReturnValue({ _id: expenseId, ...dto }),
+    }));
+    mockExpenseModel.find = jest.fn();
+    mockExpenseModel.findOne = jest.fn();
+    mockExpenseModel.create = jest.fn();
+    mockExpenseModel.findOneAndDelete = jest.fn();
+    mockExpenseModel.aggregate = jest.fn();
 
     mockTransactionService = {
       run: jest.fn((work) => work({} as any)),
@@ -69,6 +73,43 @@ describe('ExpensesService', () => {
 
       const result = await service.findAll(userId);
       expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('create and createMany', () => {
+    it('creates a single expense via create', async () => {
+      const dto = { name: 'Rent', amount: 15000, dayOfMonth: 5 };
+      const result = await service.create(userId, dto);
+
+      expect(result.name).toBe('Rent');
+      expect(result.amount).toBe(15000);
+      expect(mockRecordLogsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          name: 'Rent',
+          amount: 15000,
+          action: 'created',
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('creates multiple expenses in a batch via createMany', async () => {
+      const dtos = [
+        { name: 'Rent', amount: 15000, dayOfMonth: 5 },
+        { name: 'Internet', amount: 1899, dayOfMonth: 20 },
+      ];
+      const results = await service.createMany(userId, dtos);
+
+      expect(results).toHaveLength(2);
+      expect(results[0].name).toBe('Rent');
+      expect(results[1].name).toBe('Internet');
+      expect(mockRecordLogsService.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws BadRequestException if dayOfMonth is invalid for selected months', async () => {
+      const invalidDto = { name: 'Gym', amount: 1200, dayOfMonth: 31, months: [2] }; // Feb 31 invalid
+      await expect(service.create(userId, invalidDto)).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -1,12 +1,15 @@
 import { AIMessage } from '@langchain/core/messages';
+import { Types } from 'mongoose';
 import { AgentStateType } from '../agent.state';
 import { ObservabilityService } from '../../observability/observability.service';
 import { getRiskTier } from '../../intent/risk-tier';
-import { normalizeDate } from '../../tools/date-utils';
+import { normalizeDate, formatOrdinal } from '../../tools/date-utils';
 import type { PendingAction, ConflictItem } from '../pending-action.schema';
+import { WriteTool } from '../../tools/write.tool';
 
 export interface PrepareActionDeps {
   observability?: ObservabilityService;
+  writeTool?: WriteTool;
   expiryMs?: number; // default 10 minutes (600,000ms)
 }
 
@@ -54,6 +57,7 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
 
       return {
         pending_action: updatedPending,
+        awaiting_clarification: null,
         messages: [new AIMessage(description)],
       };
     }
@@ -97,6 +101,141 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
 
       return {
         pending_action: pendingAction,
+        awaiting_clarification: null,
+        messages: [new AIMessage(description)],
+      };
+    }
+
+    if (intent === 'manage_expense') {
+      if (slots?.updateExpense) {
+        const update = slots.updateExpense;
+        const userIdStr = state.context?.userId;
+        let existingExpense: any = null;
+        if (userIdStr && deps.writeTool) {
+          try {
+            existingExpense = await deps.writeTool.resolveExpense(
+              new Types.ObjectId(userIdStr),
+              update.targetName,
+            );
+          } catch {
+            // resolve failed
+          }
+        }
+
+        const resolvedName = existingExpense?.name ?? update.targetName;
+        const currentAmt = existingExpense?.amount;
+        const currentDay = existingExpense?.dayOfMonth;
+        const currentMonths = existingExpense?.months;
+
+        const currentDetails: string[] = [];
+        if (currentAmt !== undefined && currentAmt !== null) {
+          currentDetails.push(
+            `₱${Number(currentAmt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          );
+        }
+        if (currentDay) {
+          currentDetails.push(`due every ${formatOrdinal(currentDay)}`);
+        }
+        const currentInfo = currentDetails.length > 0 ? ` (${currentDetails.join(', ')})` : '';
+
+        const changes: string[] = [];
+        if (update.newName && update.newName !== resolvedName) {
+          changes.push(`rename it to "${update.newName}"`);
+        }
+        if (update.amount !== null && update.amount !== undefined) {
+          changes.push(
+            `set amount to ₱${Number(update.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          );
+        }
+        if (update.dayOfMonth !== null && update.dayOfMonth !== undefined) {
+          changes.push(`set due day to every ${formatOrdinal(update.dayOfMonth)}`);
+        }
+        if (update.months && update.months.length > 0) {
+          const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          changes.push(`set months to ${update.months.map((m: number) => monthNames[m]).join(', ')}`);
+        }
+
+        const changeStr = changes.length > 0 ? changes.join(' and ') : 'update it';
+        const description = `Would you like to update the expense "${resolvedName}"${currentInfo} to ${changeStr}? Reply "yes" to confirm or "no" to cancel.`;
+
+        const pendingAction: PendingAction = {
+          tool: 'update_expense',
+          intent,
+          risk,
+          args: {
+            id: existingExpense?._id ? String(existingExpense._id) : undefined,
+            targetName: resolvedName,
+            previousName: resolvedName,
+            previousAmount: currentAmt,
+            previousDayOfMonth: currentDay,
+            previousMonths: currentMonths,
+            newName: update.newName ?? undefined,
+            amount: update.amount != null ? Number(update.amount) : currentAmt,
+            dayOfMonth: update.dayOfMonth != null ? Number(update.dayOfMonth) : currentDay,
+            months: update.months && update.months.length > 0 ? update.months : currentMonths,
+          },
+          description,
+          confirmedReplace: false,
+          conflict: null,
+          resolution: null,
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+        };
+
+        return {
+          pending_action: pendingAction,
+          awaiting_clarification: null,
+          messages: [new AIMessage(description)],
+        };
+      }
+
+      const expenses = (slots?.expenses as any[]) || [];
+      const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const formatExpenseLine = (exp: any) => {
+        const amt = `₱${Number(exp.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const dayStr = exp.dayOfMonth ? `due every ${formatOrdinal(exp.dayOfMonth)}` : 'monthly';
+        const monthsStr =
+          exp.months && exp.months.length > 0
+            ? ` in ${exp.months.map((m: number) => monthNames[m]).join(', ')}`
+            : '';
+        return `- ${exp.name}: ${amt} (${dayStr}${monthsStr})`;
+      };
+
+      let description: string;
+      if (expenses.length === 1) {
+        const exp = expenses[0];
+        const amt = `₱${Number(exp.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const dayStr = exp.dayOfMonth ? `every ${formatOrdinal(exp.dayOfMonth)}` : 'every month';
+        const monthsStr =
+          exp.months && exp.months.length > 0
+            ? ` in ${exp.months.map((m: number) => monthNames[m]).join(', ')}`
+            : '';
+        description = `Would you like to add the expense "${exp.name}" for ${amt} (due ${dayStr}${monthsStr})? Reply "yes" to confirm or "no" to cancel.`;
+      } else if (expenses.length > 1) {
+        const lines = expenses.map(formatExpenseLine).join('\n');
+        description = `Would you like to add the following expenses:\n${lines}\n\nReply "yes" to confirm or "no" to cancel.`;
+      } else {
+        description = `What expense would you like to add?`;
+      }
+
+      const pendingAction: PendingAction = {
+        tool: 'create_expense',
+        intent,
+        risk,
+        args: {
+          expenses,
+        },
+        description,
+        confirmedReplace: false,
+        conflict: null,
+        resolution: null,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+      };
+
+      return {
+        pending_action: pendingAction,
+        awaiting_clarification: null,
         messages: [new AIMessage(description)],
       };
     }
@@ -158,6 +297,7 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
 
     return {
       pending_action: pendingAction,
+      awaiting_clarification: null,
       messages: [new AIMessage(description)],
     };
   };

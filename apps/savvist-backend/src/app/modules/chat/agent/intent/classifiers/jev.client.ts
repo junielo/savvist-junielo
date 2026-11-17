@@ -17,6 +17,16 @@ export interface JevIntentClassification {
   isFollowUp: boolean;
 }
 
+export interface EntityCandidate {
+  id?: string;
+  name: string;
+}
+
+export interface EntityMatchResult {
+  matched: EntityCandidate | null;
+  confidence: number;
+}
+
 export class JevClient {
   private readonly classifier: TypeSafeClassifier;
 
@@ -89,5 +99,87 @@ export class JevClient {
     } catch {
       return { isFollowUp: false, probability: 0 };
     }
+  }
+
+  /**
+   * Semantically matches a query or slot name (e.g. "water bill") against existing user candidate items (e.g. "water").
+   * First checks for exact match. If no exact match, uses Jev Choice + companion Noul to find the matching entity.
+   */
+  async resolveEntityMatch(
+    searchQuery: string,
+    candidates: EntityCandidate[],
+  ): Promise<EntityMatchResult> {
+    if (!searchQuery || !candidates || candidates.length === 0) {
+      return { matched: null, confidence: 0 };
+    }
+
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+
+    // 1. Exact match fast path in code
+    const exact = candidates.find((c) => c.name.trim().toLowerCase() === trimmedQuery);
+    if (exact) {
+      return { matched: exact, confidence: 1.0 };
+    }
+
+    // 2. Query Jev with Choice among candidates + companion Noul
+    try {
+      const criteria: Record<string, string> = {};
+      for (const c of candidates) {
+        criteria[c.name] = `The item or expense named "${c.name}"`;
+      }
+
+      const matchClassifier = new TypeSafeClassifier({
+        questions: {
+          matched_item: {
+            type: 'choice',
+            criteria,
+            instructions: `Which existing item or expense is the user referring to by "${searchQuery}"?`,
+          },
+          matches_any: {
+            type: 'noul',
+            instructions: `Does "${searchQuery}" refer to any of the listed items or expenses?`,
+            criteria: {
+              true: 'The user is referring to one of the listed items or expenses (for example using a synonym, utility type, bill name, or variation).',
+              false: 'The user is referring to a completely different item or expense that is not listed here.',
+            },
+          },
+        },
+        model: this.opts.model ?? 'jev-latest',
+        timeout: this.opts.timeoutMs ?? 5000,
+        maxRetries: this.opts.maxRetries ?? 1,
+      });
+
+      const res = await matchClassifier.invoke([new HumanMessage(searchQuery)]);
+      const noulAnswer = res.nouls?.['matches_any'];
+      const choiceAnswer = res.choices?.['matched_item'];
+      const probability = noulAnswer ? noulAnswer.noul : 0;
+
+      if (probability >= 0.7 && choiceAnswer?.choice) {
+        const found = candidates.find((c) => c.name === choiceAnswer.choice);
+        if (found) {
+          this.opts.observability?.setLLMCall('jev-entity-match', {
+            searchQuery,
+            candidates: candidates.map((c) => c.name),
+            matched: found.name,
+            confidence: probability,
+          });
+          return { matched: found, confidence: probability };
+        }
+      }
+
+      // If companion Noul rejected (< 0.4), do not match
+      if (probability < 0.4) {
+        return { matched: null, confidence: probability };
+      }
+    } catch {
+      // If Jev throws (e.g. offline, rate limit, timeout), degrade gracefully to substring matching
+    }
+
+    // 3. Fallback: case-insensitive substring match
+    const sub =
+      candidates.find((c) => c.name.toLowerCase().includes(trimmedQuery)) ??
+      candidates.find((c) => trimmedQuery.includes(c.name.toLowerCase()));
+
+    return { matched: sub ?? null, confidence: sub ? 0.6 : 0 };
   }
 }

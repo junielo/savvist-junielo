@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { DashboardService } from '../../../dashboard/dashboard.service';
 import { ExpensesService } from '../../../expenses/expenses.service';
@@ -13,6 +13,7 @@ import { WishlistQueryArgs, applyQuery, Row } from '../../../wishlist/wishlist-q
 import { todayIn, isValidTimeZone } from '../graph/turn-context';
 import { computeExpenseDueDateInfo, computeNextDueDate } from './date-utils';
 import { ToolDataSource, ExpenseRow, ExpenseDueQuery, filterAndSortExpensesByDueDate } from './data-tools';
+import { JevClient } from '../intent/classifiers/jev.client';
 
 const MAX_ITEMS = 10;
 const TREND_DAYS = 30;
@@ -33,7 +34,8 @@ export class ReadTool implements ToolDataSource {
     private readonly usersService: UsersService,
     private readonly accountEntriesService: AccountEntriesService,
     private readonly entryRecordsService: EntryRecordsService,
-    private readonly observability?: ObservabilityService,
+    @Optional() private readonly jevClient?: JevClient,
+    @Optional() private readonly observability?: ObservabilityService,
   ) {}
 
   async getBalances(userId: Types.ObjectId, accountName?: string, date?: string) {
@@ -116,8 +118,24 @@ export class ReadTool implements ToolDataSource {
       ? all.filter((exp) => !exp.months?.length || exp.months.includes(month))
       : all;
 
-    const query = searchName?.toLowerCase();
-    const matched = query ? forMonth.filter((exp) => exp.name.toLowerCase().includes(query)) : forMonth;
+    const query = searchName?.trim().toLowerCase();
+    let matched = query
+      ? forMonth.filter((exp) => exp.name.toLowerCase().includes(query) || query.includes(exp.name.toLowerCase()))
+      : forMonth;
+
+    if (query && matched.length === 0 && this.jevClient) {
+      try {
+        const candidates = forMonth.map((exp) => ({ id: String((exp as any)._id), name: exp.name }));
+        const sem = await this.jevClient.resolveEntityMatch(searchName!, candidates);
+        if (sem.matched) {
+          matched = forMonth.filter(
+            (exp) => String((exp as any)._id) === sem.matched?.id || exp.name === sem.matched?.name,
+          );
+        }
+      } catch (err) {
+        this.logger.warn(`Failed Jev entity match in ReadTool.getExpenses for "${searchName}": ${err}`);
+      }
+    }
 
     const result = plain({
       found: query ? matched.length > 0 : true,

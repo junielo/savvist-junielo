@@ -101,6 +101,32 @@ describe('SlotExtractor & SlotSchema', () => {
       }
     });
 
+    it('parses expenses array for single and batch expense recording', () => {
+      const expensesPayload = {
+        searchName: null,
+        month: null,
+        limit: null,
+        accountName: null,
+        expenses: [
+          { name: 'Rent', amount: 15000, dayOfMonth: 5, months: [] },
+          { name: 'Car Insurance', amount: 4500, dayOfMonth: 10, months: [3, 9] },
+          { name: 'Water', amount: 500, dayOfMonth: null },
+        ],
+        standaloneQuery: 'Add Rent 15000 on the 5th, Car Insurance 4500 in March and September on the 10th, and Water 500',
+      };
+
+      const result = SlotSchema.safeParse(expensesPayload);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.expenses).toHaveLength(3);
+        expect(result.data.expenses?.[0].name).toBe('Rent');
+        expect(result.data.expenses?.[0].amount).toBe(15000);
+        expect(result.data.expenses?.[0].dayOfMonth).toBe(5);
+        expect(result.data.expenses?.[1].months).toEqual([3, 9]);
+        expect(result.data.expenses?.[2].dayOfMonth).toBeNull();
+      }
+    });
+
     it('parses isUnemployed true and baseSalary 0', () => {
       const unemployedPayload = {
         searchName: null,
@@ -245,6 +271,151 @@ describe('SlotExtractor & SlotSchema', () => {
       expect(slots.incomplete).toBe(false);
       expect(slots.standaloneQuery).toBe('expenses query');
       expect(mockObservability.setLLMCall).toHaveBeenCalled();
+    });
+
+    describe('manage_expense extraction and validation', () => {
+      it('marks incomplete: false when all expenses have names, amounts, and dayOfMonth', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            expenses: [
+              { name: 'Rent', amount: 15000, dayOfMonth: 5, months: [] },
+              { name: 'Internet', amount: 1899, dayOfMonth: 20, months: [] },
+            ],
+            standaloneQuery: 'Add Rent 15000 on the 5th and Internet 1899 on the 20th',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Add Rent 15000 on the 5th and Internet 1899 on the 20th',
+          undefined,
+          'manage_expense',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.expenses).toHaveLength(2);
+        expect(slots.expenses?.[0].name).toBe('Rent');
+        expect(slots.expenses?.[0].dayOfMonth).toBe(5);
+        expect(slots.expenses?.[1].name).toBe('Internet');
+        expect(slots.expenses?.[1].dayOfMonth).toBe(20);
+      });
+
+      it('marks incomplete: true when expenses are missing dayOfMonth', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            expenses: [
+              { name: 'Water', amount: 500, dayOfMonth: null, months: [] },
+              { name: 'Electricity', amount: 2800, dayOfMonth: null, months: [] },
+            ],
+            standaloneQuery: 'Add Water 500 and Electricity 2800',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Add Water 500 and Electricity 2800',
+          undefined,
+          'manage_expense',
+        );
+
+        expect(slots.incomplete).toBe(true);
+        expect(slots.expenses).toHaveLength(2);
+        expect(slots.expenses?.[0].dayOfMonth).toBeNull();
+      });
+
+      it('infers dayOfMonth from today when date is "today"', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            date: 'today',
+            expenses: [
+              { name: 'Gym', amount: 1500, dayOfMonth: null, months: [] },
+            ],
+            standaloneQuery: 'Add gym 1500 paid today',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Add gym 1500 paid today',
+          undefined,
+          'manage_expense',
+          '2026-11-16',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.expenses?.[0].dayOfMonth).toBe(16);
+      });
+
+      it('marks incomplete: true when no expenses could be extracted for manage_expense', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            expenses: null,
+            standaloneQuery: 'I want to add some expenses',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'I want to add some expenses',
+          undefined,
+          'manage_expense',
+        );
+
+        expect(slots.incomplete).toBe(true);
+      });
+
+      it('extracts updateExpense and marks incomplete: false when targetName and newName are provided', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            searchName: 'water bill',
+            updateExpense: {
+              targetName: 'water bill',
+              newName: 'Maynilad',
+              amount: null,
+              dayOfMonth: null,
+              months: [],
+            },
+            standaloneQuery: 'update my water bill into Maynilad',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'update my water bill into Maynilad',
+          undefined,
+          'manage_expense',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.updateExpense?.targetName).toBe('water bill');
+        expect(slots.updateExpense?.newName).toBe('Maynilad');
+        expect(slots.searchName).toBe('water bill');
+      });
+
+      it('marks incomplete: true when updateExpense has targetName but no update values', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            searchName: 'water bill',
+            updateExpense: {
+              targetName: 'water bill',
+              newName: null,
+              amount: null,
+              dayOfMonth: null,
+              months: [],
+            },
+            standaloneQuery: 'update my water bill',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'update my water bill',
+          undefined,
+          'manage_expense',
+        );
+
+        expect(slots.incomplete).toBe(true);
+      });
     });
   });
 });

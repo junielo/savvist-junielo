@@ -6,9 +6,31 @@ import {
   todayIn,
   toIso,
   addDays,
+  getOrdinalSuffix,
+  formatOrdinal,
 } from './date-utils';
 
 describe('date-utils', () => {
+  describe('ordinal helpers', () => {
+    it('returns correct ordinal suffixes and formatted strings', () => {
+      expect(getOrdinalSuffix(1)).toBe('st');
+      expect(getOrdinalSuffix(2)).toBe('nd');
+      expect(getOrdinalSuffix(3)).toBe('rd');
+      expect(getOrdinalSuffix(4)).toBe('th');
+      expect(getOrdinalSuffix(11)).toBe('th');
+      expect(getOrdinalSuffix(12)).toBe('th');
+      expect(getOrdinalSuffix(13)).toBe('th');
+      expect(getOrdinalSuffix(21)).toBe('st');
+      expect(getOrdinalSuffix(22)).toBe('nd');
+      expect(getOrdinalSuffix(23)).toBe('rd');
+      expect(getOrdinalSuffix(31)).toBe('st');
+
+      expect(formatOrdinal(1)).toBe('1st');
+      expect(formatOrdinal(5)).toBe('5th');
+      expect(formatOrdinal(20)).toBe('20th');
+      expect(formatOrdinal(22)).toBe('22nd');
+    });
+  });
   describe('daysInMonth', () => {
     it('returns correct days for standard months', () => {
       expect(daysInMonth(2026, 1)).toBe(31); // Jan

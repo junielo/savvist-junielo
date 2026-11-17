@@ -105,4 +105,130 @@ describe('executeWriteNode', () => {
     expect(result.writeResult?.message).toContain('₱50,000.00');
     expect(result.pending_action).toBeNull();
   });
+
+  describe('create_expense tool action', () => {
+    it('calls writeTool.createExpense and returns success writeResult', async () => {
+      mockWriteTool.createExpense = jest.fn().mockResolvedValue({
+        success: true,
+        message: 'Successfully added expense "Rent" for ₱15,000.00 (due every 5th).',
+        records: [{ name: 'Rent', amount: 15000, dayOfMonth: 5 }],
+      });
+
+      const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
+      const state = {
+        context: { userId },
+        pending_action: {
+          tool: 'create_expense',
+          intent: 'manage_expense',
+          args: {
+            expenses: [{ name: 'Rent', amount: 15000, dayOfMonth: 5, months: [] }],
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(mockWriteTool.createExpense).toHaveBeenCalledWith(
+        new Types.ObjectId(userId),
+        expect.objectContaining({
+          expenses: [{ name: 'Rent', amount: 15000, dayOfMonth: 5, months: [] }],
+        }),
+      );
+      expect(result.writeResult?.success).toBe(true);
+      expect(result.writeResult?.message).toContain('Successfully added expense "Rent"');
+      expect(result.pending_action).toBeNull();
+    });
+
+    it('returns error writeResult when createExpense returns error', async () => {
+      mockWriteTool.createExpense = jest.fn().mockResolvedValue({
+        error: 'Expense name cannot be empty.',
+      });
+
+      const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
+      const state = {
+        context: { userId },
+        pending_action: {
+          tool: 'create_expense',
+          intent: 'manage_expense',
+          args: {
+            expenses: [{ name: '', amount: 15000, dayOfMonth: 5 }],
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.writeResult?.success).toBe(false);
+      expect(result.writeResult?.error).toContain('cannot be empty');
+      expect(result.pending_action).toBeNull();
+    });
+
+    it('calls writeTool.updateExpense for update_expense action and clears awaiting_clarification', async () => {
+      mockWriteTool.updateExpense = jest.fn().mockResolvedValue({
+        success: true,
+        message: 'Successfully updated expense "water" (renamed to "Maynilad").',
+      });
+
+      const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
+      const state = {
+        context: { userId },
+        pending_action: {
+          tool: 'update_expense',
+          intent: 'manage_expense',
+          args: {
+            targetName: 'water',
+            newName: 'Maynilad',
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(mockWriteTool.updateExpense).toHaveBeenCalledWith(
+        new Types.ObjectId(userId),
+        expect.objectContaining({
+          targetName: 'water',
+          newName: 'Maynilad',
+        }),
+      );
+      expect(result.writeResult?.success).toBe(true);
+      expect(result.writeResult?.message).toContain('Successfully updated expense "water"');
+      expect(result.pending_action).toBeNull();
+      expect(result.awaiting_clarification).toBeNull();
+    });
+
+    it('does not coerce null amount or dayOfMonth to 0 when updating expense', async () => {
+      mockWriteTool.updateExpense = jest.fn().mockResolvedValue({
+        success: true,
+        message: 'Successfully updated expense "water".',
+      });
+
+      const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
+      const state = {
+        context: { userId },
+        pending_action: {
+          tool: 'update_expense',
+          intent: 'manage_expense',
+          args: {
+            targetName: 'water',
+            newName: 'Maynilad',
+            amount: null,
+            dayOfMonth: null,
+          },
+        },
+      } as any;
+
+      await node(state);
+
+      expect(mockWriteTool.updateExpense).toHaveBeenCalledWith(
+        new Types.ObjectId(userId),
+        expect.objectContaining({
+          targetName: 'water',
+          newName: 'Maynilad',
+          amount: undefined,
+          dayOfMonth: undefined,
+        }),
+      );
+    });
+  });
 });

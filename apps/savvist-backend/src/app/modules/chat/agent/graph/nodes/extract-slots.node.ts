@@ -54,6 +54,7 @@ export const extractSlotsNodeFactory = (deps: ExtractSlotsDeps | SlotExtractor =
 
     return {
       slots,
+      ...(!slots.incomplete ? { awaiting_clarification: null } : {}),
     };
   };
 };

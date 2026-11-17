@@ -40,6 +40,12 @@ describe('ReadTool - Expenses with Due Dates', () => {
     mockEntryRecordsService = {
       findByDate: jest.fn().mockResolvedValue([]),
     };
+    const mockJevClient = {
+      resolveEntityMatch: jest.fn().mockResolvedValue({
+        matched: { id: '6adf58efb1a87dfd54b8d3b2', name: 'Meralco' },
+        confidence: 0.95,
+      }),
+    };
 
     readTool = new ReadTool(
       mockDashboardService,
@@ -49,10 +55,27 @@ describe('ReadTool - Expenses with Due Dates', () => {
       mockUsersService,
       mockAccountEntriesService,
       mockEntryRecordsService,
+      mockJevClient as any,
     );
   });
 
   describe('getExpenses', () => {
+    it('uses Jev to semantically match expense when query does not substring match', async () => {
+      mockExpensesService.findAll.mockResolvedValue([
+        {
+          _id: new Types.ObjectId('6adf58efb1a87dfd54b8d3b2'),
+          name: 'Meralco',
+          amount: 4000,
+          dayOfMonth: 5,
+          months: [],
+        },
+      ]);
+
+      const result = await readTool.getExpenses(userId, 'electric bill');
+      expect(result.found).toBe(true);
+      expect(result.matchedCount).toBe(1);
+      expect(result.matched[0].name).toBe('Meralco');
+    });
     it('enriches matched expenses with nextDueDate and daysUntilDue', async () => {
       mockExpensesService.findAll.mockResolvedValue([
         {

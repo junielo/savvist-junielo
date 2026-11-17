@@ -49,6 +49,7 @@ export function executeWriteNodeFactory(deps: ExecuteWriteDeps = {}) {
         return {
           writeResult: { success: false, error: result.error },
           pending_action: null,
+          awaiting_clarification: null,
         };
       }
 
@@ -59,6 +60,89 @@ export function executeWriteNodeFactory(deps: ExecuteWriteDeps = {}) {
           record: 'records' in result ? result.records : null,
         },
         pending_action: null,
+        awaiting_clarification: null,
+      };
+    }
+
+    if (pending.tool === 'update_expense' || (pending.intent === 'manage_expense' && pending.args['targetName'])) {
+      const args = pending.args as {
+        id?: string;
+        targetName: string;
+        previousName?: string;
+        previousAmount?: number;
+        previousDayOfMonth?: number;
+        previousMonths?: number[];
+        newName?: string;
+        amount?: number;
+        dayOfMonth?: number;
+        months?: number[];
+      };
+
+      const result = await deps.writeTool.updateExpense(userId, {
+        id: args.id,
+        targetName: args.targetName,
+        previousName: args.previousName,
+        previousAmount: args.previousAmount,
+        previousDayOfMonth: args.previousDayOfMonth,
+        previousMonths: args.previousMonths,
+        newName: args.newName,
+        amount: args.amount != null ? Number(args.amount) : undefined,
+        dayOfMonth: args.dayOfMonth != null ? Number(args.dayOfMonth) : undefined,
+        months: args.months && args.months.length > 0 ? args.months : undefined,
+      });
+
+      if ('error' in result && result.error) {
+        return {
+          writeResult: { success: false, error: result.error },
+          pending_action: null,
+          awaiting_clarification: null,
+        };
+      }
+
+      return {
+        writeResult: {
+          success: true,
+          message: 'message' in result ? result.message : 'Expense updated successfully.',
+          record: 'records' in result ? result.records : null,
+        },
+        pending_action: null,
+        awaiting_clarification: null,
+      };
+    }
+
+    if (pending.tool === 'create_expense' || pending.intent === 'manage_expense') {
+      const args = pending.args as {
+        expenses?: any[];
+        name?: string;
+        amount?: number;
+        dayOfMonth?: number;
+        months?: number[];
+      };
+
+      const result = await deps.writeTool.createExpense(userId, {
+        expenses: args.expenses,
+        name: args.name,
+        amount: args.amount !== undefined ? Number(args.amount) : undefined,
+        dayOfMonth: args.dayOfMonth !== undefined ? Number(args.dayOfMonth) : undefined,
+        months: args.months,
+      });
+
+      if ('error' in result && result.error) {
+        return {
+          writeResult: { success: false, error: result.error },
+          pending_action: null,
+          awaiting_clarification: null,
+        };
+      }
+
+      return {
+        writeResult: {
+          success: true,
+          message: 'message' in result ? result.message : 'Expense(s) created successfully.',
+          record: 'records' in result ? result.records : null,
+        },
+        pending_action: null,
+        awaiting_clarification: null,
       };
     }
 
@@ -96,6 +180,7 @@ export function executeWriteNodeFactory(deps: ExecuteWriteDeps = {}) {
       return {
         writeResult: { success: false, error: result.error },
         pending_action: null,
+        awaiting_clarification: null,
       };
     }
 
@@ -106,6 +191,7 @@ export function executeWriteNodeFactory(deps: ExecuteWriteDeps = {}) {
         record: 'records' in result ? result.records : null,
       },
       pending_action: null,
+      awaiting_clarification: null,
     };
   };
 }

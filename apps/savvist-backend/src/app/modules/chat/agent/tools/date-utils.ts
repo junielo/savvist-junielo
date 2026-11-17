@@ -167,3 +167,13 @@ export function normalizeDate(input: string, today: string): NormalizeResult {
 
   return fail();
 }
+
+export function getOrdinalSuffix(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
+}
+
+export function formatOrdinal(n: number): string {
+  return `${n}${getOrdinalSuffix(n)}`;
+}

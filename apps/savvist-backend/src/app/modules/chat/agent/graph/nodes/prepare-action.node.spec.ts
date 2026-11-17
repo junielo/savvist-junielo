@@ -135,4 +135,91 @@ describe('prepareActionNode', () => {
       expect(result.messages?.[0].content).toContain('update your employment status to unemployed (this will set your base salary to ₱0.00)?');
     });
   });
+
+  describe('manage_expense actions', () => {
+    it('prepares confirmation for a single expense with medium risk', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-16' },
+        intentResult: { intent: 'manage_expense' },
+        slots: {
+          expenses: [{ name: 'Rent', amount: 15000, dayOfMonth: 5, months: [] }],
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('create_expense');
+      expect(result.pending_action?.risk).toBe('medium');
+      expect(result.pending_action?.args.expenses).toEqual([
+        { name: 'Rent', amount: 15000, dayOfMonth: 5, months: [] },
+      ]);
+      expect(result.messages?.[0].content).toContain('Would you like to add the expense "Rent" for ₱15,000.00 (due every 5th)?');
+    });
+
+    it('prepares confirmation for multiple expenses with specific months formatted', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-16' },
+        intentResult: { intent: 'manage_expense' },
+        slots: {
+          expenses: [
+            { name: 'Rent', amount: 15000, dayOfMonth: 5, months: [] },
+            { name: 'Car Insurance', amount: 4500, dayOfMonth: 10, months: [3, 9] },
+          ],
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('create_expense');
+      expect(result.pending_action?.args.expenses).toHaveLength(2);
+      expect(result.messages?.[0].content).toContain('- Rent: ₱15,000.00 (due every 5th)');
+      expect(result.messages?.[0].content).toContain('- Car Insurance: ₱4,500.00 (due every 10th in Mar, Sep)');
+    });
+
+    it('prepares confirmation for updating an existing expense and resolves name via writeTool', async () => {
+      const mockWriteTool = {
+        resolveExpense: jest.fn().mockResolvedValue({
+          _id: '6adf58efb1a87dfd54b8d3b1',
+          name: 'water',
+          amount: 500,
+          dayOfMonth: 10,
+        }),
+      };
+      const node = prepareActionNodeFactory({
+        observability: mockObservability,
+        writeTool: mockWriteTool as any,
+      });
+      const state = {
+        context: { userId: '6adf58efb1a87dfd54b8d3a3', today: '2026-11-16' },
+        intentResult: { intent: 'manage_expense' },
+        slots: {
+          updateExpense: {
+            targetName: 'water bill',
+            newName: 'Maynilad',
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(mockWriteTool.resolveExpense).toHaveBeenCalledWith(
+        expect.anything(),
+        'water bill',
+      );
+      expect(result.pending_action?.tool).toBe('update_expense');
+      expect(result.pending_action?.risk).toBe('medium');
+      expect(result.pending_action?.args.targetName).toBe('water');
+      expect(result.pending_action?.args.newName).toBe('Maynilad');
+      expect(result.pending_action?.args.amount).toBe(500);
+      expect(result.pending_action?.args.dayOfMonth).toBe(10);
+      expect(result.pending_action?.args.previousAmount).toBe(500);
+      expect(result.pending_action?.args.previousDayOfMonth).toBe(10);
+      expect(result.messages?.[0].content).toBe(
+        'Would you like to update the expense "water" (₱500.00, due every 10th) to rename it to "Maynilad"? Reply "yes" to confirm or "no" to cancel.',
+      );
+      expect(result.awaiting_clarification).toBeNull();
+    });
+  });
 });

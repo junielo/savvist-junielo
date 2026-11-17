@@ -82,6 +82,16 @@ Return ONLY a JSON object, with no markdown and no extra text, in exactly this s
   "entries": [
     { "accountName": string, "amount": number }
   ] | null,
+  "expenses": [
+    { "name": string, "amount": number, "dayOfMonth": number | null, "months": number[] }
+  ] | null,
+  "updateExpense": {
+    "targetName": string,
+    "newName": string | null,
+    "amount": number | null,
+    "dayOfMonth": number | null,
+    "months": number[]
+  } | null,
   "date": string | null,
   "standaloneQuery": string
 }
@@ -97,6 +107,21 @@ Rules:
   - If the user states they are unemployed, lost their job, or are without work, set isUnemployed: true and baseSalary: 0.
   - If the user provides a new base salary (e.g. "change base salary to 50k", "my salary is now 60,000", "employed with 75k salary"), extract the numeric salary into baseSalary and set isUnemployed: false.
 - If one or multiple account balances are stated for recording or updating (e.g. "Today, my BDO amount is 45,000 and for GCredit is 11,000"), extract every account-amount pair into "entries" as an array of objects: [{"accountName": "BDO", "amount": 45000}, {"accountName": "GCredit", "amount": 11000}]. Also set "accountName" and "amount" to the first entry.
+- If creating, adding, or managing one or multiple new recurring expenses or bills (e.g. "Add Rent 15,000 on the 5th and PLDT 1899 on the 20th", "add water bill 500"):
+  - Extract each expense into "expenses" as an array of objects:
+    - "name": string name of the expense.
+    - "amount": normalized numeric amount.
+    - "dayOfMonth": number between 1 and 31 indicating the recurring due day of the month (e.g. "on the 5th" -> 5). If omitted or not mentioned, set null.
+    - "months": array of month numbers (1-12) if specific months were stated (e.g. "every March and September" -> [3, 9]). If recurring all year / every month or not mentioned, set [].
+  - Also set "searchName" to the first expense name, and "amount" to the first expense amount.
+- If updating, editing, or renaming an existing expense or bill (e.g. "update my water bill into Maynilad", "change water bill to Maynilad", "update Meralco amount to 4500", "move rent due day to the 10th"):
+  - Extract into "updateExpense":
+    - "targetName": the name or description of the existing expense to find and update (e.g. "water bill", "Meralco", "rent").
+    - "newName": the new name if renaming (e.g. "Maynilad"), otherwise null.
+    - "amount": the new amount if changed, otherwise null.
+    - "dayOfMonth": the new due day (1-31) if changed, otherwise null.
+    - "months": array of month numbers (1-12) if specific months were changed, otherwise [].
+  - Also set "searchName" to targetName.
 - If a specific date, relative day ("today", "yesterday", "tomorrow"), or calendar date is mentioned or asked about, extract it into date. If user says "today", extract "today" (or ${today}).
 
 Recent conversation history (last 3 turns):
