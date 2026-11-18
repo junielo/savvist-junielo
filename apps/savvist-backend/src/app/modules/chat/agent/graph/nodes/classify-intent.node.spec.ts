@@ -20,9 +20,6 @@ describe('classifyIntentNode', () => {
       context: null,
       clarification_turns: 0,
       rewrittenQuery: null,
-      toolMessages: [],
-      toolSteps: 0,
-      toolAnswer: null,
       queued_queries: [],
     } as any);
 

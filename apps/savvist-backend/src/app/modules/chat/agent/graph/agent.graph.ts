@@ -8,7 +8,6 @@ import {
   routeAfterCapability,
   routeAfterResolve,
   routeAfterExec,
-  routeAfterToolAgent,
 } from './agent.routers';
 import { LoadContextDeps, loadContextNode } from './nodes/load-context.node';
 import { stateGuardNode, StateGuardOptions } from './nodes/state-guard.node';
@@ -25,12 +24,6 @@ import { confirmFirstNodeFactory } from './nodes/confirm-first.node';
 import { resolveConfirmationNodeFactory } from './nodes/resolve-confirmation.node';
 import { executeWriteNodeFactory } from './nodes/execute-write.node';
 import { respondNodeFactory } from './nodes/respond.node';
-import {
-  toolLoopInitNode,
-  toolAgentNodeFactory,
-  toolsNodeFactory,
-  type ToolLoopDeps,
-} from './nodes/tool-loop.nodes';
 import { QueryRewriter } from '../llm/query-rewriter';
 import { SlotExtractor } from '../llm/slot-extractor';
 import { ReadTool } from '../tools/read.tool';
@@ -49,14 +42,11 @@ export interface AgentDeps extends ClassifyIntentDeps {
   writeTool?: WriteTool;
   replyWriter?: ReplyWriter;
   observability?: ObservabilityService;
-  toolLoop?: ToolLoopDeps; // { model, dataSource } for the data_question tool loop
   capabilityService?: CapabilityCheckService;
   jevClient?: JevClient;
 }
 
 export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) {
-  const toolLoopDeps = deps.toolLoop ?? {};
-
   const graph = new StateGraph(AgentState)
     .addNode('load-context', loadContextNode(deps.loadContext))
     .addNode('state-guard', stateGuardNode(deps.stateGuard))
@@ -68,9 +58,6 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('blocked', blockedNodeFactory({ observability: deps.observability }))
     .addNode('read-data', readDataNodeFactory({ readTool: deps.readTool, observability: deps.observability }))
     .addNode('analyze', analyzeNode)
-    .addNode('tool-loop-init', toolLoopInitNode)
-    .addNode('tool-agent', toolAgentNodeFactory(toolLoopDeps))
-    .addNode('tool-loop-tools', toolsNodeFactory(toolLoopDeps))
     .addNode('prepare-action', prepareActionNodeFactory({ observability: deps.observability, writeTool: deps.writeTool }))
     .addNode('confirm-first', confirmFirstNodeFactory({ observability: deps.observability }))
     .addNode('resolve-confirmation', resolveConfirmationNodeFactory({ observability: deps.observability, jevClient: deps.jevClient }))
@@ -88,7 +75,6 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
       clarify: 'clarify',
       'rewrite-query': 'rewrite-query',
       'extract-slots': 'extract-slots',
-      'tool-loop-init': 'tool-loop-init',
     })
     .addEdge('rewrite-query', 'extract-slots')
     .addConditionalEdges('extract-slots', routeAfterSlots, {
@@ -101,13 +87,6 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
       analyze: 'analyze',
       'prepare-action': 'prepare-action',
     })
-    // Tool loop: model decides -> tools run -> model decides again, until it answers
-    .addEdge('tool-loop-init', 'tool-agent')
-    .addConditionalEdges('tool-agent', routeAfterToolAgent, {
-      'tool-loop-tools': 'tool-loop-tools',
-      respond: 'respond',
-    })
-    .addEdge('tool-loop-tools', 'tool-agent')
     .addEdge('prepare-action', 'confirm-first')
     .addEdge('confirm-first', 'resolve-confirmation')
     .addConditionalEdges('resolve-confirmation', routeAfterResolve, {
