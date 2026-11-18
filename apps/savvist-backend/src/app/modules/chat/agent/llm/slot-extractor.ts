@@ -35,6 +35,32 @@ export const ExpenseUpdateSchema = z.object({
 
 export type ExpenseUpdate = z.infer<typeof ExpenseUpdateSchema>;
 
+export const WishlistEntrySchema = z.object({
+  name: z.string().trim().min(1),
+  amount: z.number().positive().nullish().transform((v) => v ?? null),
+  priority: z.string().trim().nullish().transform((v) => v ?? null),
+});
+
+export type WishlistEntry = z.infer<typeof WishlistEntrySchema>;
+
+export const WishlistUpdateSchema = z.object({
+  targetName: z.string().trim().min(1),
+  newName: z.string().trim().min(1).nullish().transform((v) => v ?? null),
+  amount: z.number().positive().nullish().transform((v) => v ?? null),
+  priority: z.string().trim().nullish().transform((v) => v ?? null),
+  status: z.enum(['pending', 'purchased']).nullish().transform((v) => v ?? null),
+  action: z.enum(['update', 'purchase', 'delete']).optional().default('update'),
+});
+
+export type WishlistUpdate = z.infer<typeof WishlistUpdateSchema>;
+
+export const WishlistSwapSchema = z.object({
+  item1Name: z.string().trim().min(1),
+  item2Name: z.string().trim().min(1),
+});
+
+export type WishlistSwap = z.infer<typeof WishlistSwapSchema>;
+
 // Used only to validate the model's JSON. It is NOT sent to Gemini.
 export const SlotSchema = z.object({
   searchName: z.string().nullish().transform((v) => v ?? null),
@@ -47,6 +73,9 @@ export const SlotSchema = z.object({
   entries: z.array(BalanceEntrySchema).nullish().transform((v) => v ?? null),
   expenses: z.array(ExpenseEntrySchema).nullish().transform((v) => v ?? null),
   updateExpense: ExpenseUpdateSchema.nullish().transform((v) => v ?? null),
+  wishlistItems: z.array(WishlistEntrySchema).nullish().transform((v) => v ?? null),
+  updateWishlist: WishlistUpdateSchema.nullish().transform((v) => v ?? null),
+  swapWishlist: WishlistSwapSchema.nullish().transform((v) => v ?? null),
   date: z.string().nullish().transform((v) => v ?? null),
   standaloneQuery: z.string().nullish().transform((v) => v ?? ''),
   readArgs: WishlistQueryArgs.nullish().transform((v) => v ?? null),
@@ -122,6 +151,9 @@ export class SlotExtractor {
           entries: null,
           expenses: null,
           updateExpense: null,
+          wishlistItems: null,
+          updateWishlist: null,
+          swapWishlist: null,
           date: null,
           standaloneQuery: message,
           readArgs: null,
@@ -235,6 +267,67 @@ export class SlotExtractor {
         }
       }
 
+      // Normalize wishlistItems: if single searchName + amount given, or if wishlistItems provided
+      if (slots.wishlistItems && slots.wishlistItems.length > 0) {
+        if (!slots.searchName) slots.searchName = slots.wishlistItems[0].name;
+        if (!slots.amount) slots.amount = slots.wishlistItems[0].amount;
+      } else if (intent === 'manage_wishlist') {
+        const candidateName = slots.searchName ?? slots.accountName;
+        if (candidateName && slots.amount) {
+          slots.wishlistItems = [
+            {
+              name: candidateName,
+              amount: slots.amount,
+              priority: null,
+            },
+          ];
+        }
+      }
+
+      // If managing wishlist, check completeness
+      if (intent === 'manage_wishlist') {
+        if (slots.updateWishlist) {
+          if (!slots.searchName) {
+            slots.searchName = slots.updateWishlist.targetName;
+          }
+          const isDeleteOrPurchase =
+            slots.updateWishlist.action === 'delete' ||
+            slots.updateWishlist.action === 'purchase' ||
+            slots.updateWishlist.status === 'purchased';
+
+          const hasUpdateField =
+            Boolean(slots.updateWishlist.newName) ||
+            slots.updateWishlist.amount !== null ||
+            Boolean(slots.updateWishlist.priority) ||
+            Boolean(slots.updateWishlist.status);
+
+          if (!slots.updateWishlist.targetName || (!isDeleteOrPurchase && !hasUpdateField)) {
+            slots.incomplete = true;
+          } else {
+            slots.incomplete = false;
+          }
+        } else if (slots.wishlistItems && slots.wishlistItems.length > 0) {
+          const hasIncompleteItem = slots.wishlistItems.some(
+            (item) => !item.name || !item.amount || item.amount <= 0,
+          );
+          if (hasIncompleteItem) {
+            slots.incomplete = true;
+          }
+        } else if (slots.swapWishlist) {
+          if (!slots.swapWishlist.item1Name || !slots.swapWishlist.item2Name) {
+            slots.incomplete = true;
+          }
+        } else {
+          slots.incomplete = true;
+        }
+      }
+
+      if (intent === 'swap_wishlist_priority') {
+        if (!slots.swapWishlist || !slots.swapWishlist.item1Name || !slots.swapWishlist.item2Name) {
+          slots.incomplete = true;
+        }
+      }
+
       this.observability?.setLLMCall('slot-extractor', { message, history, intent, result: slots });
       return slots;
     } catch (err) {
@@ -250,6 +343,9 @@ export class SlotExtractor {
         entries: null,
         expenses: null,
         updateExpense: null,
+        wishlistItems: null,
+        updateWishlist: null,
+        swapWishlist: null,
         date: null,
         standaloneQuery: message,
         readArgs: null,

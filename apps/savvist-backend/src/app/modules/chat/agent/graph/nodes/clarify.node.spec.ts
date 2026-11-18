@@ -149,6 +149,86 @@ describe('clarifyNode', () => {
     });
   });
 
+  describe('manage_wishlist clarification', () => {
+    it('formulates template guide clarification when no wishlist items provided', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_wishlist' },
+        slots: { incomplete: true, wishlistItems: [] },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toContain('You can list one or several wishlist items');
+      expect(result.awaiting_clarification).toContain('Sony Headphones 15000 (priority), Nike Shoes 4500');
+    });
+
+    it('formulates price clarification when wishlist item is missing amount', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          incomplete: true,
+          wishlistItems: [{ name: 'Sony Headphones', amount: null }],
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toBe(
+        'What is the estimated cost or price for "Sony Headphones"?',
+      );
+    });
+
+    it('formulates update clarification when target wishlist item is known but changes are missing', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          incomplete: true,
+          updateWishlist: { targetName: 'Sony Headphones', newName: null, amount: null, priority: null },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toBe(
+        'What would you like to update for "Sony Headphones"? You can change its name, amount, priority, mark it as purchased, or remove it.',
+      );
+    });
+
+    it('asks which wishlist item to update or remove when targetName is missing', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          incomplete: true,
+          updateWishlist: { targetName: '', newName: 'Sony WH-1000XM5' },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toBe(
+        'Which wishlist item would you like to update or remove?',
+      );
+    });
+
+    it('asks which two items to swap for swap_wishlist_priority', async () => {
+      const node = clarifyNodeFactory({ observability: mockObservability });
+      const state = {
+        intentResult: { intent: 'swap_wishlist_priority' },
+        slots: { incomplete: true },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.awaiting_clarification).toBe(
+        'Which two wishlist items would you like to swap priorities between?',
+      );
+    });
+  });
+
   it('falls back to default clarification prompt when no specific ambiguity is detected', async () => {
     const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {

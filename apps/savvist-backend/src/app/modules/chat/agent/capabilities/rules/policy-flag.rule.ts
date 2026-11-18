@@ -13,6 +13,7 @@ export function policyFlagRule(ctx: CapabilityRuleContext): CapabilityCheckOutco
 
   const isDelete =
     ctx.slots?.action === 'delete' ||
+    ctx.slots?.updateWishlist?.action === 'delete' ||
     /\b(delete|remove|erase)\b/i.test(ctx.message);
 
   if (ctx.config?.allowDeletes === false && isDelete && ctx.group === 'write') {

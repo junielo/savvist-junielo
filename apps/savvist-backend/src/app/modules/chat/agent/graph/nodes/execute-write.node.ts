@@ -146,6 +146,125 @@ export function executeWriteNodeFactory(deps: ExecuteWriteDeps = {}) {
       };
     }
 
+    if (
+      pending.tool === 'create_wishlist' ||
+      (pending.intent === 'manage_wishlist' && (pending.args['items'] || pending.args['wishlistItems']))
+    ) {
+      const args = pending.args as {
+        items?: any[];
+        wishlistItems?: any[];
+        name?: string;
+        amount?: number;
+        priority?: string;
+      };
+
+      const result = await deps.writeTool.createWishlist(userId, {
+        items: args.items ?? args.wishlistItems,
+        name: args.name,
+        amount: args.amount !== undefined ? Number(args.amount) : undefined,
+        priority: args.priority,
+      });
+
+      if ('error' in result && result.error) {
+        return {
+          writeResult: { success: false, error: result.error },
+          pending_action: null,
+          awaiting_clarification: null,
+        };
+      }
+
+      return {
+        writeResult: {
+          success: true,
+          message: 'message' in result ? result.message : 'Wishlist item(s) created successfully.',
+          record: 'records' in result ? result.records : null,
+        },
+        pending_action: null,
+        awaiting_clarification: null,
+      };
+    }
+
+    if (
+      pending.tool === 'update_wishlist' ||
+      pending.tool === 'purchase_wishlist' ||
+      pending.tool === 'delete_wishlist' ||
+      (pending.intent === 'manage_wishlist' && pending.args['targetName'])
+    ) {
+      const args = pending.args as {
+        id?: string;
+        targetName: string;
+        previousName?: string;
+        previousAmount?: number;
+        previousPriority?: string;
+        newName?: string;
+        amount?: number;
+        priority?: string;
+        status?: 'pending' | 'purchased';
+        action?: 'update' | 'purchase' | 'delete';
+      };
+
+      const result = await deps.writeTool.updateWishlist(userId, {
+        id: args.id,
+        targetName: args.targetName,
+        previousName: args.previousName,
+        previousAmount: args.previousAmount,
+        previousPriority: args.previousPriority,
+        newName: args.newName,
+        amount: args.amount != null ? Number(args.amount) : undefined,
+        priority: args.priority,
+        status: args.status,
+        action: args.action,
+      });
+
+      if ('error' in result && result.error) {
+        return {
+          writeResult: { success: false, error: result.error },
+          pending_action: null,
+          awaiting_clarification: null,
+        };
+      }
+
+      return {
+        writeResult: {
+          success: true,
+          message: 'message' in result ? result.message : 'Wishlist item updated successfully.',
+          record: 'records' in result ? result.records : null,
+        },
+        pending_action: null,
+        awaiting_clarification: null,
+      };
+    }
+
+    if (pending.tool === 'swap_wishlist_priority' || pending.intent === 'swap_wishlist_priority') {
+      const args = pending.args as {
+        item1Name: string;
+        item2Name: string;
+      };
+
+      const result = await deps.writeTool.swapWishlistPriority(userId, {
+        item1Name: args.item1Name,
+        item2Name: args.item2Name,
+      });
+
+      if ('error' in result && result.error) {
+        return {
+          writeResult: { success: false, error: result.error },
+          pending_action: null,
+          awaiting_clarification: null,
+        };
+      }
+
+      return {
+        writeResult: {
+          success: true,
+          message: 'message' in result ? result.message : 'Wishlist priorities swapped successfully.',
+          record: 'records' in result ? result.records : null,
+        },
+        pending_action: null,
+        awaiting_clarification: null,
+      };
+    }
+
     const args = pending.args as {
       accountName?: string;
       amount?: number;

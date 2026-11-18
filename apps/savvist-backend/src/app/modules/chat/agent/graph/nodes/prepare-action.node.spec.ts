@@ -222,4 +222,177 @@ describe('prepareActionNode', () => {
       expect(result.awaiting_clarification).toBeNull();
     });
   });
+
+  describe('manage_wishlist actions', () => {
+    it('prepares confirmation for creating a single wishlist item with priority', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-16' },
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          wishlistItems: [{ name: 'Sony Headphones', amount: 15000, priority: 'important' }],
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('create_wishlist');
+      expect(result.pending_action?.risk).toBe('medium');
+      expect(result.pending_action?.args.items).toEqual([
+        { name: 'Sony Headphones', amount: 15000, priority: 'important' },
+      ]);
+      expect(result.messages?.[0].content).toContain(
+        'Would you like to add "Sony Headphones" for ₱15,000.00 (important priority) to your wishlist? Reply "yes" to confirm or "no" to cancel.',
+      );
+    });
+
+    it('prepares confirmation for creating multiple wishlist items in a batch', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-16' },
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          wishlistItems: [
+            { name: 'Sony Headphones', amount: 15000, priority: 'priority' },
+            { name: 'Nike Running Shoes', amount: 4500, priority: 'normal' },
+          ],
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('create_wishlist');
+      expect(result.pending_action?.args.items).toHaveLength(2);
+      expect(result.messages?.[0].content).toContain('- Sony Headphones: ₱15,000.00 (priority priority)');
+      expect(result.messages?.[0].content).toContain('- Nike Running Shoes: ₱4,500.00 (normal priority)');
+    });
+
+    it('prepares confirmation for updating an existing wishlist item', async () => {
+      const mockWriteTool = {
+        resolveWishlistItem: jest.fn().mockResolvedValue({
+          _id: '6adf58efb1a87dfd54b8d3b1',
+          name: 'Sony Headphones',
+          amount: 15000,
+          priority: 'important',
+        }),
+      };
+      const node = prepareActionNodeFactory({
+        observability: mockObservability,
+        writeTool: mockWriteTool as any,
+      });
+      const state = {
+        context: { userId: '6adf58efb1a87dfd54b8d3a3', today: '2026-11-16' },
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          updateWishlist: {
+            targetName: 'Sony Headphones',
+            newName: 'Sony WH-1000XM5',
+            amount: 16500,
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(mockWriteTool.resolveWishlistItem).toHaveBeenCalledWith(
+        expect.anything(),
+        'Sony Headphones',
+      );
+      expect(result.pending_action?.tool).toBe('update_wishlist');
+      expect(result.pending_action?.risk).toBe('medium');
+      expect(result.pending_action?.args.targetName).toBe('Sony Headphones');
+      expect(result.pending_action?.args.newName).toBe('Sony WH-1000XM5');
+      expect(result.pending_action?.args.amount).toBe(16500);
+      expect(result.messages?.[0].content).toContain('rename it to "Sony WH-1000XM5" and set price to ₱16,500.00');
+    });
+
+    it('prepares confirmation for marking a wishlist item as purchased', async () => {
+      const mockWriteTool = {
+        resolveWishlistItem: jest.fn().mockResolvedValue({
+          _id: '6adf58efb1a87dfd54b8d3b1',
+          name: 'Sony Headphones',
+          amount: 15000,
+          priority: 'important',
+        }),
+      };
+      const node = prepareActionNodeFactory({
+        observability: mockObservability,
+        writeTool: mockWriteTool as any,
+      });
+      const state = {
+        context: { userId: '6adf58efb1a87dfd54b8d3a3', today: '2026-11-16' },
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          updateWishlist: {
+            targetName: 'Sony Headphones',
+            action: 'purchase',
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('purchase_wishlist');
+      expect(result.messages?.[0].content).toContain(
+        'Would you like to mark the wishlist item "Sony Headphones" (₱15,000.00) as purchased? Reply "yes" to confirm or "no" to cancel.',
+      );
+    });
+
+    it('prepares confirmation for removing a wishlist item', async () => {
+      const mockWriteTool = {
+        resolveWishlistItem: jest.fn().mockResolvedValue({
+          _id: '6adf58efb1a87dfd54b8d3b1',
+          name: 'Sony Headphones',
+          amount: 15000,
+          priority: 'important',
+        }),
+      };
+      const node = prepareActionNodeFactory({
+        observability: mockObservability,
+        writeTool: mockWriteTool as any,
+      });
+      const state = {
+        context: { userId: '6adf58efb1a87dfd54b8d3a3', today: '2026-11-16' },
+        intentResult: { intent: 'manage_wishlist' },
+        slots: {
+          updateWishlist: {
+            targetName: 'Sony Headphones',
+            action: 'delete',
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('delete_wishlist');
+      expect(result.messages?.[0].content).toContain(
+        'Would you like to remove the wishlist item "Sony Headphones" (₱15,000.00) from your wishlist? Reply "yes" to confirm or "no" to cancel.',
+      );
+    });
+
+    it('prepares confirmation for swapping priorities between two items', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-16' },
+        intentResult: { intent: 'swap_wishlist_priority' },
+        slots: {
+          swapWishlist: {
+            item1Name: 'Sony Headphones',
+            item2Name: 'Nike Shoes',
+          },
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('swap_wishlist_priority');
+      expect(result.pending_action?.args).toEqual({
+        item1Name: 'Sony Headphones',
+        item2Name: 'Nike Shoes',
+      });
+      expect(result.messages?.[0].content).toContain(
+        'Would you like to swap priorities between "Sony Headphones" and "Nike Shoes" on your wishlist? Reply "yes" to confirm or "no" to cancel.',
+      );
+    });
+  });
 });

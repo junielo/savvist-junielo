@@ -92,6 +92,21 @@ Return ONLY a JSON object, with no markdown and no extra text, in exactly this s
     "dayOfMonth": number | null,
     "months": number[]
   } | null,
+  "wishlistItems": [
+    { "name": string, "amount": number, "priority": string | null }
+  ] | null,
+  "updateWishlist": {
+    "targetName": string,
+    "newName": string | null,
+    "amount": number | null,
+    "priority": string | null,
+    "status": "pending" | "purchased" | null,
+    "action": "update" | "purchase" | "delete"
+  } | null,
+  "swapWishlist": {
+    "item1Name": string,
+    "item2Name": string
+  } | null,
   "date": string | null,
   "standaloneQuery": string
 }
@@ -122,6 +137,25 @@ Rules:
     - "dayOfMonth": the new due day (1-31) if changed, otherwise null.
     - "months": array of month numbers (1-12) if specific months were changed, otherwise [].
   - Also set "searchName" to targetName.
+- If creating, adding, or saving one or multiple items to wishlist (e.g. "Add Sony Headphones 15000 to wishlist with high priority", "Add Nike Shoes 4500"):
+  - Extract each item into "wishlistItems" as an array of objects:
+    - "name": string name of the wishlist item.
+    - "amount": normalized numeric price or cost.
+    - "priority": priority level if stated ('asap', 'priority', 'important', 'normal', 'peripheral', or aliases like 'urgent', 'high', 'low'), otherwise null.
+  - Also set "searchName" to the first item name, and "amount" to the first item amount.
+- If updating, editing, renaming, marking purchased, or deleting a wishlist item (e.g. "I bought the watch, mark it purchased", "update headphones price to 14000", "rename Nike shoes to Adidas Ultraboost", "change keyboard priority to asap", "remove watch from wishlist"):
+  - Extract into "updateWishlist":
+    - "targetName": the name or description of the existing wishlist item.
+    - "newName": the new name if renaming, otherwise null.
+    - "amount": the new price/amount if changed, otherwise null.
+    - "priority": new priority if changed ('asap', 'priority', 'important', 'normal', 'peripheral'), otherwise null.
+    - "status": 'purchased' if marked as purchased or bought, 'pending' if unpurchased, otherwise null.
+    - "action": 'purchase' if user bought or purchased it, 'delete' if user wants to delete or remove it, otherwise 'update'.
+  - Also set "searchName" to targetName.
+- If swapping priorities between two wishlist items (e.g. "swap priority between headphones and keyboard"):
+  - Extract into "swapWishlist":
+    - "item1Name": name of the first item.
+    - "item2Name": name of the second item.
 - If a specific date, relative day ("today", "yesterday", "tomorrow"), or calendar date is mentioned or asked about, extract it into date. If user says "today", extract "today" (or ${today}).
 
 Recent conversation history (last 3 turns):

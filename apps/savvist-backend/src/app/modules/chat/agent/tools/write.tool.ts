@@ -5,10 +5,12 @@ import { AccountEntriesService } from '../../../account-entries/account-entries.
 import { EntryRecordsService } from '../../../entry-records/entry-records.service';
 import { UsersService } from '../../../users/users.service';
 import { ExpensesService } from '../../../expenses/expenses.service';
+import { WishlistService } from '../../../wishlist/wishlist.service';
 import { ObservabilityService } from '../observability/observability.service';
 import { formatOrdinal } from './date-utils';
 import { JevClient } from '../intent/classifiers/jev.client';
 import type { Expense } from '../../../expenses/schemas/expense.schema';
+import type { WishlistItem } from '../../../wishlist/schemas/wishlist.schema';
 
 export interface BalanceUpdateItem {
   accountName: string;
@@ -56,6 +58,49 @@ export interface CreateExpenseParams {
   months?: number[];
 }
 
+export interface CreateWishlistItem {
+  name: string;
+  amount: number;
+  priority?: string;
+}
+
+export interface CreateWishlistParams {
+  items?: CreateWishlistItem[];
+  name?: string;
+  amount?: number;
+  priority?: string;
+}
+
+export interface UpdateWishlistParams {
+  id?: string;
+  targetName: string;
+  previousName?: string;
+  previousAmount?: number;
+  previousPriority?: string;
+  newName?: string;
+  amount?: number;
+  priority?: string;
+  status?: 'pending' | 'purchased';
+  action?: 'update' | 'purchase' | 'delete';
+}
+
+export interface SwapWishlistPriorityParams {
+  item1Name: string;
+  item2Name: string;
+}
+
+export function normalizeWishlistPriority(val?: string | null): string {
+  if (!val) return 'normal';
+  const lower = val.trim().toLowerCase();
+  if (['asap', 'urgent', 'critical'].includes(lower)) return 'asap';
+  if (['priority', 'top priority', 'first priority'].includes(lower)) return 'priority';
+  if (['important', 'high', 'high priority'].includes(lower)) return 'important';
+  if (['peripheral', 'low', 'lowest', 'low priority'].includes(lower)) return 'peripheral';
+  if (['normal', 'medium', 'default'].includes(lower)) return 'normal';
+  const valid = ['asap', 'priority', 'important', 'normal', 'peripheral'];
+  return valid.includes(lower) ? lower : 'normal';
+}
+
 export interface ConflictItem {
   existingBalance: number;
   proposedBalance: number;
@@ -84,8 +129,9 @@ export class WriteTool {
     private readonly entryRecordsService: EntryRecordsService,
     private readonly usersService: UsersService,
     private readonly expensesService: ExpensesService,
-    private readonly jevClient?: JevClient,
-    private readonly observability?: ObservabilityService,
+    @Optional() private readonly wishlistService?: WishlistService,
+    @Optional() private readonly jevClient?: JevClient,
+    @Optional() private readonly observability?: ObservabilityService,
   ) {}
 
   async updateBalance(userId: Types.ObjectId, params: UpdateBalanceParams): Promise<WriteResult> {
@@ -470,6 +516,342 @@ export class WriteTool {
       this.logger.error('Failed to update expense', msg);
       const errorResult: WriteResult = { error: msg };
       this.observability?.setToolCall('write-tool', { method: 'updateExpense', userId: String(userId), params, error: msg });
+      return errorResult;
+    }
+  }
+
+  async resolveWishlistItem(userId: Types.ObjectId, searchName: string): Promise<WishlistItem | null> {
+    if (!searchName || searchName.trim().length === 0 || !this.wishlistService) {
+      return null;
+    }
+    const all = await this.wishlistService.findAll(userId);
+    if (!all || all.length === 0) {
+      return null;
+    }
+
+    const trimmed = searchName.trim().toLowerCase();
+
+    // 1. Exact match fast-path in code
+    const exact = all.find((item) => item.name.trim().toLowerCase() === trimmed);
+    if (exact) {
+      return exact;
+    }
+
+    // 2. Jev semantic match
+    if (this.jevClient) {
+      try {
+        const candidates = all.map((item) => ({ id: String((item as any)._id), name: item.name }));
+        const matchRes = await this.jevClient.resolveEntityMatch(searchName, candidates);
+        if (matchRes.matched) {
+          const found = all.find(
+            (item) => String((item as any)._id) === matchRes.matched?.id || item.name === matchRes.matched?.name,
+          );
+          if (found) {
+            return found;
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`Failed Jev entity match for wishlist item "${searchName}": ${err}`);
+      }
+    }
+
+    // 3. Fallback: substring matching
+    const sub =
+      all.find((item) => item.name.toLowerCase().includes(trimmed)) ??
+      all.find((item) => trimmed.includes(item.name.toLowerCase()));
+
+    return sub ?? null;
+  }
+
+  async createWishlist(userId: Types.ObjectId, params: CreateWishlistParams): Promise<WriteResult> {
+    if (!this.wishlistService) {
+      const error = 'Wishlist service is not available.';
+      this.observability?.setToolCall('write-tool', { method: 'createWishlist', userId: String(userId), params, error });
+      return { error };
+    }
+
+    const rawItems: CreateWishlistItem[] =
+      params.items && params.items.length > 0
+        ? params.items
+        : params.name && params.amount !== undefined
+          ? [{ name: params.name, amount: params.amount, priority: params.priority }]
+          : [];
+
+    if (rawItems.length === 0) {
+      const error = 'No wishlist items specified to add.';
+      this.observability?.setToolCall('write-tool', { method: 'createWishlist', userId: String(userId), params, error });
+      return { error };
+    }
+
+    // Validate inputs
+    for (const item of rawItems) {
+      if (!item.name || item.name.trim().length === 0) {
+        const error = 'Wishlist item name cannot be empty.';
+        this.observability?.setToolCall('write-tool', { method: 'createWishlist', userId: String(userId), params, error });
+        return { error };
+      }
+      if (item.amount === undefined || item.amount <= 0) {
+        const error = `Wishlist item amount for "${item.name}" must be greater than 0.`;
+        this.observability?.setToolCall('write-tool', { method: 'createWishlist', userId: String(userId), params, error });
+        return { error };
+      }
+    }
+
+    try {
+      const created: WishlistItem[] = [];
+      for (const item of rawItems) {
+        const priority = normalizeWishlistPriority(item.priority);
+        const dto = {
+          name: item.name.trim(),
+          amount: item.amount,
+          priority,
+        };
+        const res = await this.wishlistService.create(userId, dto);
+        created.push(res);
+      }
+
+      let message: string;
+      if (created.length === 1) {
+        const item = created[0];
+        const formattedAmount = `₱${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        message = `Successfully added wishlist item "${item.name}" for ${formattedAmount} (${item.priority} priority).`;
+      } else {
+        const lines = created.map((item) => {
+          const formattedAmount = `₱${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          return `- ${item.name}: ${formattedAmount} (${item.priority} priority)`;
+        });
+        message = `Successfully added ${created.length} items to your wishlist:\n${lines.join('\n')}`;
+      }
+
+      const result: WriteResult = {
+        success: true,
+        message,
+        records: created,
+        action: 'created',
+      };
+      this.observability?.setToolCall('write-tool', { method: 'createWishlist', userId: String(userId), params, result });
+      return result;
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error('Failed to create wishlist item(s)', msg);
+      const errorResult: WriteResult = { error: msg };
+      this.observability?.setToolCall('write-tool', { method: 'createWishlist', userId: String(userId), params, error: msg });
+      return errorResult;
+    }
+  }
+
+  async updateWishlist(userId: Types.ObjectId, params: UpdateWishlistParams): Promise<WriteResult> {
+    if (!this.wishlistService) {
+      const error = 'Wishlist service is not available.';
+      this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error });
+      return { error };
+    }
+
+    if (!params.targetName && !params.id) {
+      const error = 'No target wishlist item specified to update.';
+      this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error });
+      return { error };
+    }
+
+    let targetItem: WishlistItem | null = null;
+    if (params.id && Types.ObjectId.isValid(params.id)) {
+      try {
+        targetItem = await this.wishlistService.findOne(userId, new Types.ObjectId(params.id));
+      } catch {
+        // Fall back to resolving by targetName
+      }
+    }
+
+    if (!targetItem && params.targetName) {
+      targetItem = await this.resolveWishlistItem(userId, params.targetName);
+    }
+
+    if (!targetItem) {
+      const error = `Wishlist item "${params.targetName || params.id}" not found. Please specify an existing wishlist item.`;
+      this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error });
+      return { error };
+    }
+
+    const itemId = (targetItem as any)._id as Types.ObjectId;
+
+    // Handle delete action
+    if (params.action === 'delete') {
+      try {
+        await this.wishlistService.remove(userId, itemId);
+        const formattedAmount = `₱${targetItem.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const message = `Successfully removed "${targetItem.name}" (${formattedAmount}) from your wishlist.`;
+        const result: WriteResult = {
+          success: true,
+          message,
+          records: [targetItem],
+          action: 'updated',
+        };
+        this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, result });
+        return result;
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error('Failed to remove wishlist item', msg);
+        const errorResult: WriteResult = { error: msg };
+        this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error: msg });
+        return errorResult;
+      }
+    }
+
+    // Handle purchase action
+    if (params.action === 'purchase' || params.status === 'purchased') {
+      try {
+        const purchased = await this.wishlistService.purchase(userId, itemId);
+        const formattedAmount = `₱${purchased.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const message = `Successfully marked wishlist item "${purchased.name}" (${formattedAmount}) as purchased.`;
+        const result: WriteResult = {
+          success: true,
+          message,
+          records: [purchased],
+          action: 'updated',
+        };
+        this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, result });
+        return result;
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error('Failed to purchase wishlist item', msg);
+        const errorResult: WriteResult = { error: msg };
+        this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error: msg });
+        return errorResult;
+      }
+    }
+
+    // Validate update values
+    if (params.amount !== undefined && params.amount !== null && params.amount <= 0) {
+      const error = 'Wishlist item amount must be greater than 0.';
+      this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error });
+      return { error };
+    }
+    if (params.newName !== undefined && params.newName !== null && params.newName.trim().length === 0) {
+      const error = 'New wishlist item name cannot be empty.';
+      this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error });
+      return { error };
+    }
+
+    try {
+      const updateDto: { name?: string; amount?: number; priority?: string; status?: string } = {};
+      if (params.newName && params.newName.trim().length > 0) updateDto.name = params.newName.trim();
+      if (params.amount !== undefined && params.amount !== null) updateDto.amount = params.amount;
+      if (params.priority !== undefined && params.priority !== null) {
+        updateDto.priority = normalizeWishlistPriority(params.priority);
+      }
+      if (params.status && ['pending', 'purchased'].includes(params.status)) {
+        updateDto.status = params.status;
+      }
+
+      const updated = await this.wishlistService.update(userId, itemId, updateDto);
+
+      const prevName = params.previousName || targetItem.name;
+      const prevAmount = params.previousAmount ?? targetItem.amount;
+      const prevPriority = params.previousPriority ?? targetItem.priority;
+
+      const changes: string[] = [];
+      if (params.newName && params.newName !== prevName) {
+        changes.push(`renamed to "${updated.name}"`);
+      }
+      if (params.amount !== undefined && params.amount !== null && params.amount !== prevAmount) {
+        const prevFormatted = `₱${prevAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const newFormatted = `₱${updated.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        changes.push(`amount updated from ${prevFormatted} to ${newFormatted}`);
+      }
+      if (updateDto.priority && updateDto.priority !== prevPriority) {
+        changes.push(`priority updated from "${prevPriority}" to "${updated.priority}"`);
+      }
+
+      const summary = changes.length > 0 ? changes.join(', ') : 'updated successfully';
+      const formattedAmt = `₱${updated.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const message = `Successfully updated wishlist item "${updated.name}" (${summary}, current amount: ${formattedAmt}, priority: ${updated.priority}).`;
+
+      const result: WriteResult = {
+        success: true,
+        message,
+        records: [updated],
+        action: 'updated',
+      };
+      this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, result });
+      return result;
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error('Failed to update wishlist item', msg);
+      const errorResult: WriteResult = { error: msg };
+      this.observability?.setToolCall('write-tool', { method: 'updateWishlist', userId: String(userId), params, error: msg });
+      return errorResult;
+    }
+  }
+
+  async swapWishlistPriority(userId: Types.ObjectId, params: SwapWishlistPriorityParams): Promise<WriteResult> {
+    if (!this.wishlistService) {
+      const error = 'Wishlist service is not available.';
+      this.observability?.setToolCall('write-tool', { method: 'swapWishlistPriority', userId: String(userId), params, error });
+      return { error };
+    }
+
+    const item1 = await this.resolveWishlistItem(userId, params.item1Name);
+    if (!item1) {
+      const error = `Wishlist item "${params.item1Name}" not found.`;
+      this.observability?.setToolCall('write-tool', { method: 'swapWishlistPriority', userId: String(userId), params, error });
+      return { error };
+    }
+
+    const item2 = await this.resolveWishlistItem(userId, params.item2Name);
+    if (!item2) {
+      const error = `Wishlist item "${params.item2Name}" not found.`;
+      this.observability?.setToolCall('write-tool', { method: 'swapWishlistPriority', userId: String(userId), params, error });
+      return { error };
+    }
+
+    const item1Id = (item1 as any)._id as Types.ObjectId;
+    const item2Id = (item2 as any)._id as Types.ObjectId;
+
+    if (item1Id.toString() === item2Id.toString()) {
+      const error = 'Cannot swap priority with the same item.';
+      this.observability?.setToolCall('write-tool', { method: 'swapWishlistPriority', userId: String(userId), params, error });
+      return { error };
+    }
+
+    const priority1 = item1.priority;
+    const priority2 = item2.priority;
+
+    if (priority1 === priority2) {
+      const message = `Both "${item1.name}" and "${item2.name}" already have "${priority1}" priority. No swap needed.`;
+      return { success: true, message, records: [item1, item2], action: 'updated' };
+    }
+
+    try {
+      if (priority1 === 'priority') {
+        await this.wishlistService.updateType(userId, item1Id, 'normal');
+        await this.wishlistService.updateType(userId, item2Id, 'priority');
+        await this.wishlistService.updateType(userId, item1Id, priority2);
+      } else if (priority2 === 'priority') {
+        await this.wishlistService.updateType(userId, item2Id, 'normal');
+        await this.wishlistService.updateType(userId, item1Id, 'priority');
+        await this.wishlistService.updateType(userId, item2Id, priority1);
+      } else {
+        await this.wishlistService.updateType(userId, item1Id, priority2);
+        await this.wishlistService.updateType(userId, item2Id, priority1);
+      }
+
+      const updated1 = await this.wishlistService.findOne(userId, item1Id);
+      const updated2 = await this.wishlistService.findOne(userId, item2Id);
+
+      const message = `Successfully swapped priorities: "${updated1.name}" is now ${updated1.priority}, and "${updated2.name}" is now ${updated2.priority}.`;
+      const result: WriteResult = {
+        success: true,
+        message,
+        records: [updated1, updated2],
+        action: 'updated',
+      };
+      this.observability?.setToolCall('write-tool', { method: 'swapWishlistPriority', userId: String(userId), params, result });
+      return result;
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error('Failed to swap wishlist priorities', msg);
+      const errorResult: WriteResult = { error: msg };
+      this.observability?.setToolCall('write-tool', { method: 'swapWishlistPriority', userId: String(userId), params, error: msg });
       return errorResult;
     }
   }

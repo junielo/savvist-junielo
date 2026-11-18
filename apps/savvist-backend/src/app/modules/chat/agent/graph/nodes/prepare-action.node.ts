@@ -244,6 +244,220 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
       };
     }
 
+    if (intent === 'manage_wishlist') {
+      if (slots?.updateWishlist) {
+        const update = slots.updateWishlist;
+        const userIdStr = state.context?.userId;
+        let existingItem: any = null;
+        if (userIdStr && deps.writeTool) {
+          try {
+            existingItem = await deps.writeTool.resolveWishlistItem(
+              new Types.ObjectId(userIdStr),
+              update.targetName,
+            );
+          } catch {
+            // resolve failed
+          }
+        }
+
+        const resolvedName = existingItem?.name ?? update.targetName;
+        const currentAmt = existingItem?.amount;
+        const currentPriority = existingItem?.priority;
+        const formattedCurrentAmt =
+          currentAmt !== undefined && currentAmt !== null
+            ? `₱${Number(currentAmt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : null;
+
+        // Delete action
+        if (update.action === 'delete') {
+          const info = formattedCurrentAmt ? ` (${formattedCurrentAmt})` : '';
+          const description = `Would you like to remove the wishlist item "${resolvedName}"${info} from your wishlist? Reply "yes" to confirm or "no" to cancel.`;
+
+          const pendingAction: PendingAction = {
+            tool: 'delete_wishlist',
+            intent,
+            risk,
+            args: {
+              id: existingItem?._id ? String(existingItem._id) : undefined,
+              targetName: resolvedName,
+              action: 'delete',
+            },
+            description,
+            confirmedReplace: false,
+            conflict: null,
+            resolution: null,
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+          };
+
+          return {
+            pending_action: pendingAction,
+            awaiting_clarification: null,
+            ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
+            messages: [new AIMessage(description)],
+          };
+        }
+
+        // Purchase action
+        if (update.action === 'purchase' || update.status === 'purchased') {
+          const info = formattedCurrentAmt ? ` (${formattedCurrentAmt})` : '';
+          const description = `Would you like to mark the wishlist item "${resolvedName}"${info} as purchased? Reply "yes" to confirm or "no" to cancel.`;
+
+          const pendingAction: PendingAction = {
+            tool: 'purchase_wishlist',
+            intent,
+            risk,
+            args: {
+              id: existingItem?._id ? String(existingItem._id) : undefined,
+              targetName: resolvedName,
+              action: 'purchase',
+              status: 'purchased',
+            },
+            description,
+            confirmedReplace: false,
+            conflict: null,
+            resolution: null,
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+          };
+
+          return {
+            pending_action: pendingAction,
+            awaiting_clarification: null,
+            ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
+            messages: [new AIMessage(description)],
+          };
+        }
+
+        // Update action (rename, amount, priority)
+        const currentDetails: string[] = [];
+        if (formattedCurrentAmt) {
+          currentDetails.push(formattedCurrentAmt);
+        }
+        if (currentPriority) {
+          currentDetails.push(`${currentPriority} priority`);
+        }
+        const currentInfo = currentDetails.length > 0 ? ` (${currentDetails.join(', ')})` : '';
+
+        const changes: string[] = [];
+        if (update.newName && update.newName !== resolvedName) {
+          changes.push(`rename it to "${update.newName}"`);
+        }
+        if (update.amount !== null && update.amount !== undefined) {
+          changes.push(
+            `set price to ₱${Number(update.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          );
+        }
+        if (update.priority && update.priority !== currentPriority) {
+          changes.push(`set priority to "${update.priority}"`);
+        }
+
+        const changeStr = changes.length > 0 ? changes.join(' and ') : 'update it';
+        const description = `Would you like to update the wishlist item "${resolvedName}"${currentInfo} to ${changeStr}? Reply "yes" to confirm or "no" to cancel.`;
+
+        const pendingAction: PendingAction = {
+          tool: 'update_wishlist',
+          intent,
+          risk,
+          args: {
+            id: existingItem?._id ? String(existingItem._id) : undefined,
+            targetName: resolvedName,
+            previousName: resolvedName,
+            previousAmount: currentAmt,
+            previousPriority: currentPriority,
+            newName: update.newName ?? undefined,
+            amount: update.amount != null ? Number(update.amount) : currentAmt,
+            priority: update.priority ?? currentPriority,
+          },
+          description,
+          confirmedReplace: false,
+          conflict: null,
+          resolution: null,
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+        };
+
+        return {
+          pending_action: pendingAction,
+          awaiting_clarification: null,
+          ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
+          messages: [new AIMessage(description)],
+        };
+      }
+
+      // Create wishlist items
+      const items = (slots?.wishlistItems as any[]) || [];
+      const formatWishlistLine = (item: any) => {
+        const amt = `₱${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const prio = item.priority ? `${item.priority} priority` : 'normal priority';
+        return `- ${item.name}: ${amt} (${prio})`;
+      };
+
+      let description: string;
+      if (items.length === 1) {
+        const item = items[0];
+        const amt = `₱${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const prio = item.priority ? ` (${item.priority} priority)` : '';
+        description = `Would you like to add "${item.name}" for ${amt}${prio} to your wishlist? Reply "yes" to confirm or "no" to cancel.`;
+      } else if (items.length > 1) {
+        const lines = items.map(formatWishlistLine).join('\n');
+        description = `Would you like to add the following items to your wishlist:\n${lines}\n\nReply "yes" to confirm or "no" to cancel.`;
+      } else {
+        description = `What item would you like to add to your wishlist?`;
+      }
+
+      const pendingAction: PendingAction = {
+        tool: 'create_wishlist',
+        intent,
+        risk,
+        args: {
+          items,
+        },
+        description,
+        confirmedReplace: false,
+        conflict: null,
+        resolution: null,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+      };
+
+      return {
+        pending_action: pendingAction,
+        awaiting_clarification: null,
+        ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
+        messages: [new AIMessage(description)],
+      };
+    }
+
+    if (intent === 'swap_wishlist_priority') {
+      const item1 = slots?.swapWishlist?.item1Name ?? 'Item 1';
+      const item2 = slots?.swapWishlist?.item2Name ?? 'Item 2';
+      const description = `Would you like to swap priorities between "${item1}" and "${item2}" on your wishlist? Reply "yes" to confirm or "no" to cancel.`;
+
+      const pendingAction: PendingAction = {
+        tool: 'swap_wishlist_priority',
+        intent,
+        risk,
+        args: {
+          item1Name: item1,
+          item2Name: item2,
+        },
+        description,
+        confirmedReplace: false,
+        conflict: null,
+        resolution: null,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + expiryMs).toISOString(),
+      };
+
+      return {
+        pending_action: pendingAction,
+        awaiting_clarification: null,
+        ...(state.queued_queries ? { queued_queries: state.queued_queries } : {}),
+        messages: [new AIMessage(description)],
+      };
+    }
+
     const today = state.context?.today ?? new Date().toISOString().slice(0, 10);
     let targetDay = today;
 

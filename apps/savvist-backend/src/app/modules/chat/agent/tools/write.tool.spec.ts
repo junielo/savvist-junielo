@@ -8,6 +8,7 @@ describe('WriteTool', () => {
   let mockEntryRecordsService: any;
   let mockUsersService: any;
   let mockExpensesService: any;
+  let mockWishlistService: any;
   let mockJevClient: any;
   let mockObservability: any;
 
@@ -62,6 +63,23 @@ describe('WriteTool', () => {
       findOne: jest.fn(),
       update: jest.fn(),
     };
+    mockWishlistService = {
+      create: jest.fn().mockImplementation((_uid, dto) =>
+        Promise.resolve({
+          _id: new Types.ObjectId(),
+          userId,
+          status: 'pending',
+          purchasedAt: null,
+          ...dto,
+        }),
+      ),
+      findAll: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      updateType: jest.fn(),
+      purchase: jest.fn(),
+      remove: jest.fn(),
+    };
     mockJevClient = {
       resolveEntityMatch: jest.fn(),
     };
@@ -74,6 +92,7 @@ describe('WriteTool', () => {
       mockEntryRecordsService,
       mockUsersService,
       mockExpensesService,
+      mockWishlistService,
       mockJevClient,
       mockObservability,
     );
@@ -471,6 +490,354 @@ describe('WriteTool', () => {
         expect(res.error).toContain('between 1 and 31');
       }
       expect(mockExpensesService.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createWishlist', () => {
+    it('successfully creates a single wishlist item with priority', async () => {
+      const result = await writeTool.createWishlist(userId, {
+        items: [{ name: 'Sony Headphones', amount: 15000, priority: 'important' }],
+      });
+
+      expect(result.success).toBe(true);
+      if ('success' in result) {
+        expect(result.action).toBe('created');
+        expect(result.message).toContain('Successfully added wishlist item "Sony Headphones" for ₱15,000.00 (important priority)');
+      }
+      expect(mockWishlistService.create).toHaveBeenCalledWith(userId, {
+        name: 'Sony Headphones',
+        amount: 15000,
+        priority: 'important',
+      });
+      expect(mockObservability.setToolCall).toHaveBeenCalledWith(
+        'write-tool',
+        expect.objectContaining({ method: 'createWishlist' }),
+      );
+    });
+
+    it('successfully creates multiple wishlist items in a batch', async () => {
+      const result = await writeTool.createWishlist(userId, {
+        items: [
+          { name: 'Sony Headphones', amount: 15000, priority: 'priority' },
+          { name: 'Nike Running Shoes', amount: 4500, priority: 'normal' },
+        ],
+      });
+
+      expect(result.success).toBe(true);
+      if ('success' in result) {
+        expect(result.message).toContain('Successfully added 2 items to your wishlist:');
+        expect(result.message).toContain('- Sony Headphones: ₱15,000.00 (priority priority)');
+        expect(result.message).toContain('- Nike Running Shoes: ₱4,500.00 (normal priority)');
+      }
+      expect(mockWishlistService.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('normalizes informal priority aliases (e.g. urgent -> asap, high -> important)', async () => {
+      await writeTool.createWishlist(userId, {
+        items: [{ name: 'Keyboard', amount: 6000, priority: 'urgent' }],
+      });
+
+      expect(mockWishlistService.create).toHaveBeenCalledWith(userId, {
+        name: 'Keyboard',
+        amount: 6000,
+        priority: 'asap',
+      });
+    });
+
+    it('returns error when items array is empty and no fallback params provided', async () => {
+      const result = await writeTool.createWishlist(userId, {
+        items: [],
+      });
+
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toContain('No wishlist items specified');
+      }
+      expect(mockWishlistService.create).not.toHaveBeenCalled();
+    });
+
+    it('returns error when item name is empty', async () => {
+      const result = await writeTool.createWishlist(userId, {
+        items: [{ name: '  ', amount: 1000 }],
+      });
+
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toContain('cannot be empty');
+      }
+      expect(mockWishlistService.create).not.toHaveBeenCalled();
+    });
+
+    it('returns error when item amount is negative or 0', async () => {
+      const result = await writeTool.createWishlist(userId, {
+        items: [{ name: 'Phone', amount: 0 }],
+      });
+
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toContain('must be greater than 0');
+      }
+      expect(mockWishlistService.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveWishlistItem', () => {
+    const headphonesItem = {
+      _id: new Types.ObjectId(),
+      name: 'Sony Headphones',
+      amount: 15000,
+      priority: 'important',
+      status: 'pending',
+    };
+    const shoesItem = {
+      _id: new Types.ObjectId(),
+      name: 'Nike Shoes',
+      amount: 4500,
+      priority: 'normal',
+      status: 'pending',
+    };
+
+    it('resolves exact match immediately without Jev', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem, shoesItem]);
+      const res = await writeTool.resolveWishlistItem(userId, 'Sony Headphones');
+      expect(res).toEqual(headphonesItem);
+      expect(mockJevClient.resolveEntityMatch).not.toHaveBeenCalled();
+    });
+
+    it('uses Jev to resolve "headphones" to "Sony Headphones"', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem, shoesItem]);
+      mockJevClient.resolveEntityMatch.mockResolvedValueOnce({
+        matched: { id: String(headphonesItem._id), name: 'Sony Headphones' },
+        confidence: 0.95,
+      });
+
+      const res = await writeTool.resolveWishlistItem(userId, 'headphones');
+      expect(res).toEqual(headphonesItem);
+      expect(mockJevClient.resolveEntityMatch).toHaveBeenCalledWith(
+        'headphones',
+        expect.arrayContaining([{ id: String(headphonesItem._id), name: 'Sony Headphones' }]),
+      );
+    });
+
+    it('falls back to substring matching if Jev fails or throws', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem, shoesItem]);
+      mockJevClient.resolveEntityMatch.mockRejectedValueOnce(new Error('Network error'));
+
+      const res = await writeTool.resolveWishlistItem(userId, 'Nike');
+      expect(res).toEqual(shoesItem);
+    });
+
+    it('returns null if no wishlist item matches', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem, shoesItem]);
+      mockJevClient.resolveEntityMatch.mockResolvedValueOnce({
+        matched: null,
+        confidence: 0.1,
+      });
+
+      const res = await writeTool.resolveWishlistItem(userId, 'Nonexistent item');
+      expect(res).toBeNull();
+    });
+  });
+
+  describe('updateWishlist', () => {
+    const headphonesItem = {
+      _id: new Types.ObjectId(),
+      name: 'Sony Headphones',
+      amount: 15000,
+      priority: 'important',
+      status: 'pending',
+    };
+
+    it('successfully updates a wishlist item name and amount', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem]);
+      mockWishlistService.update.mockResolvedValueOnce({
+        ...headphonesItem,
+        name: 'Sony WH-1000XM5',
+        amount: 16500,
+      });
+
+      const res = await writeTool.updateWishlist(userId, {
+        targetName: 'Sony Headphones',
+        newName: 'Sony WH-1000XM5',
+        amount: 16500,
+      });
+
+      expect(res.success).toBe(true);
+      if ('success' in res) {
+        expect(res.action).toBe('updated');
+        expect(res.message).toContain('Successfully updated wishlist item "Sony WH-1000XM5"');
+        expect(res.message).toContain('renamed to "Sony WH-1000XM5"');
+        expect(res.message).toContain('amount updated from ₱15,000.00 to ₱16,500.00');
+      }
+      expect(mockWishlistService.update).toHaveBeenCalledWith(
+        userId,
+        headphonesItem._id,
+        { name: 'Sony WH-1000XM5', amount: 16500 },
+      );
+    });
+
+    it('marks a wishlist item as purchased', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem]);
+      mockWishlistService.purchase.mockResolvedValueOnce({
+        ...headphonesItem,
+        status: 'purchased',
+        purchasedAt: new Date(),
+      });
+
+      const res = await writeTool.updateWishlist(userId, {
+        targetName: 'Sony Headphones',
+        action: 'purchase',
+      });
+
+      expect(res.success).toBe(true);
+      if ('success' in res) {
+        expect(res.message).toContain('Successfully marked wishlist item "Sony Headphones" (₱15,000.00) as purchased');
+      }
+      expect(mockWishlistService.purchase).toHaveBeenCalledWith(userId, headphonesItem._id);
+    });
+
+    it('deletes a wishlist item when action is delete', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem]);
+      mockWishlistService.remove.mockResolvedValueOnce({
+        deleted: true,
+        _id: String(headphonesItem._id),
+      });
+
+      const res = await writeTool.updateWishlist(userId, {
+        targetName: 'Sony Headphones',
+        action: 'delete',
+      });
+
+      expect(res.success).toBe(true);
+      if ('success' in res) {
+        expect(res.message).toContain('Successfully removed "Sony Headphones" (₱15,000.00) from your wishlist');
+      }
+      expect(mockWishlistService.remove).toHaveBeenCalledWith(userId, headphonesItem._id);
+    });
+
+    it('returns error if target wishlist item is not found', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem]);
+      mockJevClient.resolveEntityMatch.mockResolvedValueOnce({
+        matched: null,
+        confidence: 0.1,
+      });
+
+      const res = await writeTool.updateWishlist(userId, {
+        targetName: 'Nonexistent',
+        newName: 'New Name',
+      });
+
+      expect('error' in res).toBe(true);
+      if ('error' in res) {
+        expect(res.error).toContain('Wishlist item "Nonexistent" not found');
+      }
+      expect(mockWishlistService.update).not.toHaveBeenCalled();
+    });
+
+    it('returns error if updated amount is negative or 0', async () => {
+      mockWishlistService.findAll.mockResolvedValueOnce([headphonesItem]);
+      const res = await writeTool.updateWishlist(userId, {
+        targetName: 'Sony Headphones',
+        amount: -50,
+      });
+
+      expect('error' in res).toBe(true);
+      if ('error' in res) {
+        expect(res.error).toContain('greater than 0');
+      }
+      expect(mockWishlistService.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('swapWishlistPriority', () => {
+    const item1 = {
+      _id: new Types.ObjectId(),
+      name: 'Sony Headphones',
+      amount: 15000,
+      priority: 'important',
+    };
+    const item2 = {
+      _id: new Types.ObjectId(),
+      name: 'Nike Shoes',
+      amount: 4500,
+      priority: 'normal',
+    };
+
+    it('successfully swaps priority between two items', async () => {
+      mockWishlistService.findAll.mockResolvedValue([item1, item2]);
+      mockWishlistService.findOne
+        .mockResolvedValueOnce({ ...item1, priority: 'normal' })
+        .mockResolvedValueOnce({ ...item2, priority: 'important' });
+
+      const res = await writeTool.swapWishlistPriority(userId, {
+        item1Name: 'Sony Headphones',
+        item2Name: 'Nike Shoes',
+      });
+
+      expect(res.success).toBe(true);
+      if ('success' in res) {
+        expect(res.message).toContain('Successfully swapped priorities: "Sony Headphones" is now normal, and "Nike Shoes" is now important');
+      }
+      expect(mockWishlistService.updateType).toHaveBeenCalledWith(userId, item1._id, 'normal');
+      expect(mockWishlistService.updateType).toHaveBeenCalledWith(userId, item2._id, 'important');
+    });
+
+    it('handles unique "priority" priority swapping by updating safely', async () => {
+      const priorityItem = {
+        _id: new Types.ObjectId(),
+        name: 'Laptop',
+        amount: 80000,
+        priority: 'priority',
+      };
+      mockWishlistService.findAll.mockResolvedValue([priorityItem, item2]);
+      mockWishlistService.findOne
+        .mockResolvedValueOnce({ ...priorityItem, priority: 'normal' })
+        .mockResolvedValueOnce({ ...item2, priority: 'priority' });
+
+      const res = await writeTool.swapWishlistPriority(userId, {
+        item1Name: 'Laptop',
+        item2Name: 'Nike Shoes',
+      });
+
+      expect(res.success).toBe(true);
+      expect(mockWishlistService.updateType).toHaveBeenCalledWith(userId, priorityItem._id, 'normal');
+      expect(mockWishlistService.updateType).toHaveBeenCalledWith(userId, item2._id, 'priority');
+    });
+
+    it('returns error if item is not found', async () => {
+      mockWishlistService.findAll.mockResolvedValue([item1]);
+      mockJevClient.resolveEntityMatch.mockResolvedValue({ matched: null });
+
+      const res = await writeTool.swapWishlistPriority(userId, {
+        item1Name: 'Sony Headphones',
+        item2Name: 'Ghost Item',
+      });
+
+      expect('error' in res).toBe(true);
+      if ('error' in res) {
+        expect(res.error).toContain('Wishlist item "Ghost Item" not found');
+      }
+    });
+
+    it('returns message when both items already have the same priority', async () => {
+      const itemWithSamePriority = {
+        _id: new Types.ObjectId(),
+        name: 'Keyboard',
+        amount: 6000,
+        priority: 'important',
+      };
+      mockWishlistService.findAll.mockResolvedValue([item1, itemWithSamePriority]);
+
+      const res = await writeTool.swapWishlistPriority(userId, {
+        item1Name: 'Sony Headphones',
+        item2Name: 'Keyboard',
+      });
+
+      expect(res.success).toBe(true);
+      if ('success' in res) {
+        expect(res.message).toContain('Both "Sony Headphones" and "Keyboard" already have "important" priority. No swap needed.');
+      }
+      expect(mockWishlistService.updateType).not.toHaveBeenCalled();
     });
   });
 });

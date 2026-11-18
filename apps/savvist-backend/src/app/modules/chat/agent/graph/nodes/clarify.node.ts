@@ -77,6 +77,41 @@ export const clarifyNodeFactory = (deps: ClarifyNodeDeps = {}) => {
           };
         }
       }
+      if (ir?.intent === 'manage_wishlist') {
+        const update = state.slots?.updateWishlist;
+        if (update) {
+          if (!update.targetName) {
+            return {
+              awaiting_clarification:
+                'Which wishlist item would you like to update or remove?',
+            };
+          }
+          return {
+            awaiting_clarification: `What would you like to update for "${update.targetName}"? You can change its name, amount, priority, mark it as purchased, or remove it.`,
+          };
+        }
+
+        const items = state.slots?.wishlistItems;
+        if (!items || items.length === 0) {
+          return {
+            awaiting_clarification:
+              'You can list one or several wishlist items with their name and estimated cost (and optional priority: asap, priority, important, normal, peripheral).\n\nFor example:\nSony Headphones 15000 (priority), Nike Shoes 4500\n\nWhat wishlist item(s) would you like to add?',
+          };
+        }
+
+        const missingAmount = items.find((item: any) => !item.amount || item.amount <= 0);
+        if (missingAmount) {
+          return {
+            awaiting_clarification: `What is the estimated cost or price for "${missingAmount.name}"?`,
+          };
+        }
+      }
+      if (ir?.intent === 'swap_wishlist_priority') {
+        return {
+          awaiting_clarification:
+            'Which two wishlist items would you like to swap priorities between?',
+        };
+      }
       return {
         awaiting_clarification:
           'Could you provide more details so I can find what you are looking for?',

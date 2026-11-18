@@ -417,5 +417,174 @@ describe('SlotExtractor & SlotSchema', () => {
         expect(slots.incomplete).toBe(true);
       });
     });
+
+    describe('manage_wishlist extraction', () => {
+      it('extracts wishlist item and sets searchName and amount', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            wishlistItems: [{ name: 'Sony Headphones', amount: 15000, priority: 'important' }],
+            standaloneQuery: 'Add Sony Headphones 15000 to wishlist',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Add Sony Headphones 15000 to wishlist',
+          undefined,
+          'manage_wishlist',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.wishlistItems).toEqual([
+          { name: 'Sony Headphones', amount: 15000, priority: 'important' },
+        ]);
+        expect(slots.searchName).toBe('Sony Headphones');
+        expect(slots.amount).toBe(15000);
+      });
+
+      it('normalizes searchName and amount into wishlistItems when candidateName is provided', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            searchName: 'Nike Shoes',
+            amount: 4500,
+            standaloneQuery: 'Add Nike Shoes 4500 to wishlist',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Add Nike Shoes 4500 to wishlist',
+          undefined,
+          'manage_wishlist',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.wishlistItems).toEqual([
+          { name: 'Nike Shoes', amount: 4500, priority: null },
+        ]);
+      });
+
+      it('marks incomplete: true when wishlist item has no amount', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            wishlistItems: [{ name: 'Sony Headphones', amount: null, priority: null }],
+            standaloneQuery: 'Add Sony Headphones to wishlist',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Add Sony Headphones to wishlist',
+          undefined,
+          'manage_wishlist',
+        );
+
+        expect(slots.incomplete).toBe(true);
+      });
+
+      it('extracts updateWishlist with newName and amount and sets incomplete: false', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            updateWishlist: {
+              targetName: 'Sony Headphones',
+              newName: 'Sony WH-1000XM5',
+              amount: 16500,
+              priority: null,
+              status: null,
+              action: 'update',
+            },
+            standaloneQuery: 'Update Sony Headphones to Sony WH-1000XM5 and 16500',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Update Sony Headphones to Sony WH-1000XM5 and 16500',
+          undefined,
+          'manage_wishlist',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.updateWishlist?.targetName).toBe('Sony Headphones');
+        expect(slots.updateWishlist?.newName).toBe('Sony WH-1000XM5');
+        expect(slots.updateWishlist?.amount).toBe(16500);
+      });
+
+      it('extracts updateWishlist with purchase action', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            updateWishlist: {
+              targetName: 'Sony Headphones',
+              newName: null,
+              amount: null,
+              priority: null,
+              status: 'purchased',
+              action: 'purchase',
+            },
+            standaloneQuery: 'I bought Sony Headphones, mark as purchased',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'I bought Sony Headphones, mark as purchased',
+          undefined,
+          'manage_wishlist',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.updateWishlist?.action).toBe('purchase');
+        expect(slots.updateWishlist?.status).toBe('purchased');
+      });
+
+      it('extracts updateWishlist with delete action', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            updateWishlist: {
+              targetName: 'Sony Headphones',
+              newName: null,
+              amount: null,
+              priority: null,
+              status: null,
+              action: 'delete',
+            },
+            standaloneQuery: 'Remove Sony Headphones from wishlist',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Remove Sony Headphones from wishlist',
+          undefined,
+          'manage_wishlist',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.updateWishlist?.action).toBe('delete');
+      });
+
+      it('extracts swapWishlist for swap_wishlist_priority', async () => {
+        const mockInvoke = jest.fn().mockResolvedValue({
+          content: JSON.stringify({
+            swapWishlist: {
+              item1Name: 'Sony Headphones',
+              item2Name: 'Nike Shoes',
+            },
+            standaloneQuery: 'Swap priority between Sony Headphones and Nike Shoes',
+          }),
+        });
+        mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+        const slots = await extractor.extract(
+          'Swap priority between Sony Headphones and Nike Shoes',
+          undefined,
+          'swap_wishlist_priority',
+        );
+
+        expect(slots.incomplete).toBe(false);
+        expect(slots.swapWishlist?.item1Name).toBe('Sony Headphones');
+        expect(slots.swapWishlist?.item2Name).toBe('Nike Shoes');
+      });
+    });
   });
 });
