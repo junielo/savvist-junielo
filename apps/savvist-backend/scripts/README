@@ -6,3 +6,6 @@ npx tsx --env-file=.env apps/savvist-backend/scripts/gemini.spike.ts
 
 To run checkpointer
 npx nx test savvist-backend --testPathPatterns=checkpointer.spike
+
+To run product search
+npx tsx --env-file=.env apps/savvist-backend/scripts/product-search.spike.ts "what is the best keyboard worth 3000 pesos?"
