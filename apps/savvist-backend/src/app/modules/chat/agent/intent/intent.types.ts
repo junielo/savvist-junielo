@@ -16,6 +16,7 @@ export const READ_INTENTS = [
   'read_record_logs',
   'read_reminders',
   'read_profile',
+  'search_products',
 ] as const;
 
 export const WRITE_INTENTS = [

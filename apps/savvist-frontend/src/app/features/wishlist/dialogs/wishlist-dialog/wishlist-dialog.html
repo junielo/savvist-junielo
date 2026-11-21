@@ -23,6 +23,12 @@
       <input matInput type="text" formControlName="name" placeholder="Wishlist Name" />
     </mat-form-field>
 
+    <!-- Wishlist Description field (full width) -->
+    <mat-form-field appearance="fill" class="full-width-field">
+      <mat-label>Description (Optional)</mat-label>
+      <textarea matInput formControlName="description" placeholder="Optional description or details" rows="2"></textarea>
+    </mat-form-field>
+
     <!-- Amount and Type row (two equal columns, 32px gap) -->
     <div class="amount-date-row">
       <mat-form-field appearance="fill" class="field-col">

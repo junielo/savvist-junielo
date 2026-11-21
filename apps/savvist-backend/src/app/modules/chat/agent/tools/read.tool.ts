@@ -225,6 +225,7 @@ export class ReadTool implements ToolDataSource {
     const rows: Row[] = items.map((i: any) => ({
       id: String(i._id),
       name: i.name,
+      description: i.description ?? null,
       amount: i.amount,
       priority: i.priority ?? 'normal',
       status: i.status ?? (i.purchasedAt ? 'purchased' : 'pending'),

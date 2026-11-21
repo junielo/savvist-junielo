@@ -7,6 +7,7 @@ export interface WishlistDto {
   _id: string;
   userId: string;
   name: string;
+  description?: string | null;
   amount: number;
   priority: string;
   status: string;
@@ -17,6 +18,7 @@ export interface WishlistDto {
 
 export interface CreateWishlistDto {
   name: string;
+  description?: string;
   amount: number;
   priority?: string;
   type?: string;
@@ -24,6 +26,7 @@ export interface CreateWishlistDto {
 
 export interface UpdateWishlistDto {
   name?: string;
+  description?: string;
   amount?: number;
   priority?: string;
   type?: string;
@@ -72,6 +75,7 @@ export const toWishlistModel = (
   id: dto._id,
   userId: dto.userId,
   name: dto.name,
+  description: dto.description,
   amount: dto.amount,
   type: mapPriorityToType(dto.priority),
   isCompleted: dto.status === 'purchased',

@@ -224,6 +224,7 @@ Rules:
 | `_id` | ObjectId | yes | |
 | `userId` | ObjectId | yes | |
 | `name` | string | yes | 1 to 80 chars. |
+| `description` | string | no | Optional lengthy or detailed description of the product or item. |
 | `amount` | number | yes | `> 0`. |
 | `priority` | string enum | yes | `asap`, `priority`, `important`, `normal`, `peripheral` (listed in sort order, highest first). Default `normal`. |
 | `status` | string enum | yes | `pending` or `purchased`. Default `pending`. |
@@ -237,6 +238,7 @@ Example:
   "_id": "665f1c2a9b1e8a0012a1d001",
   "userId": "665f1c2a9b1e8a0012a1b001",
   "name": "Mechanical keyboard",
+  "description": "Mechanical gaming keyboard with RGB backlight",
   "amount": 4500,
   "priority": "important",
   "status": "pending",

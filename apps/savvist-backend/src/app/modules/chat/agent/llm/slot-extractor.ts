@@ -39,6 +39,7 @@ export const WishlistEntrySchema = z.object({
   name: z.string().trim().min(1),
   amount: z.number().positive().nullish().transform((v) => v ?? null),
   priority: z.string().trim().nullish().transform((v) => v ?? null),
+  description: z.string().trim().nullish().transform((v) => v ?? null),
 });
 
 export type WishlistEntry = z.infer<typeof WishlistEntrySchema>;
@@ -77,6 +78,8 @@ export const SlotSchema = z.object({
   updateWishlist: WishlistUpdateSchema.nullish().transform((v) => v ?? null),
   swapWishlist: WishlistSwapSchema.nullish().transform((v) => v ?? null),
   date: z.string().nullish().transform((v) => v ?? null),
+  searchQuery: z.string().nullish().transform((v) => v ?? null),
+  description: z.string().trim().nullish().transform((v) => v ?? null),
   standaloneQuery: z.string().nullish().transform((v) => v ?? ''),
   readArgs: WishlistQueryArgs.nullish().transform((v) => v ?? null),
   incomplete: z.boolean().optional().default(false),
@@ -155,6 +158,8 @@ export class SlotExtractor {
           updateWishlist: null,
           swapWishlist: null,
           date: null,
+          searchQuery: null,
+          description: null,
           standaloneQuery: message,
           readArgs: null,
           incomplete: false,
@@ -279,6 +284,7 @@ export class SlotExtractor {
               name: candidateName,
               amount: slots.amount,
               priority: null,
+              description: slots.description ?? null,
             },
           ];
         }
@@ -347,6 +353,8 @@ export class SlotExtractor {
         updateWishlist: null,
         swapWishlist: null,
         date: null,
+        searchQuery: null,
+        description: null,
         standaloneQuery: message,
         readArgs: null,
         incomplete: false,

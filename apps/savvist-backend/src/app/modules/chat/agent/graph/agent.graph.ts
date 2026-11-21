@@ -27,6 +27,7 @@ import { respondNodeFactory } from './nodes/respond.node';
 import { QueryRewriter } from '../llm/query-rewriter';
 import { SlotExtractor } from '../llm/slot-extractor';
 import { ReadTool } from '../tools/read.tool';
+import { ProductSearchService } from '../tools/product-search.service';
 import { WriteTool } from '../tools/write.tool';
 import { ReplyWriter } from '../llm/reply-writer';
 import { CapabilityCheckService } from '../capabilities/capability-check.service';
@@ -39,6 +40,7 @@ export interface AgentDeps extends ClassifyIntentDeps {
   queryRewriter?: QueryRewriter;
   slotExtractor?: SlotExtractor;
   readTool?: ReadTool;
+  productSearchService?: ProductSearchService;
   writeTool?: WriteTool;
   replyWriter?: ReplyWriter;
   observability?: ObservabilityService;
@@ -56,7 +58,14 @@ export function buildGraph(deps: AgentDeps, checkpointer?: BaseCheckpointSaver) 
     .addNode('clarify', clarifyNodeFactory({ observability: deps.observability }))
     .addNode('capability-check', capabilityCheckNodeFactory({ capabilityService: deps.capabilityService, observability: deps.observability }))
     .addNode('blocked', blockedNodeFactory({ observability: deps.observability }))
-    .addNode('read-data', readDataNodeFactory({ readTool: deps.readTool, observability: deps.observability }))
+    .addNode(
+      'read-data',
+      readDataNodeFactory({
+        readTool: deps.readTool,
+        productSearchService: deps.productSearchService,
+        observability: deps.observability,
+      }),
+    )
     .addNode('analyze', analyzeNode)
     .addNode('prepare-action', prepareActionNodeFactory({ observability: deps.observability, writeTool: deps.writeTool }))
     .addNode('confirm-first', confirmFirstNodeFactory({ observability: deps.observability }))

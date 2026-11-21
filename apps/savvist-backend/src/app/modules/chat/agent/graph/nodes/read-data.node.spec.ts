@@ -97,4 +97,50 @@ describe('readDataNode', () => {
 
     await expect(node(state)).rejects.toThrow('User ID missing in state context');
   });
+
+  it('delegates to productSearchService for search_products intent', async () => {
+    const mockProductSearch = {
+      findProducts: jest.fn().mockResolvedValue({
+        query: 'keyboard 2000 to 4000',
+        items: [{ name: 'RK61', price: { value: 2400, currency: 'PHP' } }],
+      }),
+    };
+
+    const node = readDataNodeFactory({
+      readTool: mockReadTool,
+      productSearchService: mockProductSearch as any,
+      observability: mockObservability,
+    });
+
+    const state = {
+      context: { userId, today: '2026-10-31' },
+      intentResult: { intent: 'search_products' },
+      slots: { searchQuery: 'keyboard 2000 to 4000', limit: 3 },
+      messages: [],
+    } as any;
+
+    const result = await node(state);
+
+    expect(mockProductSearch.findProducts).toHaveBeenCalledWith('keyboard 2000 to 4000', {
+      count: 3,
+    });
+    expect((result.readResult as any).items).toHaveLength(1);
+  });
+
+  it('returns error if productSearchService is not available for search_products', async () => {
+    const node = readDataNodeFactory({
+      readTool: mockReadTool,
+      observability: mockObservability,
+    });
+
+    const state = {
+      context: { userId, today: '2026-10-31' },
+      intentResult: { intent: 'search_products' },
+      slots: { searchQuery: 'shoes' },
+      messages: [],
+    } as any;
+
+    const result = await node(state);
+    expect((result.readResult as any).error).toBe('ProductSearchService not available');
+  });
 });

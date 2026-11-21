@@ -71,6 +71,11 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
     group: 'read',
     description: 'Asks to see reminders, money other people owe the user, or payments the user expects to receive, e.g. "what reminders do I have", "who owes me money", "when is [person] paying me back". Not bills or expenses the user has to pay (read_expenses).',
   },
+  search_products: {
+    group: 'read',
+    description:
+      'Asks to search the web for products, consumer items, gear, or merchandise to buy, including options within a price range, budget constraints, or specifications, e.g. "show me keyboard with a price of 2000 to 4000", "find running shoes under 5000", "what is the best keyboard worth 3000 pesos", "search online for budget noise cancelling headphones". Only searching for products/items to buy on the web. Not viewing saved wishlist items or past purchases (read_wishlist). Not general web trivia, news, or general knowledge (out-of-scope).',
+  },
   update_base_salary: {
     group: 'write',
     description: 'Requests to update base salary or employment status.',

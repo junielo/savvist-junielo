@@ -7,11 +7,16 @@
     trackColor="#e0e0e0"
     [label]="itemData().name"
   />
-  <span
-    style="margin-right: auto; font-weight: 500; font-size: 18px"
-    [style.text-decoration]="itemData().isCompleted ? 'line-through' : 'none'"
-    >{{ itemData().name }}</span
-  >
+  <div style="display: flex; flex-direction: column; margin-right: auto; max-width: 40%;">
+    <span
+      style="font-weight: 500; font-size: 18px"
+      [style.text-decoration]="itemData().isCompleted ? 'line-through' : 'none'"
+      >{{ itemData().name }}</span
+    >
+    @if (itemData().description) {
+      <span style="font-size: 13px; color: #666; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" [title]="itemData().description">{{ itemData().description }}</span>
+    }
+  </div>
   <span style="margin-right: 10px; font-size: 16px"
     >PHP {{ itemData().amount | number: '1.2-2' }}</span
   >

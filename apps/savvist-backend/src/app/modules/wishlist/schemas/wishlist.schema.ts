@@ -11,6 +11,9 @@ export class WishlistItem {
   @Prop({ type: String, required: true, trim: true, minlength: 1, maxlength: 80 })
   name!: string;
 
+  @Prop({ type: String, trim: true, default: null })
+  description?: string | null;
+
   @Prop({ type: Number, required: true, min: 0.01 })
   amount!: number;
 

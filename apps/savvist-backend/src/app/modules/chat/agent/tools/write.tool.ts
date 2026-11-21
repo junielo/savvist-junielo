@@ -62,6 +62,7 @@ export interface CreateWishlistItem {
   name: string;
   amount: number;
   priority?: string;
+  description?: string;
 }
 
 export interface CreateWishlistParams {
@@ -69,6 +70,7 @@ export interface CreateWishlistParams {
   name?: string;
   amount?: number;
   priority?: string;
+  description?: string;
 }
 
 export interface UpdateWishlistParams {
@@ -574,7 +576,7 @@ export class WriteTool {
       params.items && params.items.length > 0
         ? params.items
         : params.name && params.amount !== undefined
-          ? [{ name: params.name, amount: params.amount, priority: params.priority }]
+          ? [{ name: params.name, amount: params.amount, priority: params.priority, description: params.description }]
           : [];
 
     if (rawItems.length === 0) {
@@ -605,6 +607,7 @@ export class WriteTool {
           name: item.name.trim(),
           amount: item.amount,
           priority,
+          description: item.description?.trim() || undefined,
         };
         const res = await this.wishlistService.create(userId, dto);
         created.push(res);

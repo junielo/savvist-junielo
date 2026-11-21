@@ -5,7 +5,9 @@ module.exports = {
   transform: {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
-  transformIgnorePatterns: ['node_modules/(?!(@nestjs/.*))'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(@nestjs/.*|@langchain/google|eventsource-parser|open-graph-scraper))',
+  ],
   moduleNameMapper: {
     '^@nestjs/mapped-types$': '<rootDir>/src/test-utils/mapped-types.mock.ts',
   },

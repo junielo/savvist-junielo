@@ -91,6 +91,7 @@ export class WishlistService {
       name: dto.name,
       amount: dto.amount,
       priority: priority ?? 'normal',
+      description: dto.description?.trim() || null,
       status: 'pending',
       purchasedAt: null,
     });
@@ -111,6 +112,7 @@ export class WishlistService {
 
     if (dto.name !== undefined) item.name = dto.name;
     if (dto.amount !== undefined) item.amount = dto.amount;
+    if (dto.description !== undefined) item.description = dto.description?.trim() || null;
 
     const rawPriority = dto.priority ?? dto.type;
     if (rawPriority !== undefined) {

@@ -436,7 +436,7 @@ describe('SlotExtractor & SlotSchema', () => {
 
         expect(slots.incomplete).toBe(false);
         expect(slots.wishlistItems).toEqual([
-          { name: 'Sony Headphones', amount: 15000, priority: 'important' },
+          { name: 'Sony Headphones', amount: 15000, priority: 'important', description: null },
         ]);
         expect(slots.searchName).toBe('Sony Headphones');
         expect(slots.amount).toBe(15000);
@@ -460,7 +460,7 @@ describe('SlotExtractor & SlotSchema', () => {
 
         expect(slots.incomplete).toBe(false);
         expect(slots.wishlistItems).toEqual([
-          { name: 'Nike Shoes', amount: 4500, priority: null },
+          { name: 'Nike Shoes', amount: 4500, priority: null, description: null },
         ]);
       });
 

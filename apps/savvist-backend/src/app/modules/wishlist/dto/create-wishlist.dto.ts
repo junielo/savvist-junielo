@@ -20,6 +20,14 @@ export class CreateWishlistDto {
   )
   name!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  description?: string;
+
   @IsNumber()
   @IsPositive()
   @Min(0.01)

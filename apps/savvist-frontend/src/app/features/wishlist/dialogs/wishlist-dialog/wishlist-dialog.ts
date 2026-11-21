@@ -20,6 +20,7 @@ import { ApiError } from '../../../../core/http/api-error';
 
 interface WishlistFormValues {
   name: FormControl<string>;
+  description: FormControl<string>;
   amount: FormControl<number | null>;
   type: FormControl<string>;
 }
@@ -55,6 +56,7 @@ export class WishlistDialog {
 
   protected readonly wishlistForm = new FormGroup<WishlistFormValues>({
     name: new FormControl<string>(this.data?.name ?? '', { nonNullable: true }),
+    description: new FormControl<string>(this.data?.description ?? '', { nonNullable: true }),
     amount: new FormControl<number | null>(this.data?.amount ?? null),
     type: new FormControl<string>(this.data?.type ?? WishlistType.NORMAL, { nonNullable: true }),
   });
@@ -65,6 +67,7 @@ export class WishlistDialog {
 
   protected async save(): Promise<void> {
     const name = this.wishlistForm.value.name?.trim() ?? '';
+    const description = this.wishlistForm.value.description?.trim() || undefined;
     const amount = this.wishlistForm.value.amount;
     const type = this.wishlistForm.value.type ?? WishlistType.NORMAL;
 
@@ -81,12 +84,14 @@ export class WishlistDialog {
       if (this.isEdit && this.data) {
         result = await this.wishlistService.update(this.data.id, {
           name,
+          description,
           amount,
           type,
         });
       } else {
         result = await this.wishlistService.create({
           name,
+          description,
           amount,
           type,
         });

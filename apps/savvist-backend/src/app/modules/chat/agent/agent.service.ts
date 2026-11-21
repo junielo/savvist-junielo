@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
@@ -11,6 +11,7 @@ import { CHECKPOINTER } from './persistence/mongo-checkpointer.provider';
 import { QueryRewriter } from './llm/query-rewriter';
 import { SlotExtractor } from './llm/slot-extractor';
 import { ReadTool } from './tools/read.tool';
+import { ProductSearchService } from './tools/product-search.service';
 import { WriteTool } from './tools/write.tool';
 import { ReplyWriter } from './llm/reply-writer';
 import { CapabilityCheckService } from './capabilities/capability-check.service';
@@ -40,6 +41,7 @@ export class AgentService {
     capabilityCheck: CapabilityCheckService,
     config: ConfigService,
     private readonly jevClient?: JevClient,
+    @Optional() productSearchService?: ProductSearchService,
   ) {
     this.queryRewriter = queryRewriter;
     this.graph = buildGraph(
@@ -48,6 +50,7 @@ export class AgentService {
         queryRewriter,
         slotExtractor,
         readTool,
+        productSearchService,
         writeTool,
         replyWriter,
         capabilityService: capabilityCheck,

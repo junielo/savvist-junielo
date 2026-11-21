@@ -72,4 +72,31 @@ describe('ReplyWriter', () => {
     expect(reply).toContain('October 2026');
     expect(reply).toContain('12,500');
   });
+
+  it('formats search_products reply with product listings and wishlist prompt', async () => {
+    const productData = {
+      query: 'keyboard 2000 to 4000',
+      items: [
+        { name: 'Keychron K2', brand: 'Keychron', price: { value: 3800, currency: 'PHP' } },
+        { name: 'Royal Kludge RK61', brand: 'Royal Kludge', price: { value: 2500, currency: 'PHP' } },
+      ],
+      summary: 'Here are mechanical keyboards within your budget.',
+    };
+
+    const mockInvoke = jest.fn().mockResolvedValue({
+      content:
+        'Here are mechanical keyboards within your budget:\n1. Keychron K2 - ₱3,800.00\n2. Royal Kludge RK61 - ₱2,500.00\n\nWould you like me to save any of these items to your wishlist?',
+    });
+    mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
+
+    const reply = await replyWriter.writeReply(
+      'search_products',
+      productData,
+      'show me keyboard with a price of 2000 to 4000',
+    );
+
+    expect(reply).toContain('Keychron K2');
+    expect(reply).toContain('Royal Kludge RK61');
+    expect(reply).toContain('Would you like me to save any of these items to your wishlist?');
+  });
 });

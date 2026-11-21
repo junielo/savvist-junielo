@@ -31,7 +31,7 @@ export async function unsupportedFeatureRule(
   if (ctx.intent === 'out-of-scope') {
     return {
       blocked: true,
-      reason: "That request is outside what I can help with. I can help with balances, expenses, wishlist items, and reminders.",
+      reason: "That request is outside what I can help with. I can help with balances, expenses, wishlist items, product searches, and reminders.",
     };
   }
 

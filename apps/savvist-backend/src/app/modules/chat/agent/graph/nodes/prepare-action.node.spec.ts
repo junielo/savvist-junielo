@@ -246,6 +246,40 @@ describe('prepareActionNode', () => {
       );
     });
 
+    it('backfills item description from product search results in readResult', async () => {
+      const node = prepareActionNodeFactory({ observability: mockObservability });
+      const state = {
+        context: { today: '2026-11-21' },
+        intentResult: { intent: 'manage_wishlist' },
+        readResult: {
+          query: 'oled monitor',
+          items: [
+            {
+              name: 'ZenScreen OLED MQ16FC',
+              brand: 'ASUS',
+              description: '15.6-inch Full HD portable OLED monitor with rich colors and ultra-slim profile.',
+              price: { value: 18999, currency: 'PHP' },
+            },
+          ],
+        },
+        slots: {
+          wishlistItems: [{ name: 'ZenScreen OLED MQ16FC', amount: 18999, priority: null }],
+        },
+      } as any;
+
+      const result = await node(state);
+
+      expect(result.pending_action?.tool).toBe('create_wishlist');
+      expect(result.pending_action?.args.items).toEqual([
+        {
+          name: 'ZenScreen OLED MQ16FC',
+          amount: 18999,
+          priority: null,
+          description: '15.6-inch Full HD portable OLED monitor with rich colors and ultra-slim profile.',
+        },
+      ]);
+    });
+
     it('prepares confirmation for creating multiple wishlist items in a batch', async () => {
       const node = prepareActionNodeFactory({ observability: mockObservability });
       const state = {

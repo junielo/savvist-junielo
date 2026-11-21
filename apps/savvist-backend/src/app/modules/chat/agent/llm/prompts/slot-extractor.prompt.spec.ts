@@ -31,4 +31,16 @@ describe('buildSlotExtractorPrompt', () => {
     expect(prompt).toContain('Recent conversation history (last 3 turns):');
     expect(prompt).toContain('What is my most expensive wishlist item?');
   });
+
+  it('builds a product search prompt when intent is search_products', () => {
+    const prompt = buildSlotExtractorPrompt({
+      message: 'show me keyboard with a price of 2000 to 4000',
+      historyText: 'none',
+      intent: 'search_products',
+    });
+
+    expect(prompt).toContain('Extract product search arguments and a standalone query');
+    expect(prompt).toContain('"searchQuery": string');
+    expect(prompt).toContain('show me keyboard with a price of 2000 to 4000');
+  });
 });

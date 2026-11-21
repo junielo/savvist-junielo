@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { SlotExtractor } from './llm/slot-extractor';
 import { QueryRewriter } from './llm/query-rewriter';
 import { ReadTool } from './tools/read.tool';
+import { ProductSearchService } from './tools/product-search.service';
 import { WriteTool } from './tools/write.tool';
 import { ReplyWriter } from './llm/reply-writer';
 import { CapabilityCheckService } from './capabilities/capability-check.service';
@@ -44,6 +45,7 @@ describe('AgentService', () => {
         { provide: ReplyWriter, useValue: { writeReply: jest.fn() } },
         { provide: CapabilityCheckService, useValue: { check: jest.fn().mockResolvedValue({ blocked: false, invalid: false }) } },
         { provide: JevClient, useValue: mockJevClient },
+        { provide: ProductSearchService, useValue: { findProducts: jest.fn() } },
         ObservabilityService,
       ],
     }).compile();

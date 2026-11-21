@@ -387,6 +387,26 @@ export function prepareActionNodeFactory(deps: PrepareActionDeps = {}) {
 
       // Create wishlist items
       const items = (slots?.wishlistItems as any[]) || [];
+
+      // Backfill description from previous product search results in state if available
+      const searchItems = (state.readResult as any)?.items;
+      if (Array.isArray(searchItems) && searchItems.length > 0) {
+        for (const item of items) {
+          if (!item.description) {
+            const match = searchItems.find((p: any) =>
+              p.name && (
+                p.name.toLowerCase().includes(item.name.toLowerCase()) ||
+                item.name.toLowerCase().includes(p.name.toLowerCase())
+              ),
+            );
+            if (match?.description) {
+              item.description = match.description;
+            } else if (searchItems.length === 1 && searchItems[0]?.description) {
+              item.description = searchItems[0].description;
+            }
+          }
+        }
+      }
       const formatWishlistLine = (item: any) => {
         const amt = `₱${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         const prio = item.priority ? `${item.priority} priority` : 'normal priority';
