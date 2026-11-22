@@ -37,6 +37,20 @@ describe('CapabilityCheckService & Rules', () => {
       expect(result.reason).toContain('future');
     });
 
+    it('blocks balance record when date is "tomorrow"', async () => {
+      const result = await service.check({
+        intent: 'manage_entry_record',
+        group: 'write',
+        message: 'record balance for tomorrow',
+        today: '2026-11-09',
+        timeZone: 'Asia/Manila',
+        slots: { date: 'tomorrow' },
+      });
+
+      expect(result.invalid).toBe(true);
+      expect(result.reason).toContain('future');
+    });
+
     it('allows balance record dated today or in the past', async () => {
       const result = await service.check({
         intent: 'manage_entry_record',
@@ -45,6 +59,34 @@ describe('CapabilityCheckService & Rules', () => {
         today: '2026-11-09',
         timeZone: 'Asia/Manila',
         slots: { date: '2026-11-09' },
+      });
+
+      expect(result.invalid).toBe(false);
+      expect(result.blocked).toBe(false);
+    });
+
+    it('allows balance record when date is explicitly "today"', async () => {
+      const result = await service.check({
+        intent: 'manage_entry_record',
+        group: 'write',
+        message: "set my today's BDO amount is 4000",
+        today: '2026-11-22',
+        timeZone: 'Asia/Manila',
+        slots: { date: 'today' },
+      });
+
+      expect(result.invalid).toBe(false);
+      expect(result.blocked).toBe(false);
+    });
+
+    it('allows balance record when date is "yesterday"', async () => {
+      const result = await service.check({
+        intent: 'manage_entry_record',
+        group: 'write',
+        message: 'record balance for yesterday',
+        today: '2026-11-22',
+        timeZone: 'Asia/Manila',
+        slots: { date: 'yesterday' },
       });
 
       expect(result.invalid).toBe(false);
@@ -67,6 +109,20 @@ describe('CapabilityCheckService & Rules', () => {
       expect(result.reason).toContain('past');
     });
 
+    it('rejects reminder date when date is "yesterday"', async () => {
+      const result = await service.check({
+        intent: 'manage_reminder',
+        group: 'write',
+        message: 'remind me yesterday',
+        today: '2026-11-09',
+        timeZone: 'Asia/Manila',
+        slots: { date: 'yesterday' },
+      });
+
+      expect(result.invalid).toBe(true);
+      expect(result.reason).toContain('past');
+    });
+
     it('allows reminder date for today or future', async () => {
       const result = await service.check({
         intent: 'manage_reminder',
@@ -75,6 +131,34 @@ describe('CapabilityCheckService & Rules', () => {
         today: '2026-11-09',
         timeZone: 'Asia/Manila',
         slots: { date: '2026-11-10' },
+      });
+
+      expect(result.invalid).toBe(false);
+      expect(result.blocked).toBe(false);
+    });
+
+    it('allows reminder date when date is explicitly "today"', async () => {
+      const result = await service.check({
+        intent: 'manage_reminder',
+        group: 'write',
+        message: 'remind me today to check balances',
+        today: '2026-11-09',
+        timeZone: 'Asia/Manila',
+        slots: { date: 'today' },
+      });
+
+      expect(result.invalid).toBe(false);
+      expect(result.blocked).toBe(false);
+    });
+
+    it('allows reminder date when date is "tomorrow"', async () => {
+      const result = await service.check({
+        intent: 'manage_reminder',
+        group: 'write',
+        message: 'remind me tomorrow',
+        today: '2026-11-09',
+        timeZone: 'Asia/Manila',
+        slots: { date: 'tomorrow' },
       });
 
       expect(result.invalid).toBe(false);

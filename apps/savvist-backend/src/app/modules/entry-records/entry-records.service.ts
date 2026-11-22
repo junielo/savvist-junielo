@@ -187,6 +187,16 @@ export class EntryRecordsService {
     return { deleted: true, _id: id.toString() };
   }
 
+  async findLatestByAccount(
+    userId: Types.ObjectId,
+    accountEntryId: Types.ObjectId,
+  ): Promise<EntryRecord | null> {
+    return this.entryRecordModel
+      .findOne({ userId, accountEntryId })
+      .sort({ day: -1, createdAt: -1 })
+      .lean();
+  }
+
   async deleteBalance(
     userId: Types.ObjectId,
     dto: DeleteBalanceDto,

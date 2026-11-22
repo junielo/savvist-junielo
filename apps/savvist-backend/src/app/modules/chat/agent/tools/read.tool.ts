@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { DashboardService } from '../../../dashboard/dashboard.service';
 import { ExpensesService } from '../../../expenses/expenses.service';
@@ -88,15 +88,77 @@ export class ReadTool implements ToolDataSource {
       missingAccounts,
     };
 
+    const latestRecordsPromises = accounts.map(async (acc) => {
+      const accId = (acc as any)._id ? String((acc as any)._id) : '';
+      const latestRecord = accId
+        ? await this.entryRecordsService.findLatestByAccount(userId, new Types.ObjectId(accId))
+        : null;
+      return {
+        id: accId,
+        name: acc.name,
+        type: acc.type,
+        latestRecord,
+      };
+    });
+    const accountLatestEntries = await Promise.all(latestRecordsPromises);
+
+    const groupedByDate: Record<
+      string,
+      { id: string; name: string; type: string; balance: number; day: string }[]
+    > = {};
+    const unrecordedAccounts: { id: string; name: string; type: string }[] = [];
+
+    for (const item of accountLatestEntries) {
+      if (item.latestRecord) {
+        const day = item.latestRecord.day;
+        if (!groupedByDate[day]) {
+          groupedByDate[day] = [];
+        }
+        groupedByDate[day].push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          balance: item.latestRecord.balance,
+          day,
+        });
+      } else {
+        unrecordedAccounts.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+        });
+      }
+    }
+
     const query = accountName?.toLowerCase();
     const matchingAccount = query
       ? (accounts.find((acc) => acc.name.toLowerCase().includes(query)) ?? null)
       : null;
 
+    let matchingAccountLatestRecord = null;
+    if (matchingAccount && (matchingAccount as any)._id) {
+      matchingAccountLatestRecord = await this.entryRecordsService.findLatestByAccount(
+        userId,
+        (matchingAccount as any)._id,
+      );
+    }
+
+    const latestAccountBalances = accountLatestEntries.map((item) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      lastAmount: item.latestRecord ? item.latestRecord.balance : null,
+      day: item.latestRecord ? item.latestRecord.day : null,
+    }));
+
     const result = plain({
       summary,
       trend,
       matchingAccount,
+      matchingAccountLatestRecord,
+      latestAccountBalances,
+      latestEntriesByDate: groupedByDate,
+      unrecordedAccounts,
       accountCount: accounts.length,
       dailyStatus,
     });

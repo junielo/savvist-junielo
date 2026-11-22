@@ -410,4 +410,20 @@ describe('EntryRecordsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('findLatestByAccount', () => {
+    it('should query entryRecordModel with correct sort and find latest record', async () => {
+      const mockQuery = {
+        sort: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue({ _id: recordId, balance: 1234, day: '2026-10-25' }),
+      };
+      mockEntryRecordModel.findOne.mockReturnValue(mockQuery);
+
+      const result = await service.findLatestByAccount(userId, accountEntryId);
+
+      expect(mockEntryRecordModel.findOne).toHaveBeenCalledWith({ userId, accountEntryId });
+      expect(mockQuery.sort).toHaveBeenCalledWith({ day: -1, createdAt: -1 });
+      expect(result).toEqual({ _id: recordId, balance: 1234, day: '2026-10-25' });
+    });
+  });
 });

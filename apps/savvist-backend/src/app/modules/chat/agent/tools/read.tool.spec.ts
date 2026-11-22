@@ -39,6 +39,7 @@ describe('ReadTool - Expenses with Due Dates', () => {
     };
     mockEntryRecordsService = {
       findByDate: jest.fn().mockResolvedValue([]),
+      findLatestByAccount: jest.fn().mockResolvedValue(null),
     };
     const mockJevClient = {
       resolveEntityMatch: jest.fn().mockResolvedValue({
@@ -277,6 +278,67 @@ describe('ReadTool - Expenses with Due Dates', () => {
       expect(result.dailyStatus.noneEntered).toBe(true);
       expect(result.dailyStatus.enteredCount).toBe(0);
       expect(result.dailyStatus.missingCount).toBe(1);
+    });
+
+    it('fetches matchingAccountLatestRecord when accountName is queried', async () => {
+      const gcreditId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d9');
+
+      mockAccountEntriesService.findAll.mockResolvedValue([
+        { _id: gcreditId, name: 'GCredit', type: 'credit' },
+      ]);
+
+      mockEntryRecordsService.findByDate.mockResolvedValue([]);
+      mockEntryRecordsService.findLatestByAccount = jest.fn().mockResolvedValue({
+        accountEntryId: gcreditId,
+        day: '2026-11-15',
+        balance: 5000,
+      });
+
+      const result = await readTool.getBalances(userId, 'GCredit', '2026-11-22');
+
+      expect(result.matchingAccount).toBeDefined();
+      expect(result.matchingAccount.name).toBe('GCredit');
+      expect(result.matchingAccountLatestRecord).toEqual({
+        accountEntryId: String(gcreditId),
+        day: '2026-11-15',
+        balance: 5000,
+      });
+      expect(mockEntryRecordsService.findLatestByAccount).toHaveBeenCalledWith(userId, gcreditId);
+    });
+
+    it('groups latest entries by date across different accounts when dates differ', async () => {
+      const bdoId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d1');
+      const gcreditId = new Types.ObjectId('6adf58efb1a87dfd54b8d3d9');
+
+      mockAccountEntriesService.findAll.mockResolvedValue([
+        { _id: bdoId, name: 'BDO', type: 'cash' },
+        { _id: gcreditId, name: 'GCredit', type: 'credit' },
+      ]);
+
+      mockEntryRecordsService.findByDate.mockResolvedValue([]);
+      mockEntryRecordsService.findLatestByAccount = jest.fn().mockImplementation((_, accId) => {
+        if (String(accId) === String(bdoId)) {
+          return Promise.resolve({ accountEntryId: bdoId, day: '2026-11-18', balance: 40000 });
+        }
+        if (String(accId) === String(gcreditId)) {
+          return Promise.resolve({ accountEntryId: gcreditId, day: '2026-11-15', balance: 5000 });
+        }
+        return Promise.resolve(null);
+      });
+
+      const result = await readTool.getBalances(userId, undefined, '2026-11-22');
+
+      expect(result.latestEntriesByDate).toBeDefined();
+      expect(result.latestEntriesByDate['2026-11-18']).toEqual([
+        { id: String(bdoId), name: 'BDO', type: 'cash', balance: 40000, day: '2026-11-18' },
+      ]);
+      expect(result.latestEntriesByDate['2026-11-15']).toEqual([
+        { id: String(gcreditId), name: 'GCredit', type: 'credit', balance: 5000, day: '2026-11-15' },
+      ]);
+      expect(result.latestAccountBalances).toEqual([
+        { id: String(bdoId), name: 'BDO', type: 'cash', lastAmount: 40000, day: '2026-11-18' },
+        { id: String(gcreditId), name: 'GCredit', type: 'credit', lastAmount: 5000, day: '2026-11-15' },
+      ]);
     });
   });
 });

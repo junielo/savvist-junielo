@@ -47,7 +47,7 @@ export const INTENTS: Record<JevIntentName, IntentDef> = {
   read_balances: {
     group: 'read',
     description:
-      'Asks for account balances, total fund, actual cash, health, growth, allowance, trend, or whether account balances/entries have been input or recorded for today or a specific date. Only viewing or checking balance status. Not saving or recording a balance (manage_entry_record).',
+      'Asks for account balances, accounts records, balance entries, total fund, actual cash, health, growth, allowance, trend, or whether account balances/entries have been input or recorded for today or a specific date. Only viewing or checking balance status. Not saving or recording a balance (manage_entry_record).',
   },
   read_expenses: {
     group: 'read',
