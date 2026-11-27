@@ -23,70 +23,35 @@ describe('CapabilityCheckService & Rules', () => {
   });
 
   describe('futureDataRule', () => {
-    it('blocks balance record dated in the future', async () => {
+    it.each([
+      ['2026-11-10', '2026-11-09'],
+      ['tomorrow', '2026-11-09'],
+    ])('blocks balance record dated in the future (%s)', async (date, today) => {
       const result = await service.check({
         intent: 'manage_entry_record',
         group: 'write',
-        message: 'record balance for tomorrow',
-        today: '2026-11-09',
+        message: `record balance for ${date}`,
+        today,
         timeZone: 'Asia/Manila',
-        slots: { date: '2026-11-10' },
+        slots: { date },
       });
 
       expect(result.invalid).toBe(true);
       expect(result.reason).toContain('future');
     });
 
-    it('blocks balance record when date is "tomorrow"', async () => {
+    it.each([
+      ['2026-11-09', '2026-11-09'],
+      ['today', '2026-11-22'],
+      ['yesterday', '2026-11-22'],
+    ])('allows balance record dated today or in the past (%s)', async (date, today) => {
       const result = await service.check({
         intent: 'manage_entry_record',
         group: 'write',
-        message: 'record balance for tomorrow',
-        today: '2026-11-09',
+        message: `record balance for ${date}`,
+        today,
         timeZone: 'Asia/Manila',
-        slots: { date: 'tomorrow' },
-      });
-
-      expect(result.invalid).toBe(true);
-      expect(result.reason).toContain('future');
-    });
-
-    it('allows balance record dated today or in the past', async () => {
-      const result = await service.check({
-        intent: 'manage_entry_record',
-        group: 'write',
-        message: 'record balance for today',
-        today: '2026-11-09',
-        timeZone: 'Asia/Manila',
-        slots: { date: '2026-11-09' },
-      });
-
-      expect(result.invalid).toBe(false);
-      expect(result.blocked).toBe(false);
-    });
-
-    it('allows balance record when date is explicitly "today"', async () => {
-      const result = await service.check({
-        intent: 'manage_entry_record',
-        group: 'write',
-        message: "set my today's BDO amount is 4000",
-        today: '2026-11-22',
-        timeZone: 'Asia/Manila',
-        slots: { date: 'today' },
-      });
-
-      expect(result.invalid).toBe(false);
-      expect(result.blocked).toBe(false);
-    });
-
-    it('allows balance record when date is "yesterday"', async () => {
-      const result = await service.check({
-        intent: 'manage_entry_record',
-        group: 'write',
-        message: 'record balance for yesterday',
-        today: '2026-11-22',
-        timeZone: 'Asia/Manila',
-        slots: { date: 'yesterday' },
+        slots: { date },
       });
 
       expect(result.invalid).toBe(false);
@@ -95,75 +60,39 @@ describe('CapabilityCheckService & Rules', () => {
   });
 
   describe('reminderDateRule', () => {
-    it('rejects reminder date in the past', async () => {
-      const result = await service.check({
-        intent: 'manage_reminder',
-        group: 'write',
-        message: 'remind me yesterday',
-        today: '2026-11-09',
-        timeZone: 'Asia/Manila',
-        slots: { date: '2026-11-08' },
-      });
+    it.each(['2026-11-08', 'yesterday'])(
+      'rejects reminder date in the past (%s)',
+      async (date) => {
+        const result = await service.check({
+          intent: 'manage_reminder',
+          group: 'write',
+          message: `remind me ${date}`,
+          today: '2026-11-09',
+          timeZone: 'Asia/Manila',
+          slots: { date },
+        });
 
-      expect(result.invalid).toBe(true);
-      expect(result.reason).toContain('past');
-    });
+        expect(result.invalid).toBe(true);
+        expect(result.reason).toContain('past');
+      },
+    );
 
-    it('rejects reminder date when date is "yesterday"', async () => {
-      const result = await service.check({
-        intent: 'manage_reminder',
-        group: 'write',
-        message: 'remind me yesterday',
-        today: '2026-11-09',
-        timeZone: 'Asia/Manila',
-        slots: { date: 'yesterday' },
-      });
+    it.each(['2026-11-10', 'today', 'tomorrow'])(
+      'allows reminder date for today or future (%s)',
+      async (date) => {
+        const result = await service.check({
+          intent: 'manage_reminder',
+          group: 'write',
+          message: `remind me ${date}`,
+          today: '2026-11-09',
+          timeZone: 'Asia/Manila',
+          slots: { date },
+        });
 
-      expect(result.invalid).toBe(true);
-      expect(result.reason).toContain('past');
-    });
-
-    it('allows reminder date for today or future', async () => {
-      const result = await service.check({
-        intent: 'manage_reminder',
-        group: 'write',
-        message: 'remind me tomorrow',
-        today: '2026-11-09',
-        timeZone: 'Asia/Manila',
-        slots: { date: '2026-11-10' },
-      });
-
-      expect(result.invalid).toBe(false);
-      expect(result.blocked).toBe(false);
-    });
-
-    it('allows reminder date when date is explicitly "today"', async () => {
-      const result = await service.check({
-        intent: 'manage_reminder',
-        group: 'write',
-        message: 'remind me today to check balances',
-        today: '2026-11-09',
-        timeZone: 'Asia/Manila',
-        slots: { date: 'today' },
-      });
-
-      expect(result.invalid).toBe(false);
-      expect(result.blocked).toBe(false);
-    });
-
-    it('allows reminder date when date is "tomorrow"', async () => {
-      const result = await service.check({
-        intent: 'manage_reminder',
-        group: 'write',
-        message: 'remind me tomorrow',
-        today: '2026-11-09',
-        timeZone: 'Asia/Manila',
-        slots: { date: 'tomorrow' },
-      });
-
-      expect(result.invalid).toBe(false);
-      expect(result.blocked).toBe(false);
-    });
+        expect(result.invalid).toBe(false);
+        expect(result.blocked).toBe(false);
+      },
+    );
   });
 
   describe('readOnlyDataRule', () => {

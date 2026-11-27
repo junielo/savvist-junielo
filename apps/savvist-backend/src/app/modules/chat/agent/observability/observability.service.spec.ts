@@ -26,10 +26,6 @@ describe('ObservabilityService', () => {
     }
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
   it('should store nodes with nested llmCalls, toolCalls, and llmToolCalls and write to logs.json', () => {
     service.SetUserMessage('Check expenses');
     service.SetExecutedNode('read-data');

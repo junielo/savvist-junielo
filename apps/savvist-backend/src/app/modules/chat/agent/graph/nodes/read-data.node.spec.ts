@@ -1,6 +1,5 @@
 import { readDataNodeFactory } from './read-data.node';
 import { Types } from 'mongoose';
-import { AgentStateType } from '../agent.state';
 
 describe('readDataNode', () => {
   let mockReadTool: any;
@@ -21,19 +20,6 @@ describe('readDataNode', () => {
     };
   });
 
-  it('records read-data node execution via observability', async () => {
-    const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
-    const state = {
-      context: { userId, today: '2026-10-31' },
-      intentResult: { intent: 'read_balances' },
-      slots: {},
-    } as any;
-
-    await node(state);
-
-    expect(mockObservability.SetExecutedNode).toHaveBeenCalledWith('read-data');
-  });
-
   it('resolves date slot and passes to readTool.getBalances for read_balances intent', async () => {
     const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
     const state = {
@@ -44,6 +30,7 @@ describe('readDataNode', () => {
 
     const result = await node(state);
 
+    expect(mockObservability.SetExecutedNode).toHaveBeenCalledWith('read-data');
     expect(mockReadTool.getBalances).toHaveBeenCalledWith(
       new Types.ObjectId(userId),
       undefined,

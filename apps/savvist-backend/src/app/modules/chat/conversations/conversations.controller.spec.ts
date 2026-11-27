@@ -38,10 +38,6 @@ describe('ConversationsController', () => {
     service = module.get<ConversationsService>(ConversationsService);
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-
   it('should delegate findAll to service', async () => {
     const expected = [{ title: 'Chat 1' }];
     jest.spyOn(service, 'findAll').mockResolvedValue(expected as any);

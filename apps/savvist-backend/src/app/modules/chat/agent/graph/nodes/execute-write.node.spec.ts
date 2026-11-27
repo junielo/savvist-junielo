@@ -288,86 +288,35 @@ describe('executeWriteNode', () => {
       expect(result.pending_action).toBeNull();
     });
 
-    it('calls writeTool.updateWishlist for update_wishlist action', async () => {
-      mockWriteTool.updateWishlist = jest.fn().mockResolvedValue({
-        success: true,
+    it.each([
+      {
+        tool: 'update_wishlist',
+        args: { targetName: 'Sony Headphones', newName: 'Sony WH-1000XM5' },
         message: 'Successfully updated wishlist item "Sony Headphones".',
-      });
-
-      const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
-      const state = {
-        context: { userId },
-        pending_action: {
-          tool: 'update_wishlist',
-          intent: 'manage_wishlist',
-          args: {
-            targetName: 'Sony Headphones',
-            newName: 'Sony WH-1000XM5',
-          },
-        },
-      } as any;
-
-      const result = await node(state);
-
-      expect(mockWriteTool.updateWishlist).toHaveBeenCalledWith(
-        new Types.ObjectId(userId),
-        expect.objectContaining({
-          targetName: 'Sony Headphones',
-          newName: 'Sony WH-1000XM5',
-        }),
-      );
-      expect(result.writeResult?.success).toBe(true);
-      expect(result.pending_action).toBeNull();
-    });
-
-    it('calls writeTool.updateWishlist for purchase_wishlist action', async () => {
-      mockWriteTool.updateWishlist = jest.fn().mockResolvedValue({
-        success: true,
+      },
+      {
+        tool: 'purchase_wishlist',
+        args: { targetName: 'Sony Headphones', action: 'purchase' },
         message: 'Successfully marked wishlist item "Sony Headphones" as purchased.',
-      });
-
-      const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
-      const state = {
-        context: { userId },
-        pending_action: {
-          tool: 'purchase_wishlist',
-          intent: 'manage_wishlist',
-          args: {
-            targetName: 'Sony Headphones',
-            action: 'purchase',
-          },
-        },
-      } as any;
-
-      const result = await node(state);
-
-      expect(mockWriteTool.updateWishlist).toHaveBeenCalledWith(
-        new Types.ObjectId(userId),
-        expect.objectContaining({
-          targetName: 'Sony Headphones',
-          action: 'purchase',
-        }),
-      );
-      expect(result.writeResult?.success).toBe(true);
-      expect(result.pending_action).toBeNull();
-    });
-
-    it('calls writeTool.updateWishlist for delete_wishlist action', async () => {
+      },
+      {
+        tool: 'delete_wishlist',
+        args: { targetName: 'Sony Headphones', action: 'delete' },
+        message: 'Successfully removed "Sony Headphones" from your wishlist.',
+      },
+    ])('calls writeTool.updateWishlist for $tool action', async ({ tool, args, message }) => {
       mockWriteTool.updateWishlist = jest.fn().mockResolvedValue({
         success: true,
-        message: 'Successfully removed "Sony Headphones" from your wishlist.',
+        message,
       });
 
       const node = executeWriteNodeFactory({ writeTool: mockWriteTool, observability: mockObservability });
       const state = {
         context: { userId },
         pending_action: {
-          tool: 'delete_wishlist',
+          tool,
           intent: 'manage_wishlist',
-          args: {
-            targetName: 'Sony Headphones',
-            action: 'delete',
-          },
+          args,
         },
       } as any;
 
@@ -375,10 +324,7 @@ describe('executeWriteNode', () => {
 
       expect(mockWriteTool.updateWishlist).toHaveBeenCalledWith(
         new Types.ObjectId(userId),
-        expect.objectContaining({
-          targetName: 'Sony Headphones',
-          action: 'delete',
-        }),
+        expect.objectContaining(args),
       );
       expect(result.writeResult?.success).toBe(true);
       expect(result.pending_action).toBeNull();

@@ -41,6 +41,7 @@ describe('ReadTool - Expenses with Due Dates', () => {
       findByDate: jest.fn().mockResolvedValue([]),
       findLatestByAccount: jest.fn().mockResolvedValue(null),
     };
+    const mockDailyMetricsService = {};
     const mockJevClient = {
       resolveEntityMatch: jest.fn().mockResolvedValue({
         matched: { id: '6adf58efb1a87dfd54b8d3b2', name: 'Meralco' },
@@ -56,6 +57,7 @@ describe('ReadTool - Expenses with Due Dates', () => {
       mockUsersService,
       mockAccountEntriesService,
       mockEntryRecordsService,
+      mockDailyMetricsService as any,
       mockJevClient as any,
     );
   });

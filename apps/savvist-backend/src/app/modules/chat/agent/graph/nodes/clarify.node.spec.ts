@@ -3,24 +3,16 @@ import { AgentStateType } from '../agent.state';
 
 describe('clarifyNode', () => {
   let mockObservability: any;
+  let node: ReturnType<typeof clarifyNodeFactory>;
 
   beforeEach(() => {
     mockObservability = {
       SetExecutedNode: jest.fn(),
     };
-  });
-
-  it('records clarify node execution via observability', async () => {
-    const node = clarifyNodeFactory({ observability: mockObservability });
-    const state = {} as AgentStateType;
-
-    await node(state);
-
-    expect(mockObservability.SetExecutedNode).toHaveBeenCalledWith('clarify');
+    node = clarifyNodeFactory({ observability: mockObservability });
   });
 
   it('formulates tailored clarification when intent is ambiguous between read_balances and manage_entry_record', async () => {
-    const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {
       intentResult: {
         intent: 'read_balances',
@@ -40,7 +32,6 @@ describe('clarifyNode', () => {
   });
 
   it('formulates incomplete slots clarification when slots are incomplete', async () => {
-    const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {
       slots: { incomplete: true },
     } as any;
@@ -53,7 +44,6 @@ describe('clarifyNode', () => {
   });
 
   it('formulates balance entry clarification when slots are incomplete for manage_entry_record', async () => {
-    const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {
       intentResult: { intent: 'manage_entry_record' },
       slots: { incomplete: true },
@@ -67,7 +57,6 @@ describe('clarifyNode', () => {
   });
 
   it('formulates salary clarification when slots are incomplete for update_base_salary', async () => {
-    const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {
       intentResult: { intent: 'update_base_salary' },
       slots: { incomplete: true },
@@ -82,8 +71,7 @@ describe('clarifyNode', () => {
 
   describe('manage_expense clarification', () => {
     it('formulates template guide clarification when no expenses provided', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_expense' },
         slots: { incomplete: true, expenses: [] },
       } as any;
@@ -95,8 +83,7 @@ describe('clarifyNode', () => {
     });
 
     it('formulates delta clarification when expenses are missing dayOfMonth', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_expense' },
         slots: {
           incomplete: true,
@@ -115,8 +102,7 @@ describe('clarifyNode', () => {
     });
 
     it('formulates update clarification when target expense is known but changes are missing', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_expense' },
         slots: {
           incomplete: true,
@@ -132,8 +118,7 @@ describe('clarifyNode', () => {
     });
 
     it('asks which expense to update when targetName is missing', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_expense' },
         slots: {
           incomplete: true,
@@ -151,8 +136,7 @@ describe('clarifyNode', () => {
 
   describe('manage_wishlist clarification', () => {
     it('formulates template guide clarification when no wishlist items provided', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_wishlist' },
         slots: { incomplete: true, wishlistItems: [] },
       } as any;
@@ -164,8 +148,7 @@ describe('clarifyNode', () => {
     });
 
     it('formulates price clarification when wishlist item is missing amount', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_wishlist' },
         slots: {
           incomplete: true,
@@ -181,8 +164,7 @@ describe('clarifyNode', () => {
     });
 
     it('formulates update clarification when target wishlist item is known but changes are missing', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_wishlist' },
         slots: {
           incomplete: true,
@@ -198,8 +180,7 @@ describe('clarifyNode', () => {
     });
 
     it('asks which wishlist item to update or remove when targetName is missing', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'manage_wishlist' },
         slots: {
           incomplete: true,
@@ -215,8 +196,7 @@ describe('clarifyNode', () => {
     });
 
     it('asks which two items to swap for swap_wishlist_priority', async () => {
-      const node = clarifyNodeFactory({ observability: mockObservability });
-      const state = {
+        const state = {
         intentResult: { intent: 'swap_wishlist_priority' },
         slots: { incomplete: true },
       } as any;
@@ -230,16 +210,16 @@ describe('clarifyNode', () => {
   });
 
   it('falls back to default clarification prompt when no specific ambiguity is detected', async () => {
-    const node = clarifyNodeFactory({ observability: mockObservability });
     const state = {
       intentResult: {
         intent: 'unknown',
         group: 'unknown',
       },
-    } as any;
+    } as AgentStateType;
 
     const result = await node(state);
 
+    expect(mockObservability.SetExecutedNode).toHaveBeenCalledWith('clarify');
     expect(result.awaiting_clarification).toBe(
       "I'm not quite sure I caught that. Could you tell me what you'd like to do with your balances, expenses, wishlist, or reminders?",
     );

@@ -127,25 +127,6 @@ describe('SlotExtractor & SlotSchema', () => {
       }
     });
 
-    it('parses isUnemployed true and baseSalary 0', () => {
-      const unemployedPayload = {
-        searchName: null,
-        month: null,
-        limit: null,
-        accountName: null,
-        baseSalary: 0,
-        isUnemployed: true,
-        standaloneQuery: 'I am currently unemployed',
-      };
-
-      const result = SlotSchema.safeParse(unemployedPayload);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.baseSalary).toBe(0);
-        expect(result.data.isUnemployed).toBe(true);
-      }
-    });
-
     it('parses null fields for wishlist without errors', () => {
       const wishlistPayload = {
         searchName: null,

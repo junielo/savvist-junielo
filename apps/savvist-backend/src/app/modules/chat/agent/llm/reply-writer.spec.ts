@@ -16,30 +16,26 @@ describe('ReplyWriter', () => {
     replyWriter = new ReplyWriter(mockGeminiService, mockObservability);
   });
 
-  it('strips leading "Hello, I\'m Savvist." greeting from LLM response', async () => {
-    const mockInvoke = jest.fn().mockResolvedValue({
-      content:
-        'Hello, I\'m Savvist. Based on your pending items, you have 1 item: "Qatar Budget" with an amount of 120000.',
-    });
-    mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
-
-    const reply = await replyWriter.writeReply('read_wishlist', {}, 'show pending');
-
-    expect(reply).not.toContain("Hello, I'm Savvist");
-    expect(reply).toBe(
+  it.each([
+    [
+      'read_wishlist',
+      'show pending',
+      'Hello, I\'m Savvist. Based on your pending items, you have 1 item: "Qatar Budget" with an amount of 120000.',
       'Based on your pending items, you have 1 item: "Qatar Budget" with an amount of 120000.',
-    );
-  });
-
-  it('strips "Hi, I am Savvist." variation from LLM response', async () => {
-    const mockInvoke = jest.fn().mockResolvedValue({
-      content: 'Hi, I am Savvist. You have 3 expenses due this month.',
-    });
+    ],
+    [
+      'read_expenses',
+      'show expenses',
+      'Hi, I am Savvist. You have 3 expenses due this month.',
+      'You have 3 expenses due this month.',
+    ],
+  ])('strips leading Savvist greeting for %s', async (intent, query, rawContent, expected) => {
+    const mockInvoke = jest.fn().mockResolvedValue({ content: rawContent });
     mockGeminiService.getModel.mockReturnValue({ invoke: mockInvoke });
 
-    const reply = await replyWriter.writeReply('read_expenses', {}, 'show expenses');
+    const reply = await replyWriter.writeReply(intent, {}, query);
 
-    expect(reply).toBe('You have 3 expenses due this month.');
+    expect(reply).toBe(expected);
   });
 
   it('formats wishlist aggregation reply accurately', async () => {

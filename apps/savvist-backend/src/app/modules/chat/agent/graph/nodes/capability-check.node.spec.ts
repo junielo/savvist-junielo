@@ -9,7 +9,6 @@ describe('capability-check.node & blocked.node', () => {
   beforeEach(() => {
     mockObservability = {
       SetExecutedNode: jest.fn(),
-      setExecutedNode: jest.fn(),
     };
     mockCapabilityService = {
       check: jest.fn(),

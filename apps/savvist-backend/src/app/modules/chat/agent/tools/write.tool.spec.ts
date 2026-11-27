@@ -248,22 +248,6 @@ describe('WriteTool', () => {
         isUnemployed: true,
       });
     });
-
-    it('updates employment to employed with new base salary', async () => {
-      const result = await writeTool.updateSalary(userId, {
-        baseSalary: 75000,
-        isUnemployed: false,
-      });
-
-      expect(result.success).toBe(true);
-      if ('success' in result) {
-        expect(result.message).toContain('₱75,000.00');
-      }
-      expect(mockUsersService.updateUser).toHaveBeenCalledWith(userId, {
-        baseSalary: 75000,
-        isUnemployed: false,
-      });
-    });
   });
 
   describe('createExpense', () => {

@@ -19,6 +19,8 @@ This document lists all read-only functions and utilities in `apps/savvist-backe
     *   *Description:* Searches and retrieves audit/event record logs for financial activities.
 *   **`getProfile(userId)`**
     *   *Description:* Retrieves user profile details including display name, base salary, salary days, and employment status.
+*   **`getAllowance(userId, date?)`**
+    *   *Description:* Computes and retrieves today's spending allowance for a user based on base salary, actual cash, and payday schedules.
 
 ---
 

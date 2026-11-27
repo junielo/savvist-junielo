@@ -52,10 +52,6 @@ describe('MessagesService', () => {
     service = module.get<MessagesService>(MessagesService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
   describe('findAll', () => {
     it('should throw NotFoundException if conversation does not exist', async () => {
       mockConversationModel.findOne.mockReturnValue({

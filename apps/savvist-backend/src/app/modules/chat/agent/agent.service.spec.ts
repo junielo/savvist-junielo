@@ -53,10 +53,6 @@ describe('AgentService', () => {
     service = module.get<AgentService>(AgentService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
   describe('run with compound confirmations', () => {
     it('chains Turn 1 (resume) and Turn 2 (follow-up) on compound confirmation', async () => {
       const graph = (service as any).graph;

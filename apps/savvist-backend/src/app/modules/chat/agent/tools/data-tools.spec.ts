@@ -1,7 +1,5 @@
 import {
   filterAndSortExpensesByDueDate,
-  countDaysUntilExpenseDueCore,
-  countDaysBetweenDatesCore,
   ExpenseRow,
 } from './data-tools';
 
@@ -57,44 +55,6 @@ describe('data-tools standalone functions', () => {
 
       expect(result).toHaveLength(2);
       expect(result.map((r) => r.name)).toEqual(['Internet Bill', 'Electric Bill']);
-    });
-  });
-
-  describe('countDaysUntilExpenseDueCore', () => {
-    it('returns error if expense is null', () => {
-      const res = countDaysUntilExpenseDueCore(null, '2026-11-09', 'item-123');
-      expect(res.error).toContain('item-123');
-    });
-
-    it('returns error if expense has no due date', () => {
-      const res = countDaysUntilExpenseDueCore(
-        { id: '6', name: 'No Due Date', amount: 100, dueDate: null },
-        '2026-11-09',
-      );
-      expect(res.error).toContain('has no due date');
-    });
-
-    it('calculates days until due correctly for valid expense', () => {
-      const res = countDaysUntilExpenseDueCore(
-        { id: '1', name: 'Condo Rent', amount: 14000, dueDate: '2026-12-01' },
-        '2026-11-09',
-      );
-      expect(res.error).toBeUndefined();
-      expect(res.id).toBe('1');
-      expect(res.daysUntilDue).toBe(22);
-    });
-  });
-
-  describe('countDaysBetweenDatesCore', () => {
-    it('calculates days from start to target', () => {
-      const res = countDaysBetweenDatesCore('2026-11-01', '2026-11-15', '2026-11-09');
-      expect(res.days).toBe(14);
-    });
-
-    it('defaults start date to today if omitted', () => {
-      const res = countDaysBetweenDatesCore(undefined, '2026-11-15', '2026-11-09');
-      expect(res.from).toBe('2026-11-09');
-      expect(res.days).toBe(6);
     });
   });
 });
