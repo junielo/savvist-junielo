@@ -10,6 +10,7 @@ describe('readDataNode', () => {
   beforeEach(() => {
     mockReadTool = {
       getBalances: jest.fn().mockResolvedValue({ summary: {}, dailyStatus: {} }),
+      getAllowance: jest.fn().mockResolvedValue({ allowance: 1020, day: '2026-10-31' }),
       getExpenses: jest.fn().mockResolvedValue({ found: true }),
       queryWishlist: jest.fn().mockResolvedValue({ found: true }),
       getRecordLogs: jest.fn().mockResolvedValue({ count: 0, logs: [] }),
@@ -66,6 +67,23 @@ describe('readDataNode', () => {
       'BDO',
       '2026-10-30',
     );
+  });
+
+  it('resolves date slot and passes to readTool.getAllowance for read_allowance intent', async () => {
+    const node = readDataNodeFactory({ readTool: mockReadTool, observability: mockObservability });
+    const state = {
+      context: { userId, today: '2026-10-31' },
+      intentResult: { intent: 'read_allowance' },
+      slots: { date: 'today' },
+    } as any;
+
+    const result = await node(state);
+
+    expect(mockReadTool.getAllowance).toHaveBeenCalledWith(
+      new Types.ObjectId(userId),
+      '2026-10-31',
+    );
+    expect(result.readResult).toBeDefined();
   });
 
   it('executes multiple read intents in parallel when secondary read intents are present', async () => {

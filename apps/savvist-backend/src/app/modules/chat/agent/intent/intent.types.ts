@@ -11,6 +11,7 @@ export const NON_DOMAIN_INTENTS = [
 
 export const READ_INTENTS = [
   'read_balances',
+  'read_allowance',
   'read_expenses',
   'read_wishlist',
   'read_record_logs',

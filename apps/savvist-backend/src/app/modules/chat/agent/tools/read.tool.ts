@@ -9,6 +9,7 @@ import { UsersService } from '../../../users/users.service';
 import { AccountEntriesService } from '../../../account-entries/account-entries.service';
 import { EntryRecordsService } from '../../../entry-records/entry-records.service';
 import { ObservabilityService } from '../observability/observability.service';
+import { DailyMetricsService } from '../../../daily-metrics/daily-metrics.service';
 import { WishlistQueryArgs, applyQuery, Row } from '../../../wishlist/wishlist-query';
 import { todayIn, isValidTimeZone } from '../graph/turn-context';
 import { computeExpenseDueDateInfo, computeNextDueDate } from './date-utils';
@@ -34,6 +35,7 @@ export class ReadTool implements ToolDataSource {
     private readonly usersService: UsersService,
     private readonly accountEntriesService: AccountEntriesService,
     private readonly entryRecordsService: EntryRecordsService,
+    private readonly dailyMetricsService: DailyMetricsService,
     private readonly jevClient?: JevClient,
     private readonly observability?: ObservabilityService,
   ) {}
@@ -343,6 +345,13 @@ export class ReadTool implements ToolDataSource {
       isUnemployed: user.isUnemployed,
     });
     this.observability?.setToolCall('read-tool', { method: 'getProfile', userId: String(userId), result });
+    return result;
+  }
+
+  async getAllowance(userId: Types.ObjectId, date?: string) {
+    const allowanceResult = await this.dailyMetricsService.getTodaysAllowance(userId, date);
+    const result = plain(allowanceResult);
+    this.observability?.setToolCall('read-tool', { method: 'getAllowance', userId: String(userId), date, result });
     return result;
   }
 }

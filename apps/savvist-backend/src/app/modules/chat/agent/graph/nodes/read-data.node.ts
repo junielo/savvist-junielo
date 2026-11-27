@@ -63,6 +63,19 @@ export const readDataNodeFactory = (deps: ReadDataDeps | ReadTool = {}) => {
           }
           return readTool.getBalances(userId, slots?.accountName ?? undefined, targetDay);
         }
+        case 'read_allowance': {
+          if (!readTool) return { error: 'ReadTool not available' };
+          const userDate = slots?.date;
+          const today = state.context?.today ?? new Date().toISOString().slice(0, 10);
+          let targetDay = today;
+          if (userDate) {
+            const normalized = normalizeDate(userDate, today);
+            if (normalized.ok) {
+              targetDay = normalized.date;
+            }
+          }
+          return readTool.getAllowance(userId, targetDay);
+        }
         case 'read_expenses':
           if (!readTool) return { error: 'ReadTool not available' };
           return readTool.getExpenses(
