@@ -114,7 +114,7 @@ describe('WishlistService', () => {
         expect.objectContaining({
           userId,
           recordType: 'wishlist',
-          action: 'purchased',
+          action: 'paid',
           sourceCollection: 'wishlistItems',
           sourceId: itemId,
         }),

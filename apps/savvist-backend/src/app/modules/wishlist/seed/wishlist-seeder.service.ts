@@ -73,7 +73,7 @@ export class WishlistSeederService implements OnModuleInit {
               name: item.name,
               amount: item.amount,
               recordType: 'wishlist',
-              action: 'purchased',
+              action: 'paid',
               date: purchaseDate,
               sourceCollection: 'wishlistItems',
               sourceId: item._id,

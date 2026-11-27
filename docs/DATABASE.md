@@ -265,7 +265,7 @@ Append-only. The Record Logs page shows Name, Amount, Record Type and Date.
 | `name` | string | yes | Snapshot of the source name, or a description such as "Base salary updated". |
 | `amount` | number | yes | Snapshot of the amount (balance, expense or price) for this event. |
 | `recordType` | string enum | yes | `expense`, `cash`, `savings`, `credit`, `wishlist`. |
-| `action` | string enum | yes | `created`, `updated`, `deleted`, `purchased`, `adjusted`. |
+| `action` | string enum | yes | `created`, `updated`, `deleted`, `paid`, `adjusted`. |
 | `date` | Date | yes | When the event happened. Defaults to now. |
 | `sourceCollection` | string | no | `accountEntries`, `entryRecords`, `expenses`, `wishlistItems`, `users`. |
 | `sourceId` | ObjectId | no | Soft reference to the source document. |

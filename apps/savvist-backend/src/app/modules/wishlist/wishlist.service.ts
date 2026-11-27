@@ -214,7 +214,7 @@ export class WishlistService {
           name: item.name,
           amount: item.amount,
           recordType: 'wishlist',
-          action: 'purchased',
+          action: 'paid',
           date: new Date(),
           sourceCollection: 'wishlistItems',
           sourceId: item._id,
